@@ -53,6 +53,12 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     return changedProducts.join("; ");
   };
 
+  // Handle navigation to picking list
+  const handlePickingListClick = (orderId) => {
+    // Ensure we navigate directly to the picking list with this order selected
+    navigate(`/picking-list/${orderId}`);
+  };
+
   return (
     <div>
       <div className="flex justify-between mb-6">
@@ -126,7 +132,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => navigate(`/picking-list/${order.id}`)}
+                              onClick={() => handlePickingListClick(order.id)}
                             >
                               <ClipboardList className="h-4 w-4 mr-1" />
                               Picking List
