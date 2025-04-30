@@ -35,7 +35,7 @@ const StandingOrderSchedulePage: React.FC = () => {
     );
   }
   
-  // Calculate upcoming schedule dates (next 10 weeks)
+  // Calculate upcoming schedule dates
   const getUpcomingDates = () => {
     const today = startOfDay(new Date());
     const dates = [];

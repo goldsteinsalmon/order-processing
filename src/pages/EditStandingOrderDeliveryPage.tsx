@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -54,7 +55,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         if (modifiedDelivery) {
           // Use the modified items if they exist
           if (modifiedDelivery.modifications.items) {
-            setItems(modifiedDelivery.modifications.items);
+            setItems([...modifiedDelivery.modifications.items]);
           } else {
             // Otherwise use the default items
             setItems([...foundOrder.items]);
@@ -142,7 +143,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     const modifiedDelivery = {
       date: deliveryDate.toISOString(),
       modifications: {
-        items: items,
+        items: [...items], // Make sure we pass a copy of the items array
         notes: notes || undefined
       }
     };
