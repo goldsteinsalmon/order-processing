@@ -89,7 +89,10 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) =>
   
   // Sort completed orders by date (newest first)
   const sortedOrders = [...filteredOrders].sort((a, b) => {
-    return new Date(b.updated || b.orderDate).getTime() - new Date(a.updated || a.orderDate).getTime();
+    // Use completedDate if available, fall back to updated or orderDate
+    const dateA = a.completedDate || a.updated || a.orderDate;
+    const dateB = b.completedDate || b.updated || b.orderDate;
+    return new Date(dateB).getTime() - new Date(dateA).getTime();
   });
 
   // Helper function to generate change description
