@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -153,6 +152,7 @@ const CreateOrderSteps: React.FC = () => {
       // If not on hold, proceed normally
       form.setValue("customerId", customerId);
       setCurrentStep(2);
+      setSelectedCustomer(customer || null);
     }
   };
   
@@ -354,7 +354,8 @@ const CreateOrderSteps: React.FC = () => {
             <h3 className="text-lg font-medium mb-4">1. Customer</h3>
             <CustomerSelectionStep 
               onCustomerSelect={handleCustomerSelect} 
-              customers={customers} 
+              customers={customers}
+              selectedCustomer={selectedCustomer}
             />
           </Card>
 

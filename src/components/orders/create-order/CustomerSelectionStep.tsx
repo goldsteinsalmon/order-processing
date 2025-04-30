@@ -16,11 +16,13 @@ import {
 interface CustomerSelectionStepProps {
   onCustomerSelect: (customerId: string) => void;
   customers: Customer[];
+  selectedCustomer: Customer | null;
 }
 
 const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({ 
   onCustomerSelect, 
-  customers 
+  customers,
+  selectedCustomer
 }) => {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -67,7 +69,22 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
           className="w-full justify-between h-auto py-6 text-lg"
           onClick={() => setShowCustomerSearch(true)}
         >
-          Select a customer to begin...
+          {selectedCustomer ? (
+            <div className="flex items-center justify-start text-left">
+              <span className="font-medium">{selectedCustomer.name}</span>
+              {selectedCustomer.accountNumber && (
+                <span className="ml-2 text-muted-foreground">({selectedCustomer.accountNumber})</span>
+              )}
+              {selectedCustomer.needsDetailedBoxLabels && (
+                <Package className="ml-2 h-4 w-4 text-blue-500" />
+              )}
+              {selectedCustomer.onHold && (
+                <span className="ml-2 text-red-500">(On Hold)</span>
+              )}
+            </div>
+          ) : (
+            "Select a customer to begin..."
+          )}
           <Search className="ml-2 h-5 w-5 shrink-0 opacity-50" />
         </Button>
       </div>
