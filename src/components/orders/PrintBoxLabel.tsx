@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -102,8 +103,15 @@ const PrintBoxLabel: React.FC = () => {
         };
       });
       
+      // Calculate the true total weight across all boxes
+      const calculatedTotalWeight = distributions.reduce((sum, box) => sum + box.totalBoxWeight, 0);
+      
       setBoxDistributions(distributions);
-      setTotalWeight(distributions.reduce((sum, box) => sum + box.totalBoxWeight, 0));
+      setTotalWeight(calculatedTotalWeight);
+      
+      console.log("Box distributions with weights:", distributions);
+      console.log("Total weight calculated:", calculatedTotalWeight);
+      
       return;
     }
 
@@ -231,9 +239,17 @@ const PrintBoxLabel: React.FC = () => {
             item.quantity - (boxSettings.itemsPerBox * (boxNum - 1)) : 
             boxSettings.itemsPerBox;
           
-          // Calculate weight for this item in this box
-          const itemWeight = item.product.weight ? 
-            (item.product.weight * itemsInThisBox) : 0;
+          // Get manually entered weight if available
+          let itemWeight = 0;
+          
+          if (item.product.requiresWeightInput && item.pickedWeight) {
+            // For items with manually entered weights, apply the weight proportionally
+            const weightPerItem = item.pickedWeight / item.quantity;
+            itemWeight = weightPerItem * itemsInThisBox;
+          } else if (item.product.weight) {
+            // For items with standard weights, multiply by quantity
+            itemWeight = item.product.weight * itemsInThisBox;
+          }
           
           if (itemsInThisBox > 0) {
             boxItems.push({
@@ -262,6 +278,9 @@ const PrintBoxLabel: React.FC = () => {
 
     setBoxDistributions(newBoxDistributions);
     setTotalWeight(newTotalWeight);
+    
+    console.log("Generated box distributions:", newBoxDistributions);
+    console.log("Total calculated weight:", newTotalWeight);
   };
 
   // Function to filter box distributions by selected box
@@ -273,6 +292,28 @@ const PrintBoxLabel: React.FC = () => {
   const hasManuallyEnteredWeights = order.items.some(
     item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0
   );
+  
+  // Calculate the total order weight from all picked weights
+  const getTotalOrderWeight = () => {
+    if (hasManuallyEnteredWeights) {
+      // Sum all picked weights
+      return order.items.reduce((total, item) => {
+        if (item.product.requiresWeightInput && item.pickedWeight) {
+          return total + item.pickedWeight;
+        }
+        return total + (item.product.weight ? item.product.weight * item.quantity : 0);
+      }, 0);
+    }
+    
+    // If using box distributions, use that total
+    if (boxDistributions.length > 0) {
+      return totalWeight;
+    }
+    
+    // Fallback to standard product weights
+    return order.items.reduce((total, item) => 
+      total + (item.product.weight ? item.product.weight * item.quantity : 0), 0);
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -487,7 +528,7 @@ const PrintBoxLabel: React.FC = () => {
             
             {totalWeight > 0 && (
               <div className="mt-4 text-right">
-                <span className="font-bold">Total Order Weight: {(totalWeight/1000).toFixed(2)} kg</span>
+                <span className="font-bold">Total Order Weight: {(getTotalOrderWeight()/1000).toFixed(2)} kg</span>
               </div>
             )}
           </div>
@@ -608,8 +649,7 @@ const PrintBoxLabel: React.FC = () => {
                     <div className="flex justify-between items-center text-right mt-2">
                       <span className="font-bold">Total Weight:</span>
                       <span className="font-bold text-lg">
-                        {(order.items.reduce((total, item) => 
-                          total + (item.pickedWeight || 0), 0) / 1000).toFixed(2)} kg
+                        {(getTotalOrderWeight() / 1000).toFixed(2)} kg
                       </span>
                     </div>
                   )}
