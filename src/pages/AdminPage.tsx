@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { parse } from 'papaparse';
 
 const AdminPage: React.FC = () => {
-  const { users, pickers, updateUser, addUser, updatePicker, addPicker, deleteUser, deletePicker, addCustomer, addProduct } = useData();
+  const { users, pickers, customers, products, updateUser, addUser, updatePicker, addPicker, deleteUser, deletePicker, addCustomer, addProduct } = useData();
   const { toast } = useToast();
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [restorePassword, setRestorePassword] = useState("");
@@ -343,7 +342,7 @@ const AdminPage: React.FC = () => {
     }
   };
   
-  // Fixed file input handlers to correctly parse and add imported data
+  // Updated file input handlers to check for duplicates
   const handleCustomerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -367,28 +366,60 @@ const AdminPage: React.FC = () => {
         skipEmptyLines: true,
         complete: (results) => {
           if (results.data && Array.isArray(results.data)) {
-            // Process the imported customers
-            const importedCustomers = results.data.map(row => ({
-              id: uuidv4(),
-              accountNumber: (row as any).accountNumber || `ACC-${Math.floor(Math.random() * 10000)}`,
-              name: (row as any).name || "Unknown Customer",
-              email: (row as any).email || "",
-              phone: (row as any).phone || "",
-              address: (row as any).address || "",
-              type: (row as any).type || "Trade", // Default to Trade
-              onHold: false,
-              created: new Date().toISOString(),
-            }));
-            
-            // Add each customer to the data context
-            importedCustomers.forEach(customer => {
-              addCustomer(customer);
-            });
-            
-            toast({
-              title: "Customers imported",
-              description: `Successfully imported ${importedCustomers.length} customers.`
-            });
+            try {
+              // Track stats for toast message
+              let importedCount = 0;
+              let skippedCount = 0;
+              
+              // Process the imported customers
+              results.data.forEach(row => {
+                const accountNumber = (row as any).accountNumber || `ACC-${Math.floor(Math.random() * 10000)}`;
+                
+                // Check if customer with this account number already exists
+                const existingCustomer = customers.find(c => 
+                  c.accountNumber && c.accountNumber.toLowerCase() === accountNumber.toLowerCase()
+                );
+                
+                if (existingCustomer) {
+                  // Skip if marked to skip duplicates, otherwise could update the customer here
+                  skippedCount++;
+                } else {
+                  // Add new customer
+                  addCustomer({
+                    id: uuidv4(),
+                    accountNumber: accountNumber,
+                    name: (row as any).name || "Unknown Customer",
+                    email: (row as any).email || "",
+                    phone: (row as any).phone || "",
+                    address: (row as any).address || "",
+                    type: (row as any).type || "Trade", // Default to Trade
+                    onHold: false,
+                    created: new Date().toISOString(),
+                  });
+                  importedCount++;
+                }
+              });
+              
+              // Show results toast
+              if (skippedCount > 0) {
+                toast({
+                  title: "Customers imported",
+                  description: `Imported ${importedCount} customers. Skipped ${skippedCount} existing customers.`
+                });
+              } else {
+                toast({
+                  title: "Customers imported",
+                  description: `Successfully imported ${importedCount} customers.`
+                });
+              }
+            } catch (error) {
+              console.error("Error processing customers:", error);
+              toast({
+                title: "Import error",
+                description: `Error processing customers: ${(error as Error).message}`,
+                variant: "destructive"
+              });
+            }
           }
         },
         error: (error) => {
@@ -433,28 +464,49 @@ const AdminPage: React.FC = () => {
         complete: (results) => {
           if (results.data && Array.isArray(results.data) && results.data.length > 0) {
             try {
-              // Process the imported products - ensure we're mapping through all rows
-              const importedProducts = results.data.map(row => ({
-                id: uuidv4(),
-                name: (row as any).name || "Unknown Product",
-                sku: (row as any).sku || `SKU-${Math.floor(Math.random() * 10000)}`,
-                stockLevel: parseInt((row as any).stockLevel, 10) || 0,
-                weight: parseInt((row as any).weight, 10) || 0,
-                description: (row as any).description || "",
-                created: new Date().toISOString(),
-              }));
+              // Track stats for toast message
+              let importedCount = 0;
+              let skippedCount = 0;
               
-              console.log(`Importing ${importedProducts.length} products:`, importedProducts);
-              
-              // Add each product individually to ensure they're all processed
-              importedProducts.forEach(product => {
-                addProduct(product);
+              // Process each row individually rather than mapping
+              results.data.forEach(row => {
+                const sku = (row as any).sku || `SKU-${Math.floor(Math.random() * 10000)}`;
+                
+                // Check if product with this SKU already exists
+                const existingProduct = products.find(p => 
+                  p.sku && p.sku.toLowerCase() === sku.toLowerCase()
+                );
+                
+                if (existingProduct) {
+                  // Skip duplicate SKUs
+                  skippedCount++;
+                } else {
+                  // Add new product
+                  addProduct({
+                    id: uuidv4(),
+                    name: (row as any).name || "Unknown Product",
+                    sku: sku,
+                    stockLevel: parseInt((row as any).stockLevel, 10) || 0,
+                    weight: parseInt((row as any).weight, 10) || 0,
+                    description: (row as any).description || "",
+                    created: new Date().toISOString(),
+                  });
+                  importedCount++;
+                }
               });
               
-              toast({
-                title: "Products imported",
-                description: `Successfully imported ${importedProducts.length} products.`
-              });
+              // Show results toast
+              if (skippedCount > 0) {
+                toast({
+                  title: "Products imported",
+                  description: `Imported ${importedCount} products. Skipped ${skippedCount} products with existing SKUs.`
+                });
+              } else {
+                toast({
+                  title: "Products imported",
+                  description: `Successfully imported ${importedCount} products.`
+                });
+              }
             } catch (error) {
               console.error("Error processing products:", error);
               toast({
