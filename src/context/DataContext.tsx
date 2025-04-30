@@ -476,7 +476,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
   };
 
-  // Updated recordBatchUsage function to better track batch-order-product combinations
+  // Updated recordBatchUsage function to correctly calculate weights
   const recordBatchUsage = (
     batchNumber: string, 
     productId: string, 
@@ -513,7 +513,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Create a unique key for this batch-order-product combination
     const batchOrderProductKey = `${batchNumber}-${orderId}-${productId}`;
     
-    // Initialize tracking for this batch if needed
+    // Check if we've already processed this specific batch-order-product combination
     if (!processedBatchOrderProductMap[batchNumber]) {
       setProcessedBatchOrderProductMap(prev => ({
         ...prev, 
@@ -555,7 +555,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Check if this is the first time this order is using this batch
       const orderAlreadyUsedBatch = Array.from(processedItems)
-        .some(key => key.includes(`-${orderId}-`));
+        .some(key => key.startsWith(`${batchNumber}-${orderId}-`) && key !== batchOrderProductKey);
       
       // Only increase order count if this is the first time this order is using this batch
       if (!orderAlreadyUsedBatch) {

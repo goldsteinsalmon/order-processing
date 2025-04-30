@@ -16,18 +16,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Search, ChevronDown, ChevronUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { BatchUsage } from "@/types";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages, completedOrders, products } = useData();
+  const { batchUsages, completedOrders } = useData();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("batch") || "");
   const [validBatchUsages, setValidBatchUsages] = useState<BatchUsage[]>([]);
   const [sortConfig, setSortConfig] = useState<{
-    key: keyof BatchUsage | 'productId' | null;
+    key: keyof BatchUsage | null;
     direction: 'ascending' | 'descending';
   }>({
     key: 'firstUsed',
@@ -112,10 +110,10 @@ const BatchTrackingPage: React.FC = () => {
     // Convert map back to array
     const consolidatedBatchUsages = Array.from(batchUsageMap.values());
     setValidBatchUsages(consolidatedBatchUsages);
-  }, [batchUsages, completedOrders, searchParams]);
+  }, [batchUsages, completedOrders, searchParams, searchTerm]);
   
   // Handle sorting
-  const requestSort = (key: keyof BatchUsage | 'productId') => {
+  const requestSort = (key: keyof BatchUsage) => {
     let direction: 'ascending' | 'descending' = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
       direction = 'descending';
@@ -141,8 +139,8 @@ const BatchTrackingPage: React.FC = () => {
       return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
     }
     
-    const aValue = String(a[sortConfig.key as keyof BatchUsage]);
-    const bValue = String(b[sortConfig.key as keyof BatchUsage]);
+    const aValue = String(a[sortConfig.key]);
+    const bValue = String(b[sortConfig.key]);
     return sortConfig.direction === 'ascending'
       ? aValue.localeCompare(bValue)
       : bValue.localeCompare(aValue);
@@ -159,7 +157,7 @@ const BatchTrackingPage: React.FC = () => {
   };
   
   // Render sort indicator
-  const renderSortIndicator = (key: keyof BatchUsage | 'productId') => {
+  const renderSortIndicator = (key: keyof BatchUsage) => {
     if (sortConfig.key !== key) {
       return null;
     }
@@ -241,7 +239,9 @@ const BatchTrackingPage: React.FC = () => {
                     filteredBatchUsages.map((batch) => (
                       <TableRow key={batch.id}>
                         <TableCell className="font-medium">{batch.batchNumber}</TableCell>
-                        <TableCell className="text-right">{(batch.usedWeight / 1000).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">
+                          {(batch.usedWeight / 1000).toFixed(2)}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button 
                             variant="link" 
