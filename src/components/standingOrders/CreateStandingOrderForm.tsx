@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -29,7 +28,6 @@ const CreateStandingOrderForm: React.FC = () => {
   const [customerId, setCustomerId] = useState("");
   const [customerOrderNumber, setCustomerOrderNumber] = useState("");
   const [frequency, setFrequency] = useState<"Weekly" | "Bi-Weekly" | "Monthly">("Weekly");
-  const [dayOfWeek, setDayOfWeek] = useState<number>(1); // Monday
   const [dayOfMonth, setDayOfMonth] = useState<number>(1);
   const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
   const [notes, setNotes] = useState("");
@@ -40,41 +38,15 @@ const CreateStandingOrderForm: React.FC = () => {
   const [selectedProductQuantity, setSelectedProductQuantity] = useState<number | null>(null);
   
   // First delivery date
-  const [firstDeliveryDate, setFirstDeliveryDate] = useState<Date>(getDefaultFirstDeliveryDate());
-
-  // Get default first delivery date based on frequency settings
-  function getDefaultFirstDeliveryDate() {
-    const today = new Date();
-    const nextDeliveryDate = new Date();
-    
-    if (frequency === "Weekly" || frequency === "Bi-Weekly") {
-      // Set to the next occurrence of the selected day of week
-      const currentDayOfWeek = today.getDay();
-      let daysToAdd = dayOfWeek - currentDayOfWeek;
-      
-      if (daysToAdd <= 0) {
-        // If the day has already occurred this week, go to next week
-        daysToAdd += 7;
-      }
-      
-      nextDeliveryDate.setDate(today.getDate() + daysToAdd);
-    } else if (frequency === "Monthly") {
-      // Set to the selected day of the current month
-      nextDeliveryDate.setDate(dayOfMonth);
-      
-      // If the day has already occurred this month, go to next month
-      if (nextDeliveryDate < today) {
-        nextDeliveryDate.setMonth(nextDeliveryDate.getMonth() + 1);
-      }
-    }
-    
-    return nextDeliveryDate;
-  }
+  const [firstDeliveryDate, setFirstDeliveryDate] = useState<Date>(new Date());
 
   // Update default delivery date when frequency settings change
   React.useEffect(() => {
-    setFirstDeliveryDate(getDefaultFirstDeliveryDate());
-  }, [frequency, dayOfWeek, dayOfMonth]);
+    // Ensure the selected date is in the future
+    if (firstDeliveryDate < new Date()) {
+      setFirstDeliveryDate(new Date());
+    }
+  }, [frequency]);
 
   const addProductToOrder = () => {
     if (!selectedProductId) {
@@ -158,6 +130,9 @@ const CreateStandingOrderForm: React.FC = () => {
 
     // Use the selected first delivery date
     const firstDeliveryDateString = firstDeliveryDate.toISOString();
+    
+    // Calculate day of week from the selected delivery date (0-6, Sunday to Saturday)
+    const dayOfWeek = firstDeliveryDate.getDay();
 
     // Create the standing order object
     const standingOrder = {
@@ -168,7 +143,7 @@ const CreateStandingOrderForm: React.FC = () => {
       schedule: {
         frequency,
         ...(frequency === "Weekly" || frequency === "Bi-Weekly" ? { dayOfWeek } : {}),
-        ...(frequency === "Monthly" ? { dayOfMonth } : {}),
+        ...(frequency === "Monthly" ? { dayOfMonth: firstDeliveryDate.getDate() } : {}),
         deliveryMethod,
         nextDeliveryDate: firstDeliveryDateString,
       },
@@ -214,12 +189,6 @@ const CreateStandingOrderForm: React.FC = () => {
     }
 
     navigate("/standing-orders");
-  };
-
-  // Get day of week name
-  const getDayOfWeekName = (day: number) => {
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    return days[day];
   };
 
   return (
@@ -278,27 +247,6 @@ const CreateStandingOrderForm: React.FC = () => {
                 </div>
               </RadioGroup>
             </div>
-            
-            {(frequency === "Weekly" || frequency === "Bi-Weekly") && (
-              <div>
-                <Label>Day of Week *</Label>
-                <Select 
-                  value={dayOfWeek.toString()} 
-                  onValueChange={(value) => setDayOfWeek(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select day of week" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[0, 1, 2, 3, 4, 5, 6].map(day => (
-                      <SelectItem key={day} value={day.toString()}>
-                        {getDayOfWeekName(day)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             
             {frequency === "Monthly" && (
               <div>
@@ -368,6 +316,9 @@ const CreateStandingOrderForm: React.FC = () => {
                   />
                 </PopoverContent>
               </Popover>
+              <p className="text-sm text-muted-foreground mt-1">
+                This date will determine the day of week for weekly/bi-weekly orders or the day of month for monthly orders.
+              </p>
             </div>
           </div>
         </CardContent>
