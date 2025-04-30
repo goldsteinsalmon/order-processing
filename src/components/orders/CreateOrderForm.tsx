@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -97,16 +98,28 @@ const CreateOrderForm: React.FC = () => {
       )
     : sortedProducts;
   
-  // Fixed customer search to properly search by name and ensure it works with lowercase comparison
-  const filteredCustomers = customerSearch.trim() === ""
-    ? customers
-    : customers.filter(customer => {
-        const searchTerm = customerSearch.toLowerCase();
-        const nameMatch = customer.name.toLowerCase().includes(searchTerm);
-        const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(searchTerm) : false;
-        
-        return nameMatch || accountMatch;
-      });
+  // Filter and sort customers similar to CustomersPage implementation
+  const filteredCustomers = useMemo(() => {
+    let filtered = customers;
+    
+    // Filter by search term if one exists
+    if (customerSearch.trim()) {
+      const lowerSearch = customerSearch.toLowerCase();
+      filtered = customers.filter(customer => 
+        customer.name.toLowerCase().includes(lowerSearch) ||
+        (customer.email && customer.email.toLowerCase().includes(lowerSearch)) ||
+        (customer.phone && customer.phone.includes(customerSearch)) ||
+        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(lowerSearch))
+      );
+    }
+    
+    // Sort by account number alphabetically
+    return [...filtered].sort((a, b) => {
+      const accountA = a.accountNumber || '';
+      const accountB = b.accountNumber || '';
+      return accountA.localeCompare(accountB);
+    });
+  }, [customers, customerSearch]);
   
   console.log("Customer search term:", customerSearch);
   console.log("Total customers:", customers.length);
@@ -317,12 +330,16 @@ const CreateOrderForm: React.FC = () => {
                     </Button>
                   </div>
                   <CommandDialog open={showCustomerSearch} onOpenChange={setShowCustomerSearch}>
-                    <CommandInput 
-                      placeholder="Search customers..."
-                      value={customerSearch}
-                      onValueChange={setCustomerSearch}
-                      autoFocus={true}
-                    />
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <CommandInput 
+                        placeholder="Search customers..."
+                        value={customerSearch}
+                        onValueChange={setCustomerSearch}
+                        autoFocus={true}
+                        className="pl-8"
+                      />
+                    </div>
                     <CommandList>
                       <CommandEmpty>No customers found.</CommandEmpty>
                       <CommandGroup heading="Customers">
