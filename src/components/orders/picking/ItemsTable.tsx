@@ -91,6 +91,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         onCheckedChange={(checked) => 
                           onCheckItem(item.id, checked === true)
                         }
+                        disabled={itemChanged} // Disable checkbox for items that have changed
                       />
                     </TableCell>
                     <TableCell>

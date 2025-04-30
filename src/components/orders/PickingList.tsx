@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -78,12 +77,16 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
           }
         }
         
+        // Determine if the item has quantity changes
+        const hasQuantityChanged = originalQty !== undefined && originalQty !== item.quantity;
+        
         return {
           ...item,
-          checked: item.checked || false, // Initialize checked status
-          batchNumber: item.batchNumber || "", // Initialize batch number
-          pickedWeight: item.pickedWeight || 0, // Initialize picked weight
-          originalQuantity: originalQty, // Use the found original quantity or pass through existing one
+          // If quantity has changed, ensure item is not checked
+          checked: hasQuantityChanged ? false : (item.checked || false),
+          batchNumber: item.batchNumber || "",
+          pickedWeight: item.pickedWeight || 0,
+          originalQuantity: originalQty,
         };
       });
       
