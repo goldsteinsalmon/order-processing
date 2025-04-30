@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -365,6 +366,9 @@ const AdminPage: React.FC = () => {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
+          console.log("Parsed customer data:", results.data);
+          console.log("Number of customers in CSV:", results.data.length);
+          
           if (results.data && Array.isArray(results.data)) {
             try {
               // Track stats for toast message
@@ -462,14 +466,20 @@ const AdminPage: React.FC = () => {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
+          console.log("Parsed product data:", results.data);
+          console.log("Number of products in CSV:", results.data.length);
+          
           if (results.data && Array.isArray(results.data) && results.data.length > 0) {
             try {
               // Track stats for toast message
               let importedCount = 0;
               let skippedCount = 0;
               
-              // Process each row individually rather than mapping
-              results.data.forEach(row => {
+              // Create a collection of products to import
+              const productsToImport = [];
+              
+              // Process each row individually to collect products to import
+              for (const row of results.data) {
                 const sku = (row as any).sku || `SKU-${Math.floor(Math.random() * 10000)}`;
                 
                 // Check if product with this SKU already exists
@@ -481,8 +491,8 @@ const AdminPage: React.FC = () => {
                   // Skip duplicate SKUs
                   skippedCount++;
                 } else {
-                  // Add new product
-                  addProduct({
+                  // Add new product to our collection
+                  productsToImport.push({
                     id: uuidv4(),
                     name: (row as any).name || "Unknown Product",
                     sku: sku,
@@ -493,6 +503,12 @@ const AdminPage: React.FC = () => {
                   });
                   importedCount++;
                 }
+              }
+              
+              // Now add all products at once
+              console.log(`Adding ${productsToImport.length} products to the system...`);
+              productsToImport.forEach(product => {
+                addProduct(product);
               });
               
               // Show results toast
