@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils"; // Import the cn utility function
 import {
   Form,
   FormControl,
@@ -43,7 +45,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { OrderItem } from "@/types";
+import { OrderItem, Customer } from "@/types";
 
 const orderSchema = z.object({
   customerId: z.string({ required_error: "Customer is required" }),
@@ -61,6 +63,10 @@ const CreateOrderForm: React.FC = () => {
   const navigate = useNavigate();
   const { customers, products, addOrder } = useData();
   const { toast } = useToast();
+  
+  // Add the missing state variables
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showOnHoldWarning, setShowOnHoldWarning] = useState(false);
   
   const [orderItems, setOrderItems] = useState<{ 
     productId: string; 
@@ -421,6 +427,7 @@ const CreateOrderForm: React.FC = () => {
                 <div className="col-span-1"></div>
               </div>
 
+              {/* Product Items */}
               {orderItems.map((item, index) => {
                 const product = products.find(p => p.id === item.productId);
                 return (
