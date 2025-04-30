@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -19,7 +18,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { standingOrders, updateStandingOrder, products } = useData();
+  const { standingOrders, updateStandingOrder, products, addOrder } = useData();
   const { toast } = useToast();
   
   // Extract the date from the query parameter
@@ -34,15 +33,20 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const [productQuantity, setProductQuantity] = useState<number>(1);
+  const [processImmediately, setProcessImmediately] = useState<boolean>(false);
   
   // Available products (excluding those already in the order)
   const availableProducts = products.filter(
-    product => !items.some(item => item.product.id === product.id)
+    product => !items.some(item => item.productId === product.id)
   );
+  
+  console.log("Initial render with date:", deliveryDate?.toISOString());
   
   // Find the standing order
   useEffect(() => {
     const foundOrder = standingOrders.find(order => order.id === id);
+    console.log("Found standing order:", foundOrder?.id);
+    
     if (foundOrder) {
       setOrder(foundOrder);
       
@@ -52,25 +56,36 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
           new Date(delivery.date).toDateString() === deliveryDate.toDateString()
         );
         
+        console.log("Found modified delivery:", modifiedDelivery);
+        
         if (modifiedDelivery) {
           // Use the modified items if they exist
           if (modifiedDelivery.modifications.items) {
-            setItems([...modifiedDelivery.modifications.items]);
+            console.log("Setting modified items:", modifiedDelivery.modifications.items);
+            // Make deep copy to avoid reference issues
+            const itemsCopy = JSON.parse(JSON.stringify(modifiedDelivery.modifications.items));
+            setItems(itemsCopy);
           } else {
             // Otherwise use the default items
-            setItems([...foundOrder.items]);
+            console.log("Setting default items (from modified)");
+            const itemsCopy = JSON.parse(JSON.stringify(foundOrder.items));
+            setItems(itemsCopy);
           }
           
           // Set the notes if they exist
           setNotes(modifiedDelivery.modifications.notes || "");
         } else {
           // Use the default items and notes
-          setItems([...foundOrder.items]);
+          console.log("Setting default items (no modification found)");
+          const itemsCopy = JSON.parse(JSON.stringify(foundOrder.items));
+          setItems(itemsCopy);
           setNotes(foundOrder.notes || "");
         }
       } else {
         // Use the default items and notes
-        setItems([...foundOrder.items]);
+        console.log("Setting default items (no delivery date)");
+        const itemsCopy = JSON.parse(JSON.stringify(foundOrder.items));
+        setItems(itemsCopy);
         setNotes(foundOrder.notes || "");
       }
     }
@@ -78,11 +93,13 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   
   // Handle quantity change
   const handleQuantityChange = (index: number, value: string) => {
+    console.log(`Changing quantity for index ${index} to ${value}`);
     const newItems = [...items];
     newItems[index] = {
       ...newItems[index],
       quantity: parseInt(value) || 0
     };
+    console.log("New items after quantity change:", newItems);
     setItems(newItems);
     setHasChanges(true);
   };
@@ -100,13 +117,16 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     const product = products.find(p => p.id === selectedProduct);
     if (!product) return;
     
+    console.log(`Adding product ${product.name} with quantity ${productQuantity}`);
+    
     const newItem: OrderItem = {
       id: uuidv4(),
       productId: product.id,
-      product,
+      product: product,
       quantity: productQuantity
     };
     
+    console.log("New item to add:", newItem);
     setItems([...items, newItem]);
     setSelectedProduct("");
     setProductQuantity(1);
@@ -116,9 +136,17 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   
   // Handle remove product
   const handleRemoveProduct = (index: number) => {
+    console.log(`Removing product at index ${index}`);
     const newItems = [...items];
     newItems.splice(index, 1);
+    console.log("Items after removal:", newItems);
     setItems(newItems);
+    setHasChanges(true);
+  };
+  
+  // Handle process immediately change
+  const handleProcessImmediatelyChange = (value: boolean) => {
+    setProcessImmediately(value);
     setHasChanges(true);
   };
   
@@ -126,43 +154,99 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const handleSave = () => {
     if (!order || !deliveryDate) return;
     
-    // Create a copy of the order
-    const updatedOrder: StandingOrder = { ...order };
+    console.log("Saving changes with items:", items);
+    console.log("Process immediately:", processImmediately);
     
-    // Initialize modifiedDeliveries if it doesn't exist
-    if (!updatedOrder.schedule.modifiedDeliveries) {
-      updatedOrder.schedule.modifiedDeliveries = [];
-    }
-    
-    // Find the index of the existing modified delivery if it exists
-    const existingIndex = updatedOrder.schedule.modifiedDeliveries.findIndex(
-      delivery => new Date(delivery.date).toDateString() === deliveryDate.toDateString()
-    );
-    
-    // Create the modified delivery object
-    const modifiedDelivery = {
-      date: deliveryDate.toISOString(),
-      modifications: {
+    if (processImmediately) {
+      // Create a new order with this delivery's changes
+      const newOrder = {
+        id: uuidv4(),
+        customerId: order.customer.id,
+        customer: order.customer,
+        customerOrderNumber: order.customerOrderNumber,
+        orderDate: deliveryDate.toISOString(),
+        requiredDate: deliveryDate.toISOString(),
+        deliveryMethod: order.schedule.deliveryMethod,
         items: [...items], // Make sure we pass a copy of the items array
-        notes: notes || undefined
+        notes: notes ? `${notes} (Modified from Standing Order #${order.id.substring(0, 8)})` : 
+          `Modified from Standing Order #${order.id.substring(0, 8)}`,
+        status: "Pending" as const,
+        created: new Date().toISOString(),
+        fromStandingOrder: order.id
+      };
+      
+      // Add the new order
+      addOrder(newOrder);
+      
+      // Mark this delivery as processed in the standing order
+      const updatedOrder: StandingOrder = { ...order };
+      
+      // Initialize skippedDates if it doesn't exist
+      if (!updatedOrder.schedule.skippedDates) {
+        updatedOrder.schedule.skippedDates = [];
       }
-    };
-    
-    // Update or add the modified delivery
-    if (existingIndex >= 0) {
-      updatedOrder.schedule.modifiedDeliveries[existingIndex] = modifiedDelivery;
+      
+      // Add this date to skipped dates
+      updatedOrder.schedule.skippedDates.push(deliveryDate.toISOString());
+      
+      // Update the standing order
+      updateStandingOrder(updatedOrder);
+      
+      // Show success toast
+      toast({
+        title: "Order Created",
+        description: `A modified order for ${format(deliveryDate, "EEEE, MMMM d, yyyy")} has been created and this date will be skipped in the standing order.`
+      });
     } else {
-      updatedOrder.schedule.modifiedDeliveries.push(modifiedDelivery);
+      // Create a copy of the order
+      const updatedOrder: StandingOrder = { ...order };
+      
+      // Initialize modifiedDeliveries if it doesn't exist
+      if (!updatedOrder.schedule.modifiedDeliveries) {
+        updatedOrder.schedule.modifiedDeliveries = [];
+      }
+      
+      // Find the index of the existing modified delivery if it exists
+      const existingIndex = updatedOrder.schedule.modifiedDeliveries.findIndex(
+        delivery => new Date(delivery.date).toDateString() === deliveryDate.toDateString()
+      );
+      
+      console.log("Existing modified delivery index:", existingIndex);
+      
+      // Create the modified delivery object
+      const modifiedDelivery = {
+        date: deliveryDate.toISOString(),
+        modifications: {
+          items: items.map(item => ({
+            id: item.id,
+            productId: item.productId,
+            product: item.product,
+            quantity: item.quantity
+          })),
+          notes: notes || undefined
+        }
+      };
+      
+      console.log("Modified delivery to save:", modifiedDelivery);
+      
+      // Update or add the modified delivery
+      if (existingIndex >= 0) {
+        updatedOrder.schedule.modifiedDeliveries[existingIndex] = modifiedDelivery;
+      } else {
+        updatedOrder.schedule.modifiedDeliveries.push(modifiedDelivery);
+      }
+      
+      console.log("Updated standing order:", updatedOrder);
+      
+      // Update the standing order
+      updateStandingOrder(updatedOrder);
+      
+      // Show success toast
+      toast({
+        title: "Changes Saved",
+        description: `Delivery for ${format(deliveryDate, "EEEE, MMMM d, yyyy")} has been updated.`
+      });
     }
-    
-    // Update the standing order
-    updateStandingOrder(updatedOrder);
-    
-    // Show success toast
-    toast({
-      title: "Changes Saved",
-      description: `Delivery for ${format(deliveryDate, "EEEE, MMMM d, yyyy")} has been updated.`
-    });
     
     // Navigate back to the schedule page
     navigate(`/standing-order-schedule/${order.id}`);
@@ -355,13 +439,26 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Notes</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Textarea
             value={notes}
             onChange={(e) => handleNotesChange(e.target.value)}
             placeholder="Add any special instructions or notes for this delivery"
             rows={3}
           />
+          
+          <div className="flex items-center space-x-2 pt-2">
+            <input
+              type="checkbox"
+              id="processImmediately"
+              checked={processImmediately}
+              onChange={(e) => handleProcessImmediatelyChange(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <label htmlFor="processImmediately" className="text-sm font-medium">
+              Process as a separate order immediately (this will skip this date in the standing order schedule)
+            </label>
+          </div>
         </CardContent>
         <CardFooter className="flex justify-between">
           <div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,10 +9,11 @@ import { useData } from "@/context/DataContext";
 import { getNextWorkingDay, isBusinessDay, isSameDayOrder } from "@/utils/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from "react-router-dom";
 import {
   Form,
   FormControl,
@@ -47,6 +49,7 @@ const orderSchema = z.object({
 type OrderFormValues = z.infer<typeof orderSchema>;
 
 const CreateOrderForm: React.FC = () => {
+  const navigate = useNavigate();
   const { customers, products, addOrder } = useData();
   const { toast } = useToast();
   
@@ -84,6 +87,10 @@ const CreateOrderForm: React.FC = () => {
     
     // Format both dates to compare just the date part (ignoring time)
     const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDay, "yyyy-MM-dd");
+    
+    console.log("Current hour:", currentHour);
+    console.log("Is next day:", isNextDay);
+    console.log("Manual date change:", manualDateChange);
     
     setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
   }, [orderDate, manualDateChange]);
@@ -164,6 +171,13 @@ const CreateOrderForm: React.FC = () => {
     });
     setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
     setManualDateChange(false);
+    
+    // Navigate back to orders page
+    navigate("/orders");
+  };
+
+  const handleCancel = () => {
+    navigate("/orders");
   };
 
   return (
@@ -351,7 +365,7 @@ const CreateOrderForm: React.FC = () => {
           />
 
           <div className="flex justify-end space-x-4">
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
             <Button type="submit">Create Order</Button>
@@ -364,10 +378,10 @@ const CreateOrderForm: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Same Day Order Warning</DialogTitle>
+            <DialogDescription>
+              You are picking today's date. Are you sure you want to place a same-day order?
+            </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p>You are picking today's date. Are you sure you want to place a same-day order?</p>
-          </div>
           <div className="flex justify-end">
             <Button onClick={() => setShowSameDayWarning(false)}>Yes, I'm Sure</Button>
           </div>
@@ -379,10 +393,10 @@ const CreateOrderForm: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Order Cut-off Time Warning</DialogTitle>
+            <DialogDescription>
+              It's past the 12 PM cut-off time. Are you sure you want to place an order for the next working day?
+            </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <p>It's past the 12 PM cut-off time. Are you sure you want to place an order for the next working day?</p>
-          </div>
           <div className="flex justify-end">
             <Button onClick={() => setShowCutOffWarning(false)}>Yes, I'm Sure</Button>
           </div>
