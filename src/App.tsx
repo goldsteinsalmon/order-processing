@@ -21,6 +21,7 @@ import EditStandingOrderPage from "./pages/EditStandingOrderPage";
 import EditStandingOrderDeliveryPage from "./pages/EditStandingOrderDeliveryPage";
 import PrintBoxLabelPage from "./pages/PrintBoxLabelPage";
 import CustomersPage from "./pages/CustomersPage";
+import AdminPage from "./pages/AdminPage"; // Add import for AdminPage
 
 const App: React.FC = () => {
   return (
@@ -53,6 +54,8 @@ const App: React.FC = () => {
         <Route path="/missing-items" element={<MissingItemsPage />} />
         
         <Route path="/print-box-label/:id" element={<PrintBoxLabelPage />} />
+        
+        <Route path="/admin" element={<AdminPage />} /> {/* Add AdminPage route */}
       </Routes>
     </DataProvider>
   );
