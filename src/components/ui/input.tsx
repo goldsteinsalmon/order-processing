@@ -7,7 +7,8 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
     // Add event handlers to prevent wheel events from changing number input values
     const handleWheel = React.useCallback((e: React.WheelEvent<HTMLInputElement>) => {
-      // Prevent mouse wheel from changing the value when input has focus
+      // Prevent mouse wheel from changing the value when input is of type number
+      // This works regardless of focus state
       if (type === "number") {
         // The key is to prevent default AND stop propagation
         e.preventDefault();
@@ -18,8 +19,6 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       }
     }, [type]);
     
-    // Use the onWheel prop directly without conditional check
-    // This ensures the wheel event is always handled for number inputs
     return (
       <input
         type={type}
@@ -29,8 +28,9 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
-        // Always apply the wheel handler to number inputs, no conditional needed
-        onWheel={handleWheel}
+        // Apply the wheel handler to all number inputs - this is the key fix
+        // We need this regardless of focus state
+        onWheel={type === "number" ? handleWheel : undefined}
         {...props}
       />
     )
