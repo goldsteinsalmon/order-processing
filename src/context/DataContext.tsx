@@ -95,7 +95,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [processedBatchOrderMap] = useState<Record<string, Set<string>>>({});
 
   const addCustomer = (customer: Customer) => {
-    setCustomers([...customers, customer]);
+    setCustomers(prevCustomers => [...prevCustomers, customer]);
   };
 
   const updateCustomer = (updatedCustomer: Customer) => {

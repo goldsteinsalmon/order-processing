@@ -374,7 +374,7 @@ const AdminPage: React.FC = () => {
               email: (row as any).email || "",
               phone: (row as any).phone || "",
               address: (row as any).address || "",
-              type: (row as any).type || "Trade", // Changed default from Private to Trade
+              type: (row as any).type || "Trade", // Default to Trade
               onHold: false,
               created: new Date().toISOString(),
             }));
