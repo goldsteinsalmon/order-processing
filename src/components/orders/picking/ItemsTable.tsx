@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { OrderItem } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -164,11 +163,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     
     // If all validations pass, save the box progress
     onSaveBoxProgress(boxNumber);
-    
-    toast({
-      title: "Box saved",
-      description: `Box ${boxNumber} data has been saved.`
-    });
   };
 
   // Sort box numbers to ensure sequential processing
@@ -389,7 +383,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       variant={isBoxPrinted ? "outline" : "default"}
                       className="flex items-center"
                       onClick={() => handlePrintBoxLabel(boxNumber)}
-                      disabled={isBoxDisabled || !previousBoxPrinted || !boxComplete || !isBoxSaved}
+                      disabled={isBoxDisabled || !previousBoxPrinted || !isBoxSaved} 
                     >
                       <Printer className="mr-1 h-4 w-4" />
                       {isBoxPrinted ? "Print Again" : "Print Label"}

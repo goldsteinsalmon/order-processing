@@ -31,34 +31,36 @@ const PrintBoxLabelPage: React.FC = () => {
       
       // Mark this box as completed
       if (boxNum > 0) {
+        // Create copies to avoid directly mutating state
         const updatedCompletedBoxes = [...(order.completedBoxes || [])];
+        const updatedSavedBoxes = [...(order.savedBoxes || [])];
+        
+        // Mark the box as completed if not already
         if (!updatedCompletedBoxes.includes(boxNum)) {
           updatedCompletedBoxes.push(boxNum);
-          
-          // Also ensure the box is marked as saved
-          const updatedSavedBoxes = [...(order.savedBoxes || [])];
-          if (!updatedSavedBoxes.includes(boxNum)) {
-            updatedSavedBoxes.push(boxNum);
-          }
-          
-          // Update the order with this box marked as completed and saved
-          // Make sure to preserve all existing order data, especially picker details
-          updateOrder({
-            ...order,
-            completedBoxes: updatedCompletedBoxes,
-            savedBoxes: updatedSavedBoxes,
-            pickedBy: order.pickedBy,
-            pickedAt: order.pickedAt,
-            pickingProgress: order.pickingProgress,
-            batchNumbers: order.batchNumbers
-          });
-          
-          // Show success toast
-          toast({
-            title: "Box data saved",
-            description: `Box ${boxNum} has been marked as complete.`
-          });
         }
+        
+        // Ensure the box is also marked as saved
+        if (!updatedSavedBoxes.includes(boxNum)) {
+          updatedSavedBoxes.push(boxNum);
+        }
+        
+        // Update the order with this box marked as completed and saved
+        updateOrder({
+          ...order,
+          completedBoxes: updatedCompletedBoxes,
+          savedBoxes: updatedSavedBoxes,
+          pickedBy: order.pickedBy,
+          pickedAt: order.pickedAt,
+          pickingProgress: order.pickingProgress,
+          batchNumbers: order.batchNumbers
+        });
+        
+        // Show success toast
+        toast({
+          title: "Box data saved",
+          description: `Box ${boxNum} has been marked as complete.`
+        });
       }
     }
   };
@@ -80,7 +82,7 @@ const PrintBoxLabelPage: React.FC = () => {
   }, [order, boxNumber]);
 
   const handlePrintAndSave = () => {
-    // Save box data first
+    // Save box data first to ensure everything is up to date
     saveBoxData();
     
     // Then trigger print
@@ -88,7 +90,7 @@ const PrintBoxLabelPage: React.FC = () => {
   };
 
   const handleReturn = () => {
-    // Save box data before returning
+    // Save box data before returning to ensure nothing is lost
     saveBoxData();
     
     // Navigate back to picking list for this order
