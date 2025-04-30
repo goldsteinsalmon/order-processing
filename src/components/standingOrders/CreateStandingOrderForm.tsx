@@ -13,9 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Trash2, CalendarIcon } from "lucide-react";
 import { shouldProcessImmediately, getOrderProcessingDate } from "@/utils/dateUtils";
 import { Order } from "@/types";
+import { cn } from "@/lib/utils";
 
 const CreateStandingOrderForm: React.FC = () => {
   const navigate = useNavigate();
@@ -34,10 +37,13 @@ const CreateStandingOrderForm: React.FC = () => {
   
   // Product selection
   const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedProductQuantity, setSelectedProductQuantity] = useState(1);
+  const [selectedProductQuantity, setSelectedProductQuantity] = useState<number | null>(null);
+  
+  // First delivery date
+  const [firstDeliveryDate, setFirstDeliveryDate] = useState<Date>(getDefaultFirstDeliveryDate());
 
-  // Get first delivery date based on frequency settings
-  const getFirstDeliveryDate = () => {
+  // Get default first delivery date based on frequency settings
+  function getDefaultFirstDeliveryDate() {
     const today = new Date();
     const nextDeliveryDate = new Date();
     
@@ -63,13 +69,27 @@ const CreateStandingOrderForm: React.FC = () => {
     }
     
     return nextDeliveryDate;
-  };
+  }
+
+  // Update default delivery date when frequency settings change
+  React.useEffect(() => {
+    setFirstDeliveryDate(getDefaultFirstDeliveryDate());
+  }, [frequency, dayOfWeek, dayOfMonth]);
 
   const addProductToOrder = () => {
     if (!selectedProductId) {
       toast({
         title: "No product selected",
         description: "Please select a product to add to the order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedProductQuantity === null || selectedProductQuantity <= 0) {
+      toast({
+        title: "Invalid quantity",
+        description: "Please enter a valid quantity greater than zero.",
         variant: "destructive",
       });
       return;
@@ -83,7 +103,7 @@ const CreateStandingOrderForm: React.FC = () => {
 
     setOrderItems([...orderItems, newItem]);
     setSelectedProductId("");
-    setSelectedProductQuantity(1);
+    setSelectedProductQuantity(null);
   };
 
   const removeProductFromOrder = (itemId: string) => {
@@ -136,8 +156,7 @@ const CreateStandingOrderForm: React.FC = () => {
       };
     });
 
-    // Generate first delivery date
-    const firstDeliveryDate = getFirstDeliveryDate();
+    // Use the selected first delivery date
     const firstDeliveryDateString = firstDeliveryDate.toISOString();
 
     // Create the standing order object
@@ -321,13 +340,34 @@ const CreateStandingOrderForm: React.FC = () => {
             </div>
             
             <div>
-              <Label>First Delivery</Label>
-              <div className="text-sm text-gray-600 mt-1 p-2 bg-gray-50 border border-gray-200 rounded">
-                {getFirstDeliveryDate() ? format(getFirstDeliveryDate(), "EEEE, MMMM d, yyyy") : "Please select frequency options"}
-                {shouldProcessImmediately(getFirstDeliveryDate()) && (
-                  <Badge variant="secondary" className="ml-2">Will be processed immediately</Badge>
-                )}
-              </div>
+              <Label>First Delivery Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !firstDeliveryDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {firstDeliveryDate ? format(firstDeliveryDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                    {shouldProcessImmediately(firstDeliveryDate) && (
+                      <Badge variant="secondary" className="ml-2">Will be processed immediately</Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={firstDeliveryDate}
+                    onSelect={(date) => date && setFirstDeliveryDate(date)}
+                    initialFocus
+                    disabled={(date) => date < new Date()}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>
@@ -361,9 +401,10 @@ const CreateStandingOrderForm: React.FC = () => {
                 id="quantity"
                 type="number"
                 min="1"
-                value={selectedProductQuantity}
-                onChange={e => setSelectedProductQuantity(parseInt(e.target.value) || 1)}
+                value={selectedProductQuantity === null ? "" : selectedProductQuantity}
+                onChange={e => setSelectedProductQuantity(e.target.value ? parseInt(e.target.value) : null)}
                 className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="Qty"
               />
             </div>
             

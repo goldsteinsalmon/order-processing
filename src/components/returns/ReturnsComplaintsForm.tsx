@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -27,7 +28,7 @@ const ReturnsComplaintsForm: React.FC = () => {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [productSku, setProductSku] = useState("");
   const [productId, setProductId] = useState("");
-  const [quantity, setQuantity] = useState<number>(1); // Added quantity field
+  const [quantity, setQuantity] = useState<number | null>(null); // Changed to null for empty field
   const [complaintType, setComplaintType] = useState("");
   const [complaintDetails, setComplaintDetails] = useState("");
   const [returnReason, setReturnReason] = useState("");
@@ -48,7 +49,7 @@ const ReturnsComplaintsForm: React.FC = () => {
     setInvoiceNumber("");
     setProductSku("");
     setProductId("");
-    setQuantity(1);
+    setQuantity(null); // Reset to null instead of 1
     setComplaintType("");
     setComplaintDetails("");
     setReturnReason("");
@@ -59,7 +60,6 @@ const ReturnsComplaintsForm: React.FC = () => {
     setSelectedCustomerId("");
   };
   
-  // Update the handleSubmit function to include quantity
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -72,6 +72,16 @@ const ReturnsComplaintsForm: React.FC = () => {
           variant: "destructive",
           title: "Error",
           description: "Please select a valid product."
+        });
+        return;
+      }
+      
+      // Validate quantity
+      if (quantity === null || quantity <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please enter a valid quantity."
         });
         return;
       }
@@ -321,9 +331,10 @@ const ReturnsComplaintsForm: React.FC = () => {
                   id="quantity"
                   type="number"
                   min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  value={quantity === null ? "" : quantity}
+                  onChange={(e) => setQuantity(e.target.value ? parseInt(e.target.value) : null)}
                   className="w-full"
+                  placeholder="Enter quantity"
                   required
                 />
               </div>

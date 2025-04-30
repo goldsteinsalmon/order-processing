@@ -1,36 +1,96 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, X } from "lucide-react";
+import { ArrowLeft, Save, X, Search, CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 const ProductDetailsPage: React.FC = () => {
-  const { products, updateProduct } = useData();
+  const { products, updateProduct, orders, completedOrders } = useData();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const product = products.find(product => product.id === id);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProduct, setEditedProduct] = useState(product ? { ...product } : null);
+  
+  // Date range filter for purchase history
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
-  if (!product) {
-    return (
-      <Layout>
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" onClick={() => navigate("/products")} className="mr-4">
-            <ArrowLeft className="mr-2" /> Back
-          </Button>
-          <h2 className="text-2xl font-bold">Product Not Found</h2>
-        </div>
-        <div className="bg-white p-6 rounded-md shadow-sm">
-          <p>The product you're looking for doesn't exist or may have been removed.</p>
-        </div>
-      </Layout>
-    );
-  }
+  // Calculate purchase history for this product
+  const purchaseHistory = useMemo(() => {
+    if (!product) return [];
+
+    // Combine all orders (active + completed)
+    const allOrders = [...orders, ...completedOrders];
+    
+    // Filter orders by date if date filters are applied
+    let filteredOrders = allOrders;
+    if (dateFrom || dateTo) {
+      filteredOrders = allOrders.filter(order => {
+        const orderDate = order.orderDate ? parseISO(order.orderDate) : parseISO(order.created);
+        
+        if (dateFrom && dateTo) {
+          return isWithinInterval(orderDate, {
+            start: startOfDay(dateFrom),
+            end: endOfDay(dateTo)
+          });
+        } else if (dateFrom) {
+          return orderDate >= startOfDay(dateFrom);
+        } else if (dateTo) {
+          return orderDate <= endOfDay(dateTo);
+        }
+        return true;
+      });
+    }
+    
+    // Get all orders with this product and calculate monthly totals
+    const monthlySales: Record<string, { month: string, totalQuantity: number }> = {};
+    
+    filteredOrders.forEach(order => {
+      if (!order.items) return;
+      
+      // Find items with this product
+      const productItems = order.items.filter(item => item.productId === product.id);
+      if (productItems.length === 0) return;
+      
+      // Get the order date
+      const orderDate = order.orderDate ? parseISO(order.orderDate) : parseISO(order.created);
+      const monthKey = format(orderDate, "yyyy-MM");
+      const monthDisplay = format(orderDate, "MMMM yyyy");
+      
+      // Sum quantities for this month
+      const quantityForOrder = productItems.reduce((sum, item) => sum + item.quantity, 0);
+      
+      if (!monthlySales[monthKey]) {
+        monthlySales[monthKey] = {
+          month: monthDisplay,
+          totalQuantity: 0
+        };
+      }
+      
+      monthlySales[monthKey].totalQuantity += quantityForOrder;
+    });
+    
+    // Sort by date (most recent first)
+    return Object.values(monthlySales).sort((a, b) => {
+      return a.month.localeCompare(b.month) * -1;
+    });
+  }, [product, orders, completedOrders, dateFrom, dateTo]);
+
+  // Calculate total sold quantity
+  const totalSoldQuantity = useMemo(() => {
+    return purchaseHistory.reduce((sum, entry) => sum + entry.totalQuantity, 0);
+  }, [purchaseHistory]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!editedProduct) return;
@@ -53,6 +113,27 @@ const ProductDetailsPage: React.FC = () => {
     setIsEditing(false);
   };
 
+  const clearDateFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  if (!product) {
+    return (
+      <Layout>
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" onClick={() => navigate("/products")} className="mr-4">
+            <ArrowLeft className="mr-2" /> Back
+          </Button>
+          <h2 className="text-2xl font-bold">Product Not Found</h2>
+        </div>
+        <div className="bg-white p-6 rounded-md shadow-sm">
+          <p>The product you're looking for doesn't exist or may have been removed.</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="flex items-center mb-6">
@@ -62,96 +143,213 @@ const ProductDetailsPage: React.FC = () => {
         <h2 className="text-2xl font-bold">{product.name}</h2>
       </div>
 
-      <div className="bg-white p-6 rounded-md shadow-sm">
-        <div className="flex justify-between mb-4">
-          <h3 className="text-lg font-semibold">Product Information</h3>
-          {!isEditing ? (
-            <Button onClick={() => setIsEditing(true)}>Edit Product</Button>
-          ) : (
-            <div className="space-x-2">
-              <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
-                <Save className="mr-2 h-4 w-4" /> Save
-              </Button>
-              <Button variant="outline" onClick={handleCancel}>
-                <X className="mr-2 h-4 w-4" /> Cancel
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <div className="space-y-4">
-              {isEditing ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Product Name
-                    </label>
-                    <Input
-                      name="name"
-                      value={editedProduct?.name || ""}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      SKU
-                    </label>
-                    <Input
-                      name="sku"
-                      value={editedProduct?.sku || ""}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Stock Level
-                    </label>
-                    <Input
-                      name="stockLevel"
-                      type="number"
-                      value={editedProduct?.stockLevel || 0}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </>
+      <Tabs defaultValue="details" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="details">Product Details</TabsTrigger>
+          <TabsTrigger value="history">Purchase History</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="details">
+          <div className="bg-white p-6 rounded-md shadow-sm">
+            <div className="flex justify-between mb-4">
+              <h3 className="text-lg font-semibold">Product Information</h3>
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)}>Edit Product</Button>
               ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 border-b pb-2">
-                    <span className="text-gray-600">Product Name:</span>
-                    <span className="col-span-2 font-medium">{product.name}</span>
-                  </div>
-                  <div className="grid grid-cols-3 border-b pb-2">
-                    <span className="text-gray-600">SKU:</span>
-                    <span className="col-span-2 font-medium">{product.sku}</span>
-                  </div>
-                  <div className="grid grid-cols-3 border-b pb-2">
-                    <span className="text-gray-600">Stock Level:</span>
-                    <span className="col-span-2 font-medium">{product.stockLevel}</span>
-                  </div>
+                <div className="space-x-2">
+                  <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
+                    <Save className="mr-2 h-4 w-4" /> Save
+                  </Button>
+                  <Button variant="outline" onClick={handleCancel}>
+                    <X className="mr-2 h-4 w-4" /> Cancel
+                  </Button>
                 </div>
               )}
             </div>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Description</h3>
-            {isEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  name="description"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 h-32"
-                  value={editedProduct?.description || ""}
-                  onChange={handleChange}
-                />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="space-y-4">
+                  {isEditing ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Product Name
+                        </label>
+                        <Input
+                          name="name"
+                          value={editedProduct?.name || ""}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          SKU
+                        </label>
+                        <Input
+                          name="sku"
+                          value={editedProduct?.sku || ""}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Stock Level
+                        </label>
+                        <Input
+                          name="stockLevel"
+                          type="number"
+                          value={editedProduct?.stockLevel || 0}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Product Name:</span>
+                        <span className="col-span-2 font-medium">{product.name}</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">SKU:</span>
+                        <span className="col-span-2 font-medium">{product.sku}</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Stock Level:</span>
+                        <span className="col-span-2 font-medium">{product.stockLevel}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : (
-              <p className="text-gray-700">{product.description || "No description provided."}</p>
-            )}
+              
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Description</h3>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      name="description"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 h-32"
+                      value={editedProduct?.description || ""}
+                      onChange={handleChange}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-gray-700">{product.description || "No description provided."}</p>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+        
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Purchase History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-wrap gap-4 items-end">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">From Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] pl-3 text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        {dateFrom ? format(dateFrom, "PPP") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">To Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] pl-3 text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        {dateTo ? format(dateTo, "PPP") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        disabled={(date) => dateFrom ? date < dateFrom : false}
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <Button variant="outline" onClick={clearDateFilters}>
+                  Clear Filters
+                </Button>
+              </div>
+              
+              <div className="mb-4 p-4 border rounded-md bg-gray-50">
+                <div className="text-lg font-medium">Total Sales: <span className="text-xl font-bold">{totalSoldQuantity}</span></div>
+                {(dateFrom || dateTo) && (
+                  <div className="text-sm text-gray-500 mt-1">
+                    {dateFrom && dateTo && `From ${format(dateFrom, "PPP")} to ${format(dateTo, "PPP")}`}
+                    {dateFrom && !dateTo && `From ${format(dateFrom, "PPP")}`}
+                    {!dateFrom && dateTo && `Until ${format(dateTo, "PPP")}`}
+                  </div>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="px-4 py-2 text-left">Month</th>
+                      <th className="px-4 py-2 text-right">Quantity Sold</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="px-4 py-8 text-center text-gray-500">
+                          No purchase history found for this product
+                        </td>
+                      </tr>
+                    ) : (
+                      purchaseHistory.map((entry, index) => (
+                        <tr key={index} className="border-b">
+                          <td className="px-4 py-2">{entry.month}</td>
+                          <td className="px-4 py-2 text-right">{entry.totalQuantity}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 };
