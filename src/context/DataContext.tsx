@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { 
   Customer, 
@@ -42,7 +43,7 @@ interface DataContextType {
   batchUsages: BatchUsage[];
   addCustomer: (customer: Customer) => void;
   updateCustomer: (customer: Customer) => void;
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product | Product[]) => void; // Updated to accept array
   updateProduct: (product: Product) => void;
   addOrder: (order: Order) => void;
   updateOrder: (order: Order) => void;
@@ -102,8 +103,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
   };
 
-  const addProduct = (product: Product) => {
-    setProducts([...products, product]);
+  const addProduct = (productData: Product | Product[]) => {
+    // Handle both single product and array of products
+    if (Array.isArray(productData)) {
+      // Add multiple products at once
+      setProducts(prevProducts => [...prevProducts, ...productData]);
+      console.log(`Added ${productData.length} products to the system`);
+    } else {
+      // Add a single product
+      setProducts(prevProducts => [...prevProducts, productData]);
+    }
   };
 
   const updateProduct = (updatedProduct: Product) => {

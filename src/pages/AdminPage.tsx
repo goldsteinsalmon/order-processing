@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -507,9 +506,9 @@ const AdminPage: React.FC = () => {
               
               // Now add all products at once
               console.log(`Adding ${productsToImport.length} products to the system...`);
-              productsToImport.forEach(product => {
-                addProduct(product);
-              });
+              if (productsToImport.length > 0) {
+                addProduct(productsToImport); // Pass the entire array to addProduct
+              }
               
               // Show results toast
               if (skippedCount > 0) {
