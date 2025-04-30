@@ -28,16 +28,31 @@ const BatchTrackingPage: React.FC = () => {
     const validBatchNumbers = new Set();
     
     completedOrders.forEach(order => {
-      if (order.batchNumbers) {
+      // Check if order has a batch number array
+      if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
         order.batchNumbers.forEach(batch => {
           if (batch) validBatchNumbers.add(batch);
         });
       }
       
-      // Also check individual items for batch numbers
+      // Check if order has a single batch number
+      if (order.batchNumber) {
+        validBatchNumbers.add(order.batchNumber);
+      }
+      
+      // Check individual items for batch numbers
       order.items.forEach(item => {
-        if (item.batchNumber) validBatchNumbers.add(item.batchNumber);
+        if (item.batchNumber) {
+          validBatchNumbers.add(item.batchNumber);
+        }
       });
+      
+      // Check the pickingProgress batchNumbers mapping
+      if (order.pickingProgress?.batchNumbers) {
+        Object.values(order.pickingProgress.batchNumbers).forEach(batch => {
+          if (batch) validBatchNumbers.add(batch);
+        });
+      }
     });
     
     // Filter batch usages to only include those that are in completed orders

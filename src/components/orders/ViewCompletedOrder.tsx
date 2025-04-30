@@ -54,6 +54,39 @@ const ViewCompletedOrder: React.FC = () => {
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
+  // Get all batch numbers used in this order
+  const getAllBatchNumbers = () => {
+    const batchNumbers = new Set<string>();
+    
+    // Check if order has a single batch number
+    if (order.batchNumber) {
+      batchNumbers.add(order.batchNumber);
+    }
+    
+    // Check if order has an array of batch numbers
+    if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
+      order.batchNumbers.forEach(batch => {
+        if (batch) batchNumbers.add(batch);
+      });
+    }
+    
+    // Check individual items for batch numbers
+    order.items.forEach(item => {
+      if (item.batchNumber) {
+        batchNumbers.add(item.batchNumber);
+      }
+    });
+    
+    // Check the pickingProgress batchNumbers mapping for all items
+    if (order.pickingProgress?.batchNumbers) {
+      Object.values(order.pickingProgress.batchNumbers).forEach(batch => {
+        if (batch) batchNumbers.add(batch);
+      });
+    }
+    
+    return Array.from(batchNumbers);
+  };
+  
   // Get batch numbers for each item
   const getItemBatchNumber = (item) => {
     // First check if the item has its own batch number
@@ -149,6 +182,9 @@ const ViewCompletedOrder: React.FC = () => {
     };
   });
   
+  // Get all unique batch numbers used in this order
+  const orderBatchNumbers = getAllBatchNumbers();
+  
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -211,6 +247,12 @@ const ViewCompletedOrder: React.FC = () => {
                 <dt className="font-medium">Blown Pouches:</dt>
                 <dd className="col-span-2">{order.totalBlownPouches || 0}</dd>
               </div>
+              <div className="grid grid-cols-3">
+                <dt className="font-medium">Batch Numbers:</dt>
+                <dd className="col-span-2">
+                  {orderBatchNumbers.length > 0 ? orderBatchNumbers.join(", ") : "N/A"}
+                </dd>
+              </div>
               {order.customerOrderNumber && (
                 <div className="grid grid-cols-3">
                   <dt className="font-medium">Customer Order #:</dt>
@@ -253,6 +295,14 @@ const ViewCompletedOrder: React.FC = () => {
                 <dt className="font-medium">Address:</dt>
                 <dd className="col-span-2">{order.customer.address}</dd>
               </div>
+              {order.customer.needsDetailedBoxLabels !== undefined && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Detailed Box Labels:</dt>
+                  <dd className="col-span-2">
+                    {order.customer.needsDetailedBoxLabels ? "Required" : "Not Required"}
+                  </dd>
+                </div>
+              )}
             </dl>
           </CardContent>
         </Card>
