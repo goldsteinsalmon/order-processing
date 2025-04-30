@@ -15,7 +15,7 @@ const CreateOrderPage: React.FC = () => {
         <Button variant="ghost" onClick={() => navigate("/orders")} className="mr-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
         </Button>
-        <h2 className="text-2xl font-bold">Order Information</h2>
+        <h2 className="text-2xl font-bold">Create Order</h2>
       </div>
       <p className="text-gray-500 mb-6">Create a new order for a customer</p>
       <CreateOrderForm />

@@ -84,6 +84,7 @@ const CreateOrderForm: React.FC = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const [activeProductItemId, setActiveProductItemId] = useState<string | null>(null);
   
   // Sort products by SKU
   const sortedProducts = [...products].sort((a, b) => 
@@ -91,30 +92,44 @@ const CreateOrderForm: React.FC = () => {
   );
   
   // Filtered products based on search
-  const filteredProducts = productSearch.trim() !== "" 
-    ? sortedProducts.filter(product => 
-        product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        product.sku.toLowerCase().includes(productSearch.toLowerCase())
-      )
-    : sortedProducts;
-  
-  // Filter and sort customers similar to CustomersPage implementation
-  const filteredCustomers = useMemo(() => {
-    let filtered = customers;
+  const filteredProducts = useMemo(() => {
+    console.log("Filtering products with search:", productSearch);
+    if (productSearch.trim() === "") return sortedProducts;
     
-    // Filter by search term if one exists
+    const searchLower = productSearch.toLowerCase();
+    return sortedProducts.filter(product => 
+      product.name.toLowerCase().includes(searchLower) ||
+      product.sku.toLowerCase().includes(searchLower)
+    );
+  }, [productSearch, sortedProducts]);
+  
+  // Filter customers using the same logic as in the Customers page
+  const filteredCustomers = useMemo(() => {
+    console.log("Running filteredCustomers with search:", customerSearch);
+    let filtered = [...customers];
+    
     if (customerSearch.trim()) {
       const lowerSearch = customerSearch.toLowerCase();
-      filtered = customers.filter(customer => 
-        customer.name.toLowerCase().includes(lowerSearch) ||
-        (customer.email && customer.email.toLowerCase().includes(lowerSearch)) ||
-        (customer.phone && customer.phone.includes(customerSearch)) ||
-        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(lowerSearch))
-      );
+      filtered = customers.filter(customer => {
+        const nameMatch = customer.name.toLowerCase().includes(lowerSearch);
+        const emailMatch = customer.email ? customer.email.toLowerCase().includes(lowerSearch) : false;
+        const phoneMatch = customer.phone ? customer.phone.includes(customerSearch) : false;
+        const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(lowerSearch) : false;
+        
+        console.log(
+          `Customer "${customer.name}" (${customer.accountNumber || 'no acct'}):`, 
+          `nameMatch=${nameMatch}`, 
+          `emailMatch=${emailMatch}`, 
+          `phoneMatch=${phoneMatch}`, 
+          `accountMatch=${accountMatch}`
+        );
+        
+        return nameMatch || emailMatch || phoneMatch || accountMatch;
+      });
     }
     
     // Sort by account number alphabetically
-    return [...filtered].sort((a, b) => {
+    return filtered.sort((a, b) => {
       const accountA = a.accountNumber || '';
       const accountB = b.accountNumber || '';
       return accountA.localeCompare(accountB);
@@ -124,6 +139,7 @@ const CreateOrderForm: React.FC = () => {
   console.log("Customer search term:", customerSearch);
   console.log("Total customers:", customers.length);
   console.log("Filtered customers:", filteredCustomers.length);
+  console.log("Filtered customers:", filteredCustomers.map(c => c.name).join(", "));
     
   // Get the default order date based on current time
   const getDefaultOrderDate = () => {
@@ -191,6 +207,7 @@ const CreateOrderForm: React.FC = () => {
   };
   
   const handleSelectCustomer = (customerId: string) => {
+    console.log("handleSelectCustomer called with ID:", customerId);
     const customer = customers.find(c => c.id === customerId);
     
     // If customer is on hold, show warning dialog
@@ -217,8 +234,9 @@ const CreateOrderForm: React.FC = () => {
     setShowOnHoldWarning(false);
   };
   
-  const handleSelectProduct = (id: string, productId: string) => {
-    handleItemChange(id, "productId", productId);
+  const handleSelectProduct = (itemId: string, productId: string) => {
+    console.log("Selecting product:", productId, "for item:", itemId);
+    handleItemChange(itemId, "productId", productId);
     setShowProductSearch(false);
   };
 
@@ -333,7 +351,7 @@ const CreateOrderForm: React.FC = () => {
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <CommandInput 
-                        placeholder="Search customers..."
+                        placeholder="Search customers by name, email, phone or account..."
                         value={customerSearch}
                         onValueChange={setCustomerSearch}
                         autoFocus={true}
@@ -343,18 +361,24 @@ const CreateOrderForm: React.FC = () => {
                     <CommandList>
                       <CommandEmpty>No customers found.</CommandEmpty>
                       <CommandGroup heading="Customers">
-                        {filteredCustomers.map(customer => (
-                          <CommandItem 
-                            key={customer.id} 
-                            value={customer.id}
-                            onSelect={() => handleSelectCustomer(customer.id)}
-                            className={customer.onHold ? "text-red-500 font-medium" : ""}
-                          >
-                            {customer.name}
-                            {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
-                            {customer.onHold && " (On Hold)"}
-                          </CommandItem>
-                        ))}
+                        {filteredCustomers.map(customer => {
+                          console.log(`Rendering customer item: ${customer.name}`);
+                          return (
+                            <CommandItem 
+                              key={customer.id} 
+                              value={customer.name} // Use name as the value for matching
+                              onSelect={() => {
+                                console.log(`Customer selected: ${customer.name} (${customer.id})`);
+                                handleSelectCustomer(customer.id);
+                              }}
+                              className={customer.onHold ? "text-red-500 font-medium" : ""}
+                            >
+                              {customer.name}
+                              {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+                              {customer.onHold && " (On Hold)"}
+                            </CommandItem>
+                          );
+                        })}
                       </CommandGroup>
                     </CommandList>
                   </CommandDialog>
@@ -464,37 +488,16 @@ const CreateOrderForm: React.FC = () => {
                         type="button" 
                         variant="outline" 
                         className="w-full justify-start text-left"
-                        onClick={() => setShowProductSearch(true)}
+                        onClick={() => {
+                          setActiveProductItemId(item.id);
+                          setShowProductSearch(true);
+                        }}
                       >
                         <span className="truncate">
                           {getSelectedProductName(item.productId)}
                         </span>
                         <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
-                      {showProductSearch && (
-                        <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
-                          <CommandInput 
-                            placeholder="Search products by name or SKU..."
-                            value={productSearch}
-                            onValueChange={setProductSearch}
-                          />
-                          <CommandList>
-                            <CommandEmpty>No products found.</CommandEmpty>
-                            <CommandGroup>
-                              {filteredProducts.map(product => (
-                                <CommandItem 
-                                  key={product.id} 
-                                  value={product.id}
-                                  onSelect={() => handleSelectProduct(item.id, product.id)}
-                                >
-                                  <span>{product.name}</span>
-                                  <span className="ml-2 text-muted-foreground">({product.sku})</span>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </CommandDialog>
-                      )}
                     </div>
                     <div className="col-span-3">
                       {product ? product.sku : ""}
@@ -621,6 +624,42 @@ const CreateOrderForm: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Product Search Dialog - Separated per product item */}
+      {showProductSearch && (
+        <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <CommandInput 
+              placeholder="Search products by name or SKU..."
+              value={productSearch}
+              onValueChange={setProductSearch}
+              autoFocus={true}
+              className="pl-8"
+            />
+          </div>
+          <CommandList>
+            <CommandEmpty>No products found.</CommandEmpty>
+            <CommandGroup>
+              {filteredProducts.map(product => (
+                <CommandItem 
+                  key={product.id} 
+                  value={product.name} // Use name as the value for matching
+                  onSelect={() => {
+                    console.log(`Product selected: ${product.name} (${product.id})`);
+                    if (activeProductItemId) {
+                      handleSelectProduct(activeProductItemId, product.id);
+                    }
+                  }}
+                >
+                  <span>{product.name}</span>
+                  <span className="ml-2 text-muted-foreground">({product.sku})</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+      )}
     </>
   );
 };
