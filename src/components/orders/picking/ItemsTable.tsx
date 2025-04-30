@@ -1,3 +1,4 @@
+
 import React from "react";
 import { OrderItem } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,8 +6,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Weight, Package, Printer } from "lucide-react";
+import { Check, Weight, Package, Printer, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
@@ -39,6 +41,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   groupByBox = false,
   completedBoxes = []
 }) => {
+  const { toast } = useToast();
+  
   // Helper function to determine if an item has changed quantity
   const hasQuantityChanged = (item: ExtendedOrderItem) => {
     return item.originalQuantity !== undefined && item.originalQuantity !== item.quantity;
@@ -71,9 +75,73 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     }, {} as Record<number, ExtendedOrderItem[]>);
   }, [items, groupByBox]);
   
-  // Check if all items in a box are checked
+  // Check if a box is complete (all items checked, batch numbers entered, weights entered)
   const isBoxComplete = (boxItems: ExtendedOrderItem[]): boolean => {
-    return boxItems.length > 0 && boxItems.every(item => item.checked);
+    // First check if all items are checked
+    if (!boxItems.length || !boxItems.every(item => item.checked)) {
+      return false;
+    }
+    
+    // Then check if all items have batch numbers
+    if (!boxItems.every(item => item.batchNumber?.trim())) {
+      return false;
+    }
+    
+    // Finally check if all items that require weight have weights entered
+    const weightInputComplete = boxItems
+      .filter(item => item.product.requiresWeightInput)
+      .every(item => item.pickedWeight && item.pickedWeight > 0);
+      
+    // If any item requires weight but hasn't been entered, box is not complete
+    if (!weightInputComplete) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Function to validate box completion before printing label
+  const handlePrintBoxLabel = (boxNumber: number) => {
+    if (!onPrintBoxLabel) return;
+    
+    const boxItems = groupedItems[boxNumber] || [];
+    
+    // Verify all items are checked
+    if (!boxItems.every(item => item.checked)) {
+      toast({
+        title: "Incomplete box",
+        description: "Please check all items in this box before printing the label.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Verify all batch numbers are entered
+    if (!boxItems.every(item => item.batchNumber?.trim())) {
+      toast({
+        title: "Missing batch numbers",
+        description: "Please enter batch numbers for all items in this box.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check for weight inputs where required
+    const missingWeights = boxItems
+      .filter(item => item.product.requiresWeightInput)
+      .filter(item => !item.pickedWeight || item.pickedWeight <= 0);
+      
+    if (missingWeights.length > 0) {
+      toast({
+        title: "Missing weights",
+        description: `Please enter weights for ${missingWeights.length} product(s) in this box.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // If all validations pass, call the print function
+    onPrintBoxLabel(boxNumber);
   };
 
   // Sort box numbers to ensure sequential processing
@@ -212,10 +280,29 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
       {boxNumbers.map((boxNumber, index) => {
         const boxItems = groupedItems[boxNumber];
         const boxTitle = boxNumber === 0 ? "Unassigned Items" : `Box ${boxNumber}`;
+        
+        // Check if box is complete (all items checked, all batch numbers, all weights)
         const boxComplete = isBoxComplete(boxItems);
         const isBoxPrinted = completedBoxes.includes(boxNumber);
-        const previousBoxPrinted = index === 0 || boxNumbers[index - 1] === 0 || completedBoxes.includes(boxNumbers[index - 1]);
-        const isBoxDisabled = index > 0 && boxNumbers[index - 1] !== 0 && !completedBoxes.includes(boxNumbers[index - 1]);
+        
+        // A box can only be edited if:
+        // - It's box 0 (unassigned items)
+        // - It's the first box (index 0) and it's not box 0
+        // - The previous box has been printed (or is box 0)
+        const previousBoxPrinted = index === 0 || 
+                                    boxNumbers[index - 1] === 0 || 
+                                    completedBoxes.includes(boxNumbers[index - 1]);
+                                    
+        const isBoxDisabled = index > 0 && 
+                              boxNumbers[index - 1] !== 0 && 
+                              !completedBoxes.includes(boxNumbers[index - 1]);
+        
+        // Check if any items in this box require weight input but are missing weights
+        const missingWeights = boxItems
+          .filter(item => item.product.requiresWeightInput)
+          .filter(item => !item.pickedWeight || item.pickedWeight <= 0);
+          
+        const hasMissingWeights = missingWeights.length > 0;
         
         return (
           <Card 
@@ -226,23 +313,33 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             `}
           >
             <CardHeader className="flex flex-row items-center justify-between py-3">
-              <CardTitle className="flex items-center">
-                <Package className="mr-2 h-5 w-5" />
-                {boxTitle}
-                {boxComplete && !isBoxPrinted && (
-                  <Badge className="ml-2 bg-green-500">Ready to Print</Badge>
+              <div className="flex flex-col">
+                <CardTitle className="flex items-center">
+                  <Package className="mr-2 h-5 w-5" />
+                  {boxTitle}
+                  {boxComplete && !isBoxPrinted && (
+                    <Badge className="ml-2 bg-green-500">Ready to Print</Badge>
+                  )}
+                  {isBoxPrinted && (
+                    <Badge className="ml-2 bg-blue-500">Label Printed</Badge>
+                  )}
+                </CardTitle>
+                
+                {hasMissingWeights && boxNumber > 0 && !isBoxDisabled && (
+                  <div className="text-xs text-orange-600 flex items-center mt-1">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Missing weight information for {missingWeights.length} product(s)
+                  </div>
                 )}
-                {isBoxPrinted && (
-                  <Badge className="ml-2 bg-blue-500">Label Printed</Badge>
-                )}
-              </CardTitle>
-              {boxNumber > 0 && onPrintBoxLabel && boxComplete && (
+              </div>
+              
+              {boxNumber > 0 && onPrintBoxLabel && (
                 <Button 
                   size="sm"
                   variant={isBoxPrinted ? "outline" : "default"}
                   className="flex items-center"
-                  onClick={() => onPrintBoxLabel(boxNumber)}
-                  disabled={isBoxDisabled || !previousBoxPrinted}
+                  onClick={() => handlePrintBoxLabel(boxNumber)}
+                  disabled={isBoxDisabled || !previousBoxPrinted || !boxComplete}
                 >
                   <Printer className="mr-1 h-4 w-4" />
                   {isBoxPrinted ? "Print Again" : "Print Label"}
@@ -272,11 +369,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       const hasMissingItems = missingQuantity > 0;
                       const requiresWeightInput = item.product.requiresWeightInput;
                       const itemChanged = hasQuantityChanged(item);
+                      const missingWeight = requiresWeightInput && (!item.pickedWeight || item.pickedWeight <= 0);
                       
                       return (
                         <TableRow 
                           key={item.id}
-                          className={itemChanged ? "bg-red-50" : ""}
+                          className={`
+                            ${itemChanged ? "bg-red-50" : ""}
+                            ${missingWeight ? "bg-yellow-50" : ""}
+                          `}
                         >
                           <TableCell>
                             <Checkbox 
@@ -291,9 +392,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                             <div className="font-medium">{item.product.name}</div>
                             <div className="text-sm text-gray-500">{item.product.sku}</div>
                             {requiresWeightInput && (
-                              <div className="text-xs text-blue-600 font-medium flex items-center mt-1">
+                              <div className={`text-xs flex items-center mt-1 ${missingWeight ? "text-orange-600" : "text-blue-600"} font-medium`}>
                                 <Weight className="h-3 w-3 mr-1" /> 
-                                Requires weight input
+                                {missingWeight ? "Weight required" : "Requires weight input"}
                               </div>
                             )}
                             {itemChanged && (
@@ -311,6 +412,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                               value={item.batchNumber}
                               onChange={(e) => onBatchNumberChange(item.id, e.target.value)}
                               disabled={isBoxDisabled}
+                              className={!item.batchNumber?.trim() ? "border-orange-300" : ""}
                             />
                           </TableCell>
                           <TableCell>
@@ -340,7 +442,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                                     item.id, 
                                     parseFloat(e.target.value) * 1000 || 0
                                   )}
-                                  className="bg-blue-50"
+                                  className={`${missingWeight ? "border-orange-300 bg-orange-50" : "bg-blue-50"}`}
                                   disabled={isBoxDisabled}
                                 />
                               ) : (

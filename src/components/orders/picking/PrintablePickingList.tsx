@@ -1,7 +1,8 @@
+
 import React, { forwardRef } from "react";
 import { format } from "date-fns";
 import { OrderItem, Order, Box, BoxItem } from "@/types";
-import { Package } from "lucide-react";
+import { Package, Weight } from "lucide-react";
 
 interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
@@ -96,7 +97,10 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
                         <td className="py-2">
                           {item.product.name}
                           {item.product.requiresWeightInput && (
-                            <div className="text-xs italic">(Requires weight input)</div>
+                            <div className="text-xs italic flex items-center">
+                              <Weight className="h-3 w-3 mr-1" />
+                              Requires weight input
+                            </div>
                           )}
                         </td>
                         <td className="py-2">{item.product.sku}</td>
@@ -134,7 +138,10 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
                   <td className="py-2">
                     {item.product.name}
                     {item.product.requiresWeightInput && (
-                      <div className="text-xs italic">(Requires weight input)</div>
+                      <div className="text-xs italic flex items-center">
+                        <Weight className="h-3 w-3 mr-1" />
+                        Requires weight input
+                      </div>
                     )}
                   </td>
                   <td className="py-2">{item.product.sku}</td>

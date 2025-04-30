@@ -5,7 +5,7 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Printer, Plus, Minus, Package, PackagePlus, Boxes } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Minus, Package, PackagePlus, Boxes, Weight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderItem, Box, BoxItem } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -493,7 +493,15 @@ const PrintBoxLabel: React.FC = () => {
                       {box.items.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center mb-1">
                           <span>{item.productName}</span>
-                          <span className="font-medium">{item.quantity}</span>
+                          <div className="flex items-center">
+                            <span className="font-medium mr-2">{item.quantity}</span>
+                            {item.weight > 0 && (
+                              <span className="text-sm bg-gray-100 px-2 py-1 rounded flex items-center">
+                                <Weight className="h-3 w-3 mr-1" />
+                                {(item.weight/1000).toFixed(2)} kg
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -527,7 +535,15 @@ const PrintBoxLabel: React.FC = () => {
                     {order.items.map((item) => (
                       <div key={item.id} className="text-sm mb-1 flex justify-between">
                         <span>{item.product.name}</span>
-                        <span>{item.quantity}</span>
+                        <div className="flex items-center">
+                          <span className="font-medium mr-2">{item.quantity}</span>
+                          {item.product.requiresWeightInput && item.pickedWeight && (
+                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded flex items-center">
+                              <Weight className="h-3 w-3 mr-1" />
+                              {(item.pickedWeight/1000).toFixed(2)} kg
+                            </span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
