@@ -92,8 +92,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [pickers, setPickers] = useState<Picker[]>(initialPickers);
   const [batchUsages, setBatchUsages] = useState<BatchUsage[]>(initialBatchUsages);
 
-  // Use an object to track processed batch-order combinations
-  const [processedBatchOrderMap] = useState<Record<string, Set<string>>>({});
+  // Use a more specific tracking structure that includes product ID
+  // This will track unique batch-order-product combinations
+  const [processedBatchOrderProductMap] = useState<Record<string, Set<string>>>({});
 
   const addCustomer = (customer: Customer) => {
     setCustomers(prevCustomers => [...prevCustomers, customer]);
@@ -471,7 +472,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
   };
 
-  // Updated recordBatchUsage function to handle manual weight input
+  // Updated recordBatchUsage function to track batch-order-product combinations
   const recordBatchUsage = (
     batchNumber: string, 
     productId: string, 
@@ -505,27 +506,45 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       totalWeight = quantity; // Fallback to using quantity as a measure
     }
     
-    // Check if we've already processed this specific batch-order combination
-    if (!processedBatchOrderMap[batchNumber]) {
-      processedBatchOrderMap[batchNumber] = new Set<string>();
+    // Create a unique key for this batch-order-product combination
+    const batchOrderProductKey = `${batchNumber}-${orderId}-${productId}`;
+    
+    // Initialize tracking for this batch if needed
+    if (!processedBatchOrderProductMap[batchNumber]) {
+      processedBatchOrderProductMap[batchNumber] = new Set<string>();
     }
+    
+    // Check if we've already processed this specific batch-order-product combination
+    const alreadyProcessed = processedBatchOrderProductMap[batchNumber].has(batchOrderProductKey);
     
     // Check if batch exists
     const existingBatchUsage = batchUsages.find(bu => bu.batchNumber === batchNumber);
     
     if (existingBatchUsage) {
+      // Skip if we've already processed this exact combination
+      if (alreadyProcessed) {
+        console.log(`Already recorded batch usage for ${batchNumber}, order ${orderId}, product ${productId}`);
+        return;
+      }
+      
       // Get a copy to update
       const updatedBatchUsage = { ...existingBatchUsage };
       
       // Update weight
       updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
       
+      // Check if this is the first time this order is using this batch
+      // by looking for any entries with this order ID
+      const orderAlreadyUsedBatch = Array.from(processedBatchOrderProductMap[batchNumber])
+        .some(key => key.includes(`-${orderId}-`));
+      
       // Only increase order count if this is the first time this order is using this batch
-      const isNewOrderForBatch = !processedBatchOrderMap[batchNumber].has(orderId);
-      if (isNewOrderForBatch) {
+      if (!orderAlreadyUsedBatch) {
         updatedBatchUsage.ordersCount = existingBatchUsage.ordersCount + 1;
-        processedBatchOrderMap[batchNumber].add(orderId);
       }
+      
+      // Mark this combination as processed
+      processedBatchOrderProductMap[batchNumber].add(batchOrderProductKey);
       
       // Update last used date
       updatedBatchUsage.lastUsed = currentDate;
@@ -534,6 +553,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setBatchUsages(batchUsages.map(bu => 
         bu.id === existingBatchUsage.id ? updatedBatchUsage : bu
       ));
+      
+      console.log(`Updated batch usage for ${batchNumber}, product ${product.name}, weight ${totalWeight}g`);
       
     } else {
       // Create new batch usage record
@@ -549,10 +570,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastUsed: currentDate
       };
       
-      // Mark this order as processed for this batch
-      processedBatchOrderMap[batchNumber] = new Set<string>([orderId]);
+      // Mark this combination as processed
+      processedBatchOrderProductMap[batchNumber].add(batchOrderProductKey);
       
       setBatchUsages([...batchUsages, newBatchUsage]);
+      console.log(`Created new batch usage for ${batchNumber}, product ${product.name}, weight ${totalWeight}g`);
     }
   };
 
