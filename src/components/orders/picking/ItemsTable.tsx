@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { OrderItem } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -195,7 +196,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           onCheckedChange={(checked) => 
                             onCheckItem(item.id, checked === true)
                           }
-                          disabled={itemChanged}
+                          // Removed the disabled prop so users can check modified items
                         />
                       </TableCell>
                       <TableCell>
@@ -398,7 +399,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                               onCheckedChange={(checked) => 
                                 onCheckItem(item.id, checked === true)
                               }
-                              disabled={itemChanged || isBoxDisabled}
+                              // Removed the 'disabled={itemChanged}' prop so users can check modified items
+                              disabled={isBoxDisabled}
                             />
                           </TableCell>
                           <TableCell>
@@ -492,3 +494,4 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 };
 
 export default ItemsTable;
+
