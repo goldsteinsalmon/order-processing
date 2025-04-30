@@ -96,10 +96,11 @@ const CreateOrderForm: React.FC = () => {
       )
     : sortedProducts;
   
-  // Filtered customers based on search
+  // Filtered customers based on search - Fixed to properly search by name
   const filteredCustomers = customerSearch.trim() !== ""
     ? customers.filter(customer =>
-        customer.name.toLowerCase().includes(customerSearch.toLowerCase())
+        customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(customerSearch.toLowerCase()))
       )
     : customers;
     
@@ -312,10 +313,11 @@ const CreateOrderForm: React.FC = () => {
                       placeholder="Search customers..."
                       value={customerSearch}
                       onValueChange={setCustomerSearch}
+                      autoFocus={true}
                     />
                     <CommandList>
                       <CommandEmpty>No customers found.</CommandEmpty>
-                      <CommandGroup>
+                      <CommandGroup heading="Customers">
                         {filteredCustomers.map(customer => (
                           <CommandItem 
                             key={customer.id} 
@@ -324,6 +326,7 @@ const CreateOrderForm: React.FC = () => {
                             className={customer.onHold ? "text-red-500 font-medium" : ""}
                           >
                             {customer.name}
+                            {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
                             {customer.onHold && " (On Hold)"}
                           </CommandItem>
                         ))}

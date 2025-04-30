@@ -67,7 +67,7 @@ const CustomersPage: React.FC = () => {
                 <th className="px-4 py-3 text-left font-medium">Account Number</th>
                 <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">Email</th>
-                <th className="px-4 py-3 text-left font-medium">Phone</th>
+                <th className="px-4 py-3 text-left font-medium w-24">Phone</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
@@ -85,7 +85,7 @@ const CustomersPage: React.FC = () => {
                     <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
                     <td className="px-4 py-3">{customer.name}</td>
                     <td className="px-4 py-3">{customer.email}</td>
-                    <td className="px-4 py-3">{customer.phone}</td>
+                    <td className="px-4 py-3 w-24">{customer.phone}</td>
                     <td className="px-4 py-3">
                       {customer.onHold ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
