@@ -111,6 +111,15 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     // Ensure we navigate directly to the picking list with this order selected
     navigate(`/picking-list/${orderId}`);
   };
+  
+  // Determine if an order should be highlighted for changes
+  const shouldHighlightChanges = (order) => {
+    // Only highlight changes if picking has begun
+    if (order.hasChanges && order.pickingInProgress) {
+      return true;
+    }
+    return false;
+  };
 
   return (
     <div>
@@ -147,12 +156,15 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                   const isNextDay = isNextWorkingDayOrder(order.orderDate);
                   const changeDesc = getChangeDescription(order);
                   const statusDisplay = getOrderStatusDisplay(order);
+                  const highlightChanges = shouldHighlightChanges(order);
                   
                   return (
                     <tr 
                       key={order.id}
                       className={`border-b ${
-                        isSameDay ? "bg-red-50" : isNextDay ? "bg-green-50" : order.hasChanges ? "bg-amber-50" : ""
+                        isSameDay ? "bg-red-50" : 
+                        isNextDay ? "bg-green-50" : 
+                        highlightChanges ? "bg-amber-50" : ""
                       }`}
                     >
                       <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
@@ -205,7 +217,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                             </Button>
                           </div>
                           
-                          {changeDesc && (
+                          {/* Only show change description if picking has begun */}
+                          {changeDesc && order.pickingInProgress && (
                             <div className="text-red-600 text-xs font-medium">
                               Changes: {changeDesc}
                             </div>
