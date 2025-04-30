@@ -1,7 +1,7 @@
 
 export interface Customer {
   id: string;
-  accountNumber?: string; // Add accountNumber property
+  accountNumber?: string;
   name: string;
   email: string;
   phone: string;
@@ -98,12 +98,13 @@ export interface StandingOrder {
   active: boolean;
   created: string;
   updated?: string;
-  nextProcessingDate?: string; // Added this property
-  lastProcessedDate?: string; // Added this for tracking when orders were last processed
+  nextProcessingDate?: string;
+  lastProcessedDate?: string;
 }
 
 export interface Return {
   id: string;
+  customerId?: string; // Added this property to fix the error
   customerType: "Private" | "Trade";
   customerName: string;
   contactEmail?: string;
@@ -127,6 +128,7 @@ export interface Complaint {
   id: string;
   customerType: "Private" | "Trade";
   customerName: string;
+  customerId?: string; // Added this property for consistency
   contactEmail?: string;
   contactPhone?: string;
   dateSubmitted: string;
@@ -134,7 +136,7 @@ export interface Complaint {
   invoiceNumber?: string;
   productSku?: string;
   product?: Product;
-  complaintType: string; // e.g., "Foreign Object Found", "Quality Issue", etc.
+  complaintType: string;
   complaintDetails: string;
   returnsRequired: "Yes" | "No";
   returnStatus: "Pending" | "Processing" | "Completed" | "No Return Required";
