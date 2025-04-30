@@ -1,19 +1,10 @@
 
-import React, { Suspense } from "react";
+import React from "react";
 import Layout from "@/components/Layout";
 import CreateOrderForm from "@/components/orders/CreateOrderForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-// Create a fallback component for loading state
-const FormFallback = () => (
-  <div className="animate-pulse space-y-4">
-    <div className="h-10 w-full bg-gray-200 rounded"></div>
-    <div className="h-32 w-full bg-gray-200 rounded"></div>
-    <div className="h-10 w-full bg-gray-200 rounded"></div>
-  </div>
-);
 
 const CreateOrderPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +18,6 @@ const CreateOrderPage: React.FC = () => {
         <h2 className="text-2xl font-bold">Create Order</h2>
       </div>
       <p className="text-gray-500 mb-6">Create a new order for a customer</p>
-      
       <CreateOrderForm />
     </Layout>
   );

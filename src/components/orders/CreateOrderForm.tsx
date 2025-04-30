@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+
+import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -64,10 +65,6 @@ const CreateOrderForm: React.FC = () => {
   const { customers, products, addOrder } = useData();
   const { toast } = useToast();
   
-  // Customer list scroll reference
-  const customerListRef = useRef<HTMLDivElement>(null);
-  const productListRef = useRef<HTMLDivElement>(null);
-  
   // Add the missing state variables
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showOnHoldWarning, setShowOnHoldWarning] = useState(false);
@@ -88,19 +85,6 @@ const CreateOrderForm: React.FC = () => {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [activeProductItemId, setActiveProductItemId] = useState<string | null>(null);
-  
-  // Reset scroll position when search changes
-  useEffect(() => {
-    if (customerListRef.current) {
-      customerListRef.current.scrollTop = 0;
-    }
-  }, [customerSearch, showCustomerSearch]);
-  
-  useEffect(() => {
-    if (productListRef.current) {
-      productListRef.current.scrollTop = 0;
-    }
-  }, [productSearch, showProductSearch]);
   
   // Sort products by SKU
   const sortedProducts = [...products].sort((a, b) => 
@@ -156,7 +140,7 @@ const CreateOrderForm: React.FC = () => {
   console.log("Total customers:", customers.length);
   console.log("Filtered customers:", filteredCustomers.length);
   console.log("Filtered customers:", filteredCustomers.map(c => c.name).join(", "));
-
+    
   // Get the default order date based on current time
   const getDefaultOrderDate = () => {
     const currentHour = new Date().getHours();
@@ -374,30 +358,28 @@ const CreateOrderForm: React.FC = () => {
                         className="pl-8"
                       />
                     </div>
-                    <CommandList ref={customerListRef}>
-                      <Command>
-                        <CommandEmpty>No customers found.</CommandEmpty>
-                        <CommandGroup heading="Customers">
-                          {filteredCustomers.map(customer => {
-                            console.log(`Rendering customer item: ${customer.name}`);
-                            return (
-                              <CommandItem 
-                                key={customer.id} 
-                                value={customer.name} 
-                                onSelect={() => {
-                                  console.log(`Customer selected: ${customer.name} (${customer.id})`);
-                                  handleSelectCustomer(customer.id);
-                                }}
-                                className={customer.onHold ? "text-red-500 font-medium" : ""}
-                              >
-                                {customer.name}
-                                {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
-                                {customer.onHold && " (On Hold)"}
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </Command>
+                    <CommandList>
+                      <CommandEmpty>No customers found.</CommandEmpty>
+                      <CommandGroup heading="Customers">
+                        {filteredCustomers.map(customer => {
+                          console.log(`Rendering customer item: ${customer.name}`);
+                          return (
+                            <CommandItem 
+                              key={customer.id} 
+                              value={customer.name} // Use name as the value for matching
+                              onSelect={() => {
+                                console.log(`Customer selected: ${customer.name} (${customer.id})`);
+                                handleSelectCustomer(customer.id);
+                              }}
+                              className={customer.onHold ? "text-red-500 font-medium" : ""}
+                            >
+                              {customer.name}
+                              {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+                              {customer.onHold && " (On Hold)"}
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
                     </CommandList>
                   </CommandDialog>
                   <FormMessage />
@@ -656,27 +638,25 @@ const CreateOrderForm: React.FC = () => {
               className="pl-8"
             />
           </div>
-          <CommandList ref={productListRef}>
-            <Command>
-              <CommandEmpty>No products found.</CommandEmpty>
-              <CommandGroup>
-                {filteredProducts.map(product => (
-                  <CommandItem 
-                    key={product.id} 
-                    value={product.name} 
-                    onSelect={() => {
-                      console.log(`Product selected: ${product.name} (${product.id})`);
-                      if (activeProductItemId) {
-                        handleSelectProduct(activeProductItemId, product.id);
-                      }
-                    }}
-                  >
-                    <span>{product.name}</span>
-                    <span className="ml-2 text-muted-foreground">({product.sku})</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
+          <CommandList>
+            <CommandEmpty>No products found.</CommandEmpty>
+            <CommandGroup>
+              {filteredProducts.map(product => (
+                <CommandItem 
+                  key={product.id} 
+                  value={product.name} // Use name as the value for matching
+                  onSelect={() => {
+                    console.log(`Product selected: ${product.name} (${product.id})`);
+                    if (activeProductItemId) {
+                      handleSelectProduct(activeProductItemId, product.id);
+                    }
+                  }}
+                >
+                  <span>{product.name}</span>
+                  <span className="ml-2 text-muted-foreground">({product.sku})</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
           </CommandList>
         </CommandDialog>
       )}
