@@ -1,10 +1,9 @@
-
 import React, { useState } from "react";
 import { Plus, X, SplitSquareVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Box, Product } from "@/types";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -163,6 +162,8 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   const handleAutoSplitConfirm = () => {
     if (!currentItem) return;
     
+    console.log("Auto split confirm called");
+    
     // Make sure we have enough boxes
     const existingBoxCount = boxDistributions.length;
     if (existingBoxCount < boxCount) {
@@ -193,54 +194,54 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       const baseQuantity = Math.floor(totalQuantity / boxCount);
       const remainder = totalQuantity % boxCount;
       
-      // Get the boxes we'll distribute to
-      const sortedBoxes = [...boxDistributions]
-        .sort((a, b) => a.boxNumber - b.boxNumber)
-        .slice(0, boxCount);
+      console.log("Total quantity:", totalQuantity);
+      console.log("Base quantity per box:", baseQuantity);
+      console.log("Remainder:", remainder);
       
-      // Create a copy of the current item for each box with appropriate quantity
-      sortedBoxes.forEach((box, index) => {
+      // Get the boxes we'll distribute to
+      const targetBoxNumbers = boxDistributions
+        .sort((a, b) => a.boxNumber - b.boxNumber)
+        .slice(0, boxCount)
+        .map(box => box.boxNumber);
+      
+      console.log("Target box numbers:", targetBoxNumbers);
+      
+      // Create a copy of the current boxDistributions for mutation
+      const updatedBoxDistributions = [...boxDistributions];
+      
+      // Distribute items to each box
+      targetBoxNumbers.forEach((boxNumber, index) => {
         const adjustedQuantity = index < remainder ? baseQuantity + 1 : baseQuantity;
         
         if (adjustedQuantity > 0) {
-          // Add the item to this box with the calculated quantity
-          const boxItem = {
-            productId: currentItem.productId,
-            productName: currentItem.productName,
-            quantity: adjustedQuantity,
-            weight: 0
-          };
+          console.log(`Adding ${adjustedQuantity} items to box ${boxNumber}`);
           
-          // Update box distributions
-          setBoxDistributions(prevBoxes => 
-            prevBoxes.map(prevBox => {
-              if (prevBox.boxNumber === box.boxNumber) {
-                // Check if item already exists in this box
-                const existingItem = prevBox.items.find(item => item.productId === currentItem.productId);
-                
-                if (existingItem) {
-                  // Update existing item quantity
-                  return {
-                    ...prevBox,
-                    items: prevBox.items.map(item => 
-                      item.productId === currentItem.productId
-                        ? { ...item, quantity: item.quantity + adjustedQuantity }
-                        : item
-                    )
-                  };
-                } else {
-                  // Add as new item
-                  return {
-                    ...prevBox,
-                    items: [...prevBox.items, boxItem]
-                  };
-                }
-              }
-              return prevBox;
-            })
+          // Find the box in our updated array
+          const boxIndex = updatedBoxDistributions.findIndex(box => box.boxNumber === boxNumber);
+          if (boxIndex === -1) return;
+          
+          // Check if item already exists in this box
+          const existingItemIndex = updatedBoxDistributions[boxIndex].items.findIndex(
+            item => item.productId === currentItem.productId
           );
+          
+          if (existingItemIndex !== -1) {
+            // Update existing item quantity
+            updatedBoxDistributions[boxIndex].items[existingItemIndex].quantity += adjustedQuantity;
+          } else {
+            // Add as new item
+            updatedBoxDistributions[boxIndex].items.push({
+              productId: currentItem.productId,
+              productName: currentItem.productName,
+              quantity: adjustedQuantity,
+              weight: 0
+            });
+          }
         }
       });
+      
+      // Update state with our modified box distributions
+      setBoxDistributions(updatedBoxDistributions);
       
       // Remove the item from unassigned items
       setUnassignedItems(prevItems => 
@@ -250,7 +251,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       // Close the dialog
       setAutoSplitDialogOpen(false);
       setCurrentItem(null);
-    }, 0);
+    }, 100);
   };
 
   // Manual split functions
@@ -470,6 +471,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Auto Split Item</DialogTitle>
+            <DialogDescription>Distribute items evenly across boxes</DialogDescription>
           </DialogHeader>
           
           <div className="py-4">
@@ -511,6 +513,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Split Item Quantity</DialogTitle>
+            <DialogDescription>Choose how many items to add to the selected box</DialogDescription>
           </DialogHeader>
           
           <div className="py-4">
