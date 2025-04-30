@@ -11,6 +11,7 @@ import CreateOrderPage from "./pages/CreateOrderPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
 import PickingListPage from "./pages/PickingListPage";
 import CompletedOrdersPage from "./pages/CompletedOrdersPage";
+import PrintBoxLabelPage from "./pages/PrintBoxLabelPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import MissingItemsPage from "./pages/MissingItemsPage";
 import CustomersPage from "./pages/CustomersPage";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/create-order" element={<CreateOrderPage />} />
             <Route path="/order-details/:id" element={<OrderDetailsPage />} />
             <Route path="/picking-list/:id" element={<PickingListPage />} />
+            <Route path="/print-box-label/:id" element={<PrintBoxLabelPage />} />
             <Route path="/completed-orders" element={<CompletedOrdersPage />} />
             <Route path="/standing-orders" element={<StandingOrdersPage />} />
             <Route path="/create-standing-order" element={<CreateStandingOrderPage />} />

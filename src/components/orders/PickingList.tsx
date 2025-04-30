@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Check, X, FileCheck } from "lucide-react";
@@ -14,7 +13,7 @@ import { OrderItem } from "@/types";
 const PickingList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders, updateOrder, addMissingItem, pickers } = useData();
+  const { orders, updateOrder, completeOrder, addMissingItem, pickers } = useData();
   const { toast } = useToast();
 
   const order = orders.find(order => order.id === id);
@@ -239,10 +238,11 @@ const PickingList: React.FC = () => {
       items: updatedItems,
       picker: selectedPicker,
       isPicked: true,
-      status: hasUnavailableItems ? "Missing Items" as const : "Picking" as const,
+      status: "Completed" as const, // Always mark as completed
       totalBlownPouches: totalBlownPouches,
       updated: new Date().toISOString(),
       pickingProgress: null, // Clear progress once completed
+      batchNumber: Object.values(batchNumbers)[0] || "", // Use first batch number for order reference
     };
 
     // Process missing items
@@ -268,16 +268,16 @@ const PickingList: React.FC = () => {
       }
     });
 
-    // Update order status in the system
-    updateOrder(updatedOrder);
+    // Complete the order (move to completedOrders)
+    completeOrder(updatedOrder);
 
     toast({
       title: "Picking complete",
       description: "The order has been successfully processed.",
     });
 
-    // Navigate back to orders list
-    navigate("/");
+    // Navigate to print box label page
+    navigate(`/print-box-label/${order.id}`);
   };
 
   return (

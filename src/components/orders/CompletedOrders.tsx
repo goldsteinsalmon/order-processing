@@ -1,7 +1,7 @@
 
 import React from "react";
 import { format, parseISO } from "date-fns";
-import { Eye, Edit } from "lucide-react";
+import { Eye, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ const CompletedOrders: React.FC = () => {
   
   // Sort completed orders by date (newest first)
   const sortedOrders = [...completedOrders].sort((a, b) => {
-    return new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
+    return new Date(b.updated || b.orderDate).getTime() - new Date(a.updated || a.orderDate).getTime();
   });
 
   return (
@@ -55,7 +55,7 @@ const CompletedOrders: React.FC = () => {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => navigate(`/completed-order-details/${order.id}`)}
+                        onClick={() => navigate(`/order-details/${order.id}`)}
                       >
                         <Eye className="h-4 w-4" />
                         <span className="sr-only">View Details</span>
@@ -63,10 +63,10 @@ const CompletedOrders: React.FC = () => {
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => navigate(`/edit-completed-order/${order.id}`)}
+                        onClick={() => navigate(`/print-box-label/${order.id}`)}
                       >
-                        <Edit className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
+                        <Printer className="h-4 w-4" />
+                        <span className="sr-only">Print Label</span>
                       </Button>
                     </td>
                   </tr>
