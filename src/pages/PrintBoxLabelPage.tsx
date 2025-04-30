@@ -40,18 +40,18 @@ const PrintBoxLabelPage: React.FC = () => {
             ...order,
             completedBoxes: updatedCompletedBoxes
           });
+          
+          // Show success toast
+          toast({
+            title: "Box data saved",
+            description: `Box ${boxNum} has been marked as complete.`
+          });
         }
-        
-        // Show success toast
-        toast({
-          title: "Box data saved",
-          description: `Box ${boxNum} has been marked as complete.`
-        });
       }
     }
   };
   
-  // When box number is specified, verify that all previous boxes (except box 0) have been completed
+  // When box number is specified, save it as soon as component mounts
   useEffect(() => {
     // Set document title
     document.title = "Print Box Label";
@@ -63,20 +63,9 @@ const PrintBoxLabelPage: React.FC = () => {
       document.title = `Print Box Label - ${order.customer?.name || "Order"} - Box ${boxNum}`;
       
       // Mark this box as completed when the page loads
-      if (order && boxNum > 0) {
-        const updatedCompletedBoxes = [...(order.completedBoxes || [])];
-        if (!updatedCompletedBoxes.includes(boxNum)) {
-          updatedCompletedBoxes.push(boxNum);
-          
-          // Update the order with this box marked as completed
-          updateOrder({
-            ...order,
-            completedBoxes: updatedCompletedBoxes
-          });
-        }
-      }
+      saveBoxData();
     }
-  }, [order, boxNumber, updateOrder]);
+  }, [order, boxNumber]);
 
   const handlePrintAndSave = () => {
     // Save box data first

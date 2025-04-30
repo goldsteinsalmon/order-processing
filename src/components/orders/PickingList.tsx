@@ -474,6 +474,50 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     navigate("/orders");
   };
   
+  // Calculate total weight for all boxes by product
+  const calculateTotalWeightByProduct = () => {
+    if (!selectedOrder || !selectedOrder.boxDistributions || !allItems.length) {
+      return [];
+    }
+    
+    // Create a map to store total weight by product
+    const weightByProduct = new Map();
+    
+    // Get items with their weights
+    allItems.forEach(item => {
+      const productId = item.productId;
+      const productName = item.product.name;
+      
+      // For weight-based products, use picked weight
+      if (item.product.requiresWeightInput && item.pickedWeight) {
+        const currentWeight = weightByProduct.get(productId) || { 
+          id: productId, 
+          name: productName, 
+          weight: 0,
+          unit: item.product.unit || 'g'
+        };
+        currentWeight.weight += item.pickedWeight;
+        weightByProduct.set(productId, currentWeight);
+      } 
+      // For non-weight based products with defined weights, calculate
+      else if (item.product.weight) {
+        const currentWeight = weightByProduct.get(productId) || { 
+          id: productId, 
+          name: productName, 
+          weight: 0,
+          unit: item.product.unit || 'g'
+        };
+        currentWeight.weight += item.product.weight * item.quantity;
+        weightByProduct.set(productId, currentWeight);
+      }
+    });
+    
+    // Convert map to array
+    return Array.from(weightByProduct.values());
+  };
+  
+  const totalWeightByProduct = calculateTotalWeightByProduct();
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -536,6 +580,23 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
             groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
             completedBoxes={completedBoxes}
           />
+          
+          {/* Total Weight Summary */}
+          {totalWeightByProduct.length > 0 && (
+            <div className="mt-8 border rounded-lg p-4 bg-gray-50">
+              <h3 className="text-lg font-semibold mb-4">Total Product Weights</h3>
+              <div className="grid gap-4">
+                {totalWeightByProduct.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center border-b pb-2">
+                    <span className="font-medium">{item.name}</span>
+                    <span className="font-semibold">
+                      {item.weight.toLocaleString()} {item.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           
           {/* Printable version */}
           <div className="hidden">
