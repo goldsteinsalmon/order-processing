@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ const PickingList: React.FC = () => {
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [missingItems, setMissingItems] = useState<{id: string, quantity: number}[]>([]);
   
-  const printRef = React.useRef<HTMLDivElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   
   // Filter orders that are in "Pending" status
   const pendingOrders = orders.filter(order => order.status === "Pending");
@@ -73,11 +73,22 @@ const PickingList: React.FC = () => {
       // Create a flat list of all items from the order
       const items = selectedOrder.items.map(item => ({
         ...item,
-        checked: false,
+        checked: item.checked || false,
         batchNumber: item.batchNumber || "",
       }));
       setAllItems(items);
-      setMissingItems([]);
+      
+      // If the order has previously recorded missing items, set them
+      if (selectedOrder.missingItems) {
+        setMissingItems(selectedOrder.missingItems);
+      } else {
+        setMissingItems([]);
+      }
+
+      // If the order has a picker assigned, set it
+      if (selectedOrder.pickedBy) {
+        setSelectedPickerId(selectedOrder.pickedBy);
+      }
     } else {
       setAllItems([]);
       setMissingItems([]);
@@ -85,7 +96,6 @@ const PickingList: React.FC = () => {
   }, [selectedOrderId, selectedOrder]);
   
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
     onAfterPrint: () => {
       toast({
@@ -159,12 +169,13 @@ const PickingList: React.FC = () => {
         return {
           ...item,
           batchNumber: updatedItem.batchNumber || item.batchNumber,
-          checked: updatedItem.checked || false,
+          checked: updatedItem.checked,
           missingQuantity: missingQuantity
         };
       }),
       pickingInProgress: true,
-      pickedBy: selectedPickerId || undefined
+      pickedBy: selectedPickerId || undefined,
+      missingItems: missingItems
     };
     
     // Update the order with progress
@@ -320,127 +331,125 @@ const PickingList: React.FC = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Items to Pick</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">Picked</TableHead>
-                          <TableHead>Product</TableHead>
-                          <TableHead className="text-right">Quantity</TableHead>
-                          <TableHead>Batch Number</TableHead>
-                          <TableHead>Missing</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {allItems.map(item => {
-                          const missingItem = missingItems.find(mi => mi.id === item.id);
-                          const missingQuantity = missingItem ? missingItem.quantity : 0;
-                          
-                          return (
-                            <TableRow key={item.id}>
-                              <TableCell>
-                                <Checkbox 
-                                  checked={item.checked} 
-                                  onCheckedChange={(checked) => 
-                                    handleCheckItem(item.id, checked === true)
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <div className="font-medium">{item.product.name}</div>
-                                <div className="text-sm text-gray-500">{item.product.sku}</div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {item.quantity}
-                              </TableCell>
-                              <TableCell>
-                                <Input 
-                                  placeholder="Enter batch #"
-                                  value={item.batchNumber}
-                                  onChange={(e) => handleBatchNumber(item.id, e.target.value)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Input 
-                                  type="number"
-                                  min="0"
-                                  max={item.quantity}
-                                  placeholder="0"
-                                  value={missingQuantity || ""}
-                                  onChange={(e) => handleMissingItem(
-                                    item.id, 
-                                    Math.min(parseInt(e.target.value) || 0, item.quantity)
-                                  )}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-6">
+            {/* Order Details Card - Moved to the top */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Customer</Label>
+                  <div className="font-medium">{selectedOrder.customer.name}</div>
+                </div>
+                
+                <div>
+                  <Label>Order Date</Label>
+                  <div>{format(new Date(selectedOrder.orderDate), "MMMM d, yyyy")}</div>
+                </div>
+                
+                <div>
+                  <Label>Delivery Method</Label>
+                  <div>{selectedOrder.deliveryMethod}</div>
+                </div>
+                
+                {selectedOrder.notes && (
                   <div>
-                    <Label>Customer</Label>
-                    <div className="font-medium">{selectedOrder.customer.name}</div>
-                  </div>
-                  
-                  <div>
-                    <Label>Order Date</Label>
-                    <div>{format(new Date(selectedOrder.orderDate), "MMMM d, yyyy")}</div>
-                  </div>
-                  
-                  <div>
-                    <Label>Delivery Method</Label>
-                    <div>{selectedOrder.deliveryMethod}</div>
-                  </div>
-                  
-                  {selectedOrder.notes && (
-                    <div>
-                      <Label>Notes</Label>
-                      <div className="text-sm bg-gray-50 p-2 rounded border">
-                        {selectedOrder.notes}
-                      </div>
+                    <Label>Notes</Label>
+                    <div className="text-sm bg-gray-50 p-2 rounded border">
+                      {selectedOrder.notes}
                     </div>
-                  )}
-                  
-                  <div>
-                    <Label htmlFor="picker">Picked By</Label>
-                    <Select 
-                      value={selectedPickerId} 
-                      onValueChange={setSelectedPickerId}
-                    >
-                      <SelectTrigger id="picker">
-                        <SelectValue placeholder="Select picker" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pickers.map(picker => (
-                          <SelectItem key={picker.id} value={picker.id}>
-                            {picker.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+                
+                <div>
+                  <Label htmlFor="picker">Picked By</Label>
+                  <Select 
+                    value={selectedPickerId} 
+                    onValueChange={setSelectedPickerId}
+                  >
+                    <SelectTrigger id="picker">
+                      <SelectValue placeholder="Select picker" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pickers.map(picker => (
+                        <SelectItem key={picker.id} value={picker.id}>
+                          {picker.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Items to Pick Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Items to Pick</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">Picked</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead>Batch Number</TableHead>
+                        <TableHead>Missing</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allItems.map(item => {
+                        const missingItem = missingItems.find(mi => mi.id === item.id);
+                        const missingQuantity = missingItem ? missingItem.quantity : 0;
+                        
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell>
+                              <Checkbox 
+                                checked={item.checked} 
+                                onCheckedChange={(checked) => 
+                                  handleCheckItem(item.id, checked === true)
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{item.product.name}</div>
+                              <div className="text-sm text-gray-500">{item.product.sku}</div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {item.quantity}
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                placeholder="Enter batch #"
+                                value={item.batchNumber}
+                                onChange={(e) => handleBatchNumber(item.id, e.target.value)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number"
+                                min="0"
+                                max={item.quantity}
+                                placeholder="0"
+                                value={missingQuantity || ""}
+                                onChange={(e) => handleMissingItem(
+                                  item.id, 
+                                  Math.min(parseInt(e.target.value) || 0, item.quantity)
+                                )}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </div>
           
           {/* Printable version */}

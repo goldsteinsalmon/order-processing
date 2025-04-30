@@ -22,6 +22,7 @@ const CompletedOrdersPage: React.FC = () => {
           />
         </div>
       </div>
+      {/* Fix the TypeScript error by adding searchTerm as a prop */}
       <CompletedOrders searchTerm={searchTerm} />
     </Layout>
   );

@@ -5,8 +5,7 @@ import PickingList from "@/components/orders/PickingList";
 import { useParams } from "react-router-dom";
 
 const PickingListPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  
+  // The ID is now properly passed to the PickingList component via URL params
   return (
     <Layout>
       <PickingList />
