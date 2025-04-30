@@ -276,12 +276,12 @@ const AdminPage: React.FC = () => {
     setShowDeletePickerDialog(false);
   };
   
-  // Template download functions - Updated to use CSV
+  // Template download functions - Updated to use CSV with corrected fields
   const downloadCustomerTemplate = () => {
-    // CSV header and example row
+    // CSV header and example row (removed 'type' field)
     const csvContent = [
-      "accountNumber,name,type,email,phone",
-      "ACC123,Example Customer,Private,customer@example.com,01234567890"
+      "accountNumber,name,email,phone,address",
+      "ACC123,Example Customer,customer@example.com,01234567890,123 Example Street"
     ].join("\n");
     
     // Create a blob and download
@@ -302,10 +302,10 @@ const AdminPage: React.FC = () => {
   };
   
   const downloadProductTemplate = () => {
-    // CSV header and example row
+    // CSV header and example row (added 'weight' field)
     const csvContent = [
-      "name,sku,stockLevel,description",
-      "Example Product,PROD123,100,Product description"
+      "name,sku,stockLevel,weight,description",
+      "Example Product,PROD123,100,500,Product description"
     ].join("\n");
     
     // Create a blob and download
