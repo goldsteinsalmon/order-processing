@@ -13,7 +13,7 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
 const BatchTrackingPage: React.FC = () => {
   const { batchUsages } = useData();
@@ -54,6 +54,9 @@ const BatchTrackingPage: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle>Batch Details</CardTitle>
+            <CardDescription>
+              Track batch usage across all orders
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { format, parseISO, isAfter } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useData } from "@/context/DataContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,12 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     setOrderItems([...orderItems, newItem]);
     setSelectedProductId("");
     setSelectedQuantity(1);
+    
+    // Success toast
+    toast({
+      title: "Item added",
+      description: "The item has been added to the order."
+    });
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -317,30 +323,42 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4 flex gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-1">Product</label>
-                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map(product => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-24">
-                <label className="block text-sm font-medium mb-1">Quantity</label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={selectedQuantity}
-                  onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
-                />
+            <div className="mb-6 flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-1">Product</label>
+                  <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map(product => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name} ({product.sku})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Quantity</label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={selectedQuantity}
+                      onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="button" 
+                      className="flex-none" 
+                      onClick={handleAddItem}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
             

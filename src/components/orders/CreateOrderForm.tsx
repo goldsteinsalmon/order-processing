@@ -63,6 +63,10 @@ const CreateOrderForm: React.FC = () => {
   const [showCutOffWarning, setShowCutOffWarning] = useState(false);
   const [manualDateChange, setManualDateChange] = useState(false);
   
+  // Product addition state for the new UI
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  
   // Get the default order date based on current time
   const getDefaultOrderDate = () => {
     const currentHour = new Date().getHours();
@@ -108,11 +112,30 @@ const CreateOrderForm: React.FC = () => {
   }, [orderDate, manualDateChange]);
 
   const handleAddItem = () => {
-    setOrderItems([...orderItems, { 
-      productId: "", 
-      quantity: 1, 
+    if (!selectedProductId) {
+      toast({
+        title: "No product selected",
+        description: "Please select a product to add to the order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newItem = {
+      productId: selectedProductId,
+      quantity: selectedQuantity,
       id: crypto.randomUUID() 
-    }]);
+    };
+
+    setOrderItems([...orderItems, newItem]);
+    setSelectedProductId("");
+    setSelectedQuantity(1);
+    
+    // Success toast
+    toast({
+      title: "Item added",
+      description: "The item has been added to the order."
+    });
   };
 
   const handleRemoveItem = (id: string) => {
@@ -303,58 +326,109 @@ const CreateOrderForm: React.FC = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Items *</h3>
-              <Button type="button" onClick={handleAddItem} variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" /> Add Item
-              </Button>
+            </div>
+            
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <FormLabel>Product</FormLabel>
+                <Select
+                  value={selectedProductId}
+                  onValueChange={setSelectedProductId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col">
+                <FormLabel>Quantity</FormLabel>
+                <div className="flex gap-2 h-10">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={selectedQuantity}
+                    onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    className="flex-none" 
+                    onClick={handleAddItem}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <div className="space-y-4">
               <div className="grid grid-cols-12 gap-4 font-medium">
-                <div className="col-span-6">Product</div>
-                <div className="col-span-4">Quantity</div>
-                <div className="col-span-2"></div>
+                <div className="col-span-5">Product</div>
+                <div className="col-span-3">SKU</div>
+                <div className="col-span-3 text-center">Quantity</div>
+                <div className="col-span-1"></div>
               </div>
 
-              {orderItems.map((item, index) => (
-                <div key={item.id} className="grid grid-cols-12 gap-4 items-center">
-                  <div className="col-span-6">
-                    <Select
-                      value={item.productId}
-                      onValueChange={(value) => handleItemChange(item.id, "productId", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-4">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 1)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveItem(item.id)}
-                      disabled={orderItems.length <= 1}
-                    >
-                      <Minus className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
+              {orderItems.length === 0 ? (
+                <div className="py-4 text-center text-gray-500 border rounded">
+                  No items added to this order
                 </div>
-              ))}
+              ) : (
+                orderItems.map((item, index) => {
+                  const product = products.find(p => p.id === item.productId);
+                  return (
+                    <div key={item.id} className="grid grid-cols-12 gap-4 items-center py-2 border-b">
+                      <div className="col-span-5">
+                        <Select
+                          value={item.productId}
+                          onValueChange={(value) => handleItemChange(item.id, "productId", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a product..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-3">
+                        {product ? product.sku : ""}
+                      </div>
+                      <div className="col-span-3">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 1)}
+                          className="text-center"
+                        />
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(item.id)}
+                          disabled={orderItems.length <= 1}
+                        >
+                          <Minus className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
