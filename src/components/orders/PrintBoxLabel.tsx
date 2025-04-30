@@ -21,6 +21,13 @@ interface BoxDistribution {
   totalBoxWeight: number;
 }
 
+// Interface for product box settings
+interface ProductBoxSetting {
+  boxCount: number;
+  itemsPerBox: number;
+  manualDistribution: boolean;
+}
+
 const PrintBoxLabel: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -34,11 +41,7 @@ const PrintBoxLabel: React.FC = () => {
   const [totalWeight, setTotalWeight] = useState<number>(0);
   
   // Product-specific box settings
-  const [productBoxes, setProductBoxes] = useState<{[productId: string]: {
-    boxCount: number,
-    itemsPerBox: number,
-    manualDistribution: boolean
-  }>>({}); 
+  const [productBoxes, setProductBoxes] = useState<Record<string, ProductBoxSetting>>({});
 
   // Set document title
   useEffect(() => {
@@ -48,11 +51,7 @@ const PrintBoxLabel: React.FC = () => {
   // Initialize product box settings
   useEffect(() => {
     if (order) {
-      const initialProductBoxes: {[productId: string]: {
-        boxCount: number,
-        itemsPerBox: number,
-        manualDistribution: false
-      }} = {};
+      const initialProductBoxes: Record<string, ProductBoxSetting> = {};
       
       order.items.forEach(item => {
         // For each product, initialize with default values
