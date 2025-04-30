@@ -35,6 +35,7 @@ export interface OrderItem {
   missingQuantity?: number;
   pickedQuantity?: number;
   pickedWeight?: number; // Added picked weight field for weight-based products
+  originalQuantity?: number; // Added to track original quantity for modified orders
 }
 
 export interface PickingProgress {
