@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Check, X, FileCheck } from "lucide-react";
@@ -444,8 +443,6 @@ const PickingList: React.FC = () => {
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
                   <th className="text-center font-medium py-2">Quantity</th>
-                  <th className="text-center font-medium py-2">Weight (g)</th>
-                  <th className="text-center font-medium py-2">Total Weight (g)</th>
                   <th className="text-center font-medium py-2">Batch Number</th>
                   <th className="text-center font-medium py-2">Picked</th>
                   <th className="text-center font-medium py-2">Unavailable</th>
@@ -459,10 +456,6 @@ const PickingList: React.FC = () => {
                   const itemChanges = order.changes?.find(change => 
                     change.productId === item.productId
                   );
-                  
-                  // Calculate item weight and total weight
-                  const itemUnitWeight = item.product.weight || 0;
-                  const itemTotalWeight = itemUnitWeight * item.quantity;
                   
                   return (
                     <tr key={item.id} className={`border-b ${itemChanges ? "bg-red-50" : ""}`}>
@@ -481,8 +474,6 @@ const PickingList: React.FC = () => {
                       </td>
                       <td className="py-3">{item.product.sku}</td>
                       <td className="py-3 text-center">{item.quantity}</td>
-                      <td className="py-3 text-center">{itemUnitWeight}</td>
-                      <td className="py-3 text-center">{itemTotalWeight}</td>
                       <td className="py-3 text-center">
                         <Input
                           value={batchNumbers[item.id] || ""}
@@ -544,9 +535,7 @@ const PickingList: React.FC = () => {
                   );
                 })}
                 <tr className="font-medium">
-                  <td colSpan={4} className="py-3 text-right">Total:</td>
-                  <td className="py-3 text-center">{totalOrderWeight} g</td>
-                  <td colSpan={4} className="py-3 text-right">Total Blown Pouches:</td>
+                  <td colSpan={7} className="py-3 text-right">Total Blown Pouches:</td>
                   <td className="py-3 text-center">
                     {Object.values(blownPouches).reduce((sum, value) => sum + (value || 0), 0)}
                   </td>

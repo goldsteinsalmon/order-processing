@@ -1,10 +1,10 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Eye, Edit, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -17,41 +17,48 @@ import {
 const CompletedOrders: React.FC = () => {
   const { completedOrders } = useData();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const batchFilter = searchParams.get('batch');
+  const [filteredOrders, setFilteredOrders] = useState(completedOrders);
   
-  // Sort completed orders by date (newest first)
-  const sortedOrders = [...completedOrders].sort((a, b) => {
-    return new Date(b.updated || b.orderDate).getTime() - new Date(a.updated || a.orderDate).getTime();
-  });
-
-  // Helper function to format batch numbers display from items
-  const formatBatchNumbers = (order) => {
-    // First check for explicit batch numbers array
-    if (order.batchNumbers && order.batchNumbers.length > 0) {
-      return order.batchNumbers.join(", ");
-    }
-    
-    // Then check for individual item batch numbers
-    if (order.items && order.items.length > 0) {
-      const batchSet = new Set<string>();
-      
-      // Collect unique batch numbers from each item
-      order.items.forEach(item => {
-        if (item.batchNumber) {
-          batchSet.add(item.batchNumber);
-        } else if (order.pickingProgress?.batchNumbers && order.pickingProgress.batchNumbers[item.id]) {
-          batchSet.add(order.pickingProgress.batchNumbers[item.id]);
+  useEffect(() => {
+    if (batchFilter) {
+      // Filter orders by batch number
+      const ordersWithBatch = completedOrders.filter(order => {
+        // Check if order has batch numbers array
+        if (order.batchNumbers && order.batchNumbers.includes(batchFilter)) {
+          return true;
         }
+        
+        // Check if order has a single batch number
+        if (order.batchNumber === batchFilter) {
+          return true;
+        }
+        
+        // Check if any item in the order uses this batch number
+        if (order.items && order.items.some(item => item.batchNumber === batchFilter)) {
+          return true;
+        }
+        
+        // Check if any item in pickingProgress uses this batch number
+        if (order.pickingProgress?.batchNumbers) {
+          return Object.values(order.pickingProgress.batchNumbers).includes(batchFilter);
+        }
+        
+        return false;
       });
       
-      // If we found batch numbers from items, return them
-      if (batchSet.size > 0) {
-        return Array.from(batchSet).join(", ");
-      }
+      setFilteredOrders(ordersWithBatch);
+    } else {
+      // No filter, show all orders
+      setFilteredOrders(completedOrders);
     }
-    
-    // Fallback to the order's single batch number
-    return order.batchNumber || "N/A";
-  };
+  }, [completedOrders, batchFilter]);
+  
+  // Sort completed orders by date (newest first)
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    return new Date(b.updated || b.orderDate).getTime() - new Date(a.updated || a.orderDate).getTime();
+  });
 
   // Helper function to generate change description
   const getChangeDescription = (order) => {
@@ -73,7 +80,22 @@ const CompletedOrders: React.FC = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Completed Orders</h2>
+      <h2 className="text-2xl font-bold mb-6">
+        {batchFilter 
+          ? `Completed Orders with Batch #${batchFilter}`
+          : "Completed Orders"
+        }
+      </h2>
+
+      {batchFilter && (
+        <Button 
+          variant="outline" 
+          className="mb-4" 
+          onClick={() => navigate("/completed-orders")}
+        >
+          Clear Batch Filter
+        </Button>
+      )}
 
       <div className="rounded-md border">
         <Table>
@@ -83,7 +105,6 @@ const CompletedOrders: React.FC = () => {
               <TableHead>Customer</TableHead>
               <TableHead>Order Date</TableHead>
               <TableHead>Picker</TableHead>
-              <TableHead>Batch Number(s)</TableHead>
               <TableHead>Blown Pouches</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
@@ -91,7 +112,7 @@ const CompletedOrders: React.FC = () => {
           <TableBody>
             {sortedOrders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-gray-500">
+                <TableCell colSpan={6} className="text-center text-gray-500">
                   No completed orders found
                 </TableCell>
               </TableRow>
@@ -110,9 +131,6 @@ const CompletedOrders: React.FC = () => {
                       {format(parseISO(order.orderDate), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell>{order.picker || "N/A"}</TableCell>
-                    <TableCell>
-                      {formatBatchNumbers(order)}
-                    </TableCell>
                     <TableCell>{order.totalBlownPouches || 0}</TableCell>
                     <TableCell>
                       <div className="flex flex-col space-y-2">
