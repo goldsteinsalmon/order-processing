@@ -20,6 +20,7 @@ import StandingOrderSchedulePage from "./pages/StandingOrderSchedulePage";
 import EditStandingOrderPage from "./pages/EditStandingOrderPage";
 import EditStandingOrderDeliveryPage from "./pages/EditStandingOrderDeliveryPage";
 import PrintBoxLabelPage from "./pages/PrintBoxLabelPage";
+import CustomersPage from "./pages/CustomersPage";
 
 const App: React.FC = () => {
   return (
@@ -28,7 +29,7 @@ const App: React.FC = () => {
         <Route path="/" element={<OrdersPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         
-        <Route path="/customers" element={<OrdersPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
         <Route path="/customer-details/:id" element={<CustomerDetailsPage />} />
         <Route path="/create-customer" element={<CreateCustomerPage />} />
         
