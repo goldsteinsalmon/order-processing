@@ -132,14 +132,14 @@ const PickingList: React.FC = () => {
       blownPouches: blownPouches[item.id] || 0,
     }));
 
-    // Create updated order
+    // Create updated order with explicit type for status
     const updatedOrder = {
       ...order,
       items: updatedItems,
       picker: selectedPicker,
       batchNumber: batchNumber,
       isPicked: true,
-      status: "Picking",
+      status: "Picking" as const,
       totalBlownPouches: totalBlownPouches,
       updated: new Date().toISOString(),
     };

@@ -127,14 +127,14 @@ const CreateOrderForm: React.FC = () => {
       return;
     }
 
-    // Create new order
+    // Create new order with the correct status type
     const newOrder = {
       id: crypto.randomUUID(),
       customerId: data.customerId,
       customer: customers.find(c => c.id === data.customerId)!,
       customerOrderNumber: data.customerOrderNumber,
       orderDate: format(data.orderDate, "yyyy-MM-dd"),
-      deliveryMethod: data.deliveryMethod,
+      deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
       items: orderItems.map(item => ({
         id: item.id,
         productId: item.productId,
@@ -142,7 +142,7 @@ const CreateOrderForm: React.FC = () => {
         quantity: item.quantity
       })) as OrderItem[],
       notes: data.notes,
-      status: "Pending",
+      status: "Pending" as const,
       created: new Date().toISOString(),
     };
 

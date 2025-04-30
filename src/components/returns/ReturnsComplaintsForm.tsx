@@ -94,6 +94,16 @@ const ReturnsComplaintsForm: React.FC = () => {
     if (data.returnsRequired === "Yes" && data.productSku) {
       const product = products.find(p => p.id === data.productSku);
       if (product) {
+        // Create return with correct type for returnStatus
+        const returnStatus = data.returnStatus || "Pending";
+        // Ensure returnStatus is one of the allowed values
+        const validReturnStatus = (
+          returnStatus === "Pending" || 
+          returnStatus === "Processing" || 
+          returnStatus === "Completed" || 
+          returnStatus === "No Return Required"
+        ) ? returnStatus : "Pending";
+        
         const returnItem = {
           id: crypto.randomUUID(),
           customerType: data.customerType,
@@ -107,7 +117,7 @@ const ReturnsComplaintsForm: React.FC = () => {
           product: product,
           reason: data.complaintDetails,
           returnsRequired: data.returnsRequired,
-          returnStatus: data.returnStatus || "Pending",
+          returnStatus: validReturnStatus,
           resolutionStatus: data.resolutionStatus,
           resolutionNotes: data.resolutionNotes,
           created: new Date().toISOString(),
@@ -117,7 +127,18 @@ const ReturnsComplaintsForm: React.FC = () => {
       }
     }
 
-    // Create complaint record
+    // Create complaint record with proper type checking for returnStatus
+    const returnStatus = data.returnsRequired === "Yes" ? 
+      (data.returnStatus || "Pending") : "No Return Required";
+    
+    // Validate return status according to the allowed types
+    const validReturnStatus = (
+      returnStatus === "Pending" || 
+      returnStatus === "Processing" || 
+      returnStatus === "Completed" || 
+      returnStatus === "No Return Required"
+    ) ? returnStatus : "Pending";
+    
     const complaint = {
       id: crypto.randomUUID(),
       customerType: data.customerType,
@@ -132,7 +153,7 @@ const ReturnsComplaintsForm: React.FC = () => {
       complaintType: data.complaintType,
       complaintDetails: data.complaintDetails,
       returnsRequired: data.returnsRequired,
-      returnStatus: data.returnsRequired === "Yes" ? data.returnStatus || "Pending" : "No Return Required",
+      returnStatus: validReturnStatus,
       resolutionStatus: data.resolutionStatus,
       resolutionNotes: data.resolutionNotes,
       created: new Date().toISOString(),
