@@ -249,6 +249,11 @@ const PrintBoxLabel: React.FC = () => {
     ? boxDistributions.filter(box => box.boxNumber === selectedBox)
     : boxDistributions;
 
+  // Check if any item in the order has a manually entered weight
+  const hasManuallyEnteredWeights = order.items.some(
+    item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0
+  );
+
   return (
     <div className="container mx-auto p-4">
       {/* Controls - hidden during printing */}
@@ -534,7 +539,7 @@ const PrintBoxLabel: React.FC = () => {
             ))
           ))
         ) : (
-          // Simple box labels (original design) - also updated with tabular format
+          // Simple box labels - only show weight information if manually entered
           Array.from({ length: labelCount }).map((_, index) => (
             <div key={index} className="box-label border rounded-lg mb-4">
               <div className="box-label-content p-6">
@@ -552,7 +557,7 @@ const PrintBoxLabel: React.FC = () => {
                         <tr className="text-sm text-gray-600 border-b">
                           <th className="text-left py-1">Product</th>
                           <th className="text-center py-1">Quantity</th>
-                          {order.items.some(item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0) && (
+                          {hasManuallyEnteredWeights && (
                             <th className="text-right py-1">Weight</th>
                           )}
                         </tr>
@@ -562,7 +567,7 @@ const PrintBoxLabel: React.FC = () => {
                           <tr key={item.id} className="border-b border-gray-100">
                             <td className="py-2">{item.product.name}</td>
                             <td className="py-2 text-center font-medium">{item.quantity}</td>
-                            {order.items.some(i => i.product.requiresWeightInput && i.pickedWeight && i.pickedWeight > 0) && (
+                            {hasManuallyEnteredWeights && (
                               <td className="py-2 text-right">
                                 {item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0 ? (
                                   <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
@@ -578,8 +583,8 @@ const PrintBoxLabel: React.FC = () => {
                     </table>
                   </div>
                   
-                  {/* Add total weight if available and at least one item has weight */}
-                  {order.items.some(item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0) && (
+                  {/* Add total weight if at least one item has manually entered weight */}
+                  {hasManuallyEnteredWeights && (
                     <div className="flex justify-between items-center text-right mt-2">
                       <span className="font-bold">Total Weight:</span>
                       <span className="font-bold text-lg">
