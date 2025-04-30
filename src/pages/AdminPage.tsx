@@ -9,13 +9,37 @@ import { Label } from "@/components/ui/label";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { v4 as uuidv4 } from "uuid";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const AdminPage: React.FC = () => {
-  const { users, pickers, updateUser, addUser, updatePicker, addPicker } = useData();
+  const { users, pickers, updateUser, addUser, updatePicker, addPicker, deleteUser, deletePicker } = useData();
   const { toast } = useToast();
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [restorePassword, setRestorePassword] = useState("");
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  
+  // User management state
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [userFormData, setUserFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "User",
+    active: true
+  });
+  
+  // Picker management state
+  const [showPickerDialog, setShowPickerDialog] = useState(false);
+  const [pickerName, setPickerName] = useState("");
+  const [selectedPickerId, setSelectedPickerId] = useState<string | null>(null);
+  
+  // Delete confirmation dialog states
+  const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
+  const [showDeletePickerDialog, setShowDeletePickerDialog] = useState(false);
 
   const handleBackup = () => {
     // Create a backup of all the data
@@ -85,6 +109,225 @@ const AdminPage: React.FC = () => {
       setRestoreFile(e.dataTransfer.files[0]);
     }
   };
+  
+  // User management
+  const openUserDialog = (userId?: string) => {
+    if (userId) {
+      // Edit existing user
+      const user = users.find(u => u.id === userId);
+      if (user) {
+        setUserFormData({
+          name: user.name,
+          email: user.email,
+          password: "", // Don't show existing password
+          role: user.role,
+          active: user.active
+        });
+        setSelectedUserId(userId);
+        setIsEditMode(true);
+      }
+    } else {
+      // Create new user
+      setUserFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "User",
+        active: true
+      });
+      setSelectedUserId(null);
+      setIsEditMode(false);
+    }
+    setShowUserDialog(true);
+  };
+  
+  const handleUserFormSubmit = () => {
+    if (!userFormData.name || !userFormData.email || (!isEditMode && !userFormData.password)) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (isEditMode && selectedUserId) {
+      // Update existing user
+      updateUser({
+        id: selectedUserId,
+        name: userFormData.name,
+        email: userFormData.email,
+        role: userFormData.role as "Admin" | "User" | "Manager",
+        active: userFormData.active,
+        ...(userFormData.password ? { password: userFormData.password } : {})
+      });
+      toast({
+        title: "User updated",
+        description: `${userFormData.name} has been updated successfully.`
+      });
+    } else {
+      // Create new user
+      addUser({
+        id: uuidv4(),
+        name: userFormData.name,
+        email: userFormData.email,
+        password: userFormData.password,
+        role: userFormData.role as "Admin" | "User" | "Manager",
+        active: userFormData.active
+      });
+      toast({
+        title: "User created",
+        description: `${userFormData.name} has been created successfully.`
+      });
+    }
+    
+    setShowUserDialog(false);
+  };
+
+  // Picker management
+  const openPickerDialog = (pickerId?: string) => {
+    if (pickerId) {
+      const picker = pickers.find(p => p.id === pickerId);
+      if (picker) {
+        setPickerName(picker.name);
+        setSelectedPickerId(pickerId);
+      }
+    } else {
+      setPickerName("");
+      setSelectedPickerId(null);
+    }
+    setShowPickerDialog(true);
+  };
+  
+  const handlePickerFormSubmit = () => {
+    if (!pickerName) {
+      toast({
+        title: "Error",
+        description: "Please enter a picker name.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (selectedPickerId) {
+      // Update existing picker
+      const existingPicker = pickers.find(p => p.id === selectedPickerId);
+      if (existingPicker) {
+        updatePicker({
+          ...existingPicker,
+          name: pickerName
+        });
+      }
+      toast({
+        title: "Picker updated",
+        description: `${pickerName} has been updated successfully.`
+      });
+    } else {
+      // Create new picker
+      addPicker({
+        id: uuidv4(),
+        name: pickerName,
+        active: true
+      });
+      toast({
+        title: "Picker added",
+        description: `${pickerName} has been added successfully.`
+      });
+    }
+    
+    setShowPickerDialog(false);
+    setPickerName("");
+  };
+  
+  const confirmDeleteUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowDeleteUserDialog(true);
+  };
+  
+  const confirmDeletePicker = (pickerId: string) => {
+    setSelectedPickerId(pickerId);
+    setShowDeletePickerDialog(true);
+  };
+  
+  const handleDeleteUser = () => {
+    if (selectedUserId) {
+      const user = users.find(u => u.id === selectedUserId);
+      deleteUser(selectedUserId);
+      toast({
+        title: "User deleted",
+        description: user ? `${user.name} has been deleted.` : "User has been deleted."
+      });
+    }
+    setShowDeleteUserDialog(false);
+  };
+  
+  const handleDeletePicker = () => {
+    if (selectedPickerId) {
+      const picker = pickers.find(p => p.id === selectedPickerId);
+      deletePicker(selectedPickerId);
+      toast({
+        title: "Picker deleted",
+        description: picker ? `${picker.name} has been deleted.` : "Picker has been deleted."
+      });
+    }
+    setShowDeletePickerDialog(false);
+  };
+  
+  // Template download functions
+  const downloadCustomerTemplate = () => {
+    const templateData = [
+      {
+        accountNumber: "ACC123",
+        name: "Example Customer",
+        type: "Private", // Private or Trade
+        email: "customer@example.com",
+        phone: "01234567890"
+      }
+    ];
+    
+    const jsonString = JSON.stringify(templateData, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "customer-import-template.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Template downloaded",
+      description: "Customer import template has been downloaded."
+    });
+  };
+  
+  const downloadProductTemplate = () => {
+    const templateData = [
+      {
+        name: "Example Product",
+        sku: "PROD123",
+        stockLevel: 100,
+        description: "Product description"
+      }
+    ];
+    
+    const jsonString = JSON.stringify(templateData, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "product-import-template.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Template downloaded",
+      description: "Product import template has been downloaded."
+    });
+  };
 
   return (
     <Layout>
@@ -101,11 +344,14 @@ const AdminPage: React.FC = () => {
         
         <TabsContent value="users" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>User Management</CardTitle>
-              <CardDescription>
-                Manage user accounts and permissions
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>
+                  Manage user accounts and permissions
+                </CardDescription>
+              </div>
+              <Button onClick={() => openUserDialog()}>Add New User</Button>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -133,7 +379,7 @@ const AdminPage: React.FC = () => {
                               {user.active ? "Active" : "Inactive"}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 space-x-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -150,6 +396,20 @@ const AdminPage: React.FC = () => {
                             >
                               {user.active ? "Deactivate" : "Activate"}
                             </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openUserDialog(user.id)}
+                            >
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => confirmDeleteUser(user.id)}
+                            >
+                              Delete
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -163,11 +423,14 @@ const AdminPage: React.FC = () => {
         
         <TabsContent value="pickers" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Picker Management</CardTitle>
-              <CardDescription>
-                Manage the list of pickers
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Picker Management</CardTitle>
+                <CardDescription>
+                  Manage the list of pickers
+                </CardDescription>
+              </div>
+              <Button onClick={() => openPickerDialog()}>Add New Picker</Button>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -191,7 +454,7 @@ const AdminPage: React.FC = () => {
                               {picker.active ? "Active" : "Inactive"}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3 space-x-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
@@ -207,6 +470,20 @@ const AdminPage: React.FC = () => {
                               }}
                             >
                               {picker.active ? "Deactivate" : "Activate"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openPickerDialog(picker.id)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => confirmDeletePicker(picker.id)}
+                            >
+                              Delete
                             </Button>
                           </td>
                         </tr>
@@ -231,7 +508,7 @@ const AdminPage: React.FC = () => {
               <div className="space-y-2">
                 <h3 className="text-lg font-medium">Customer Import</h3>
                 <div className="flex space-x-2">
-                  <Button variant="outline">Download Template</Button>
+                  <Button variant="outline" onClick={downloadCustomerTemplate}>Download Template</Button>
                   <Button>Import Customers</Button>
                 </div>
               </div>
@@ -239,7 +516,7 @@ const AdminPage: React.FC = () => {
               <div className="space-y-2">
                 <h3 className="text-lg font-medium">Product Import</h3>
                 <div className="flex space-x-2">
-                  <Button variant="outline">Download Template</Button>
+                  <Button variant="outline" onClick={downloadProductTemplate}>Download Template</Button>
                   <Button>Import Products</Button>
                 </div>
               </div>
@@ -278,6 +555,105 @@ const AdminPage: React.FC = () => {
         </TabsContent>
       </Tabs>
       
+      {/* User Form Dialog */}
+      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditMode ? "Edit User" : "Add User"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={userFormData.name}
+                onChange={(e) => setUserFormData({...userFormData, name: e.target.value})}
+                placeholder="Enter user name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={userFormData.email}
+                onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
+                placeholder="Enter email address"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">{isEditMode ? "New Password (leave blank to keep current)" : "Password"}</Label>
+              <Input
+                id="password"
+                type="password"
+                value={userFormData.password}
+                onChange={(e) => setUserFormData({...userFormData, password: e.target.value})}
+                placeholder={isEditMode ? "Enter new password" : "Enter password"}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select 
+                value={userFormData.role} 
+                onValueChange={(value) => setUserFormData({...userFormData, role: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Manager">Manager</SelectItem>
+                  <SelectItem value="User">User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                id="active"
+                type="checkbox"
+                checked={userFormData.active}
+                onChange={(e) => setUserFormData({...userFormData, active: e.target.checked})}
+                className="h-4 w-4 rounded border-gray-300 focus:ring-indigo-500"
+              />
+              <Label htmlFor="active">Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUserDialog(false)}>Cancel</Button>
+            <Button onClick={handleUserFormSubmit}>{isEditMode ? "Update" : "Add"} User</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Picker Form Dialog */}
+      <Dialog open={showPickerDialog} onOpenChange={setShowPickerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedPickerId ? "Edit Picker" : "Add Picker"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pickerName">Name</Label>
+              <Input
+                id="pickerName"
+                value={pickerName}
+                onChange={(e) => setPickerName(e.target.value)}
+                placeholder="Enter picker name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPickerDialog(false)}>Cancel</Button>
+            <Button onClick={handlePickerFormSubmit}>{selectedPickerId ? "Update" : "Add"} Picker</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Restore Dialog */}
       <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
         <DialogContent>
           <DialogHeader>
@@ -328,6 +704,38 @@ const AdminPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete User Confirmation */}
+      <AlertDialog open={showDeleteUserDialog} onOpenChange={setShowDeleteUserDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user from your system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Delete Picker Confirmation */}
+      <AlertDialog open={showDeletePickerDialog} onOpenChange={setShowDeletePickerDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the picker from your system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePicker}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

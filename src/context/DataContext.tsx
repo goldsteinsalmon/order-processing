@@ -59,8 +59,10 @@ interface DataContextType {
   removeMissingItem: (missingItemId: string) => void;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
+  deleteUser: (userId: string) => void;
   addPicker: (picker: Picker) => void;
   updatePicker: (picker: Picker) => void;
+  deletePicker: (pickerId: string) => void;
   getBatchUsages: () => BatchUsage[];
   getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string) => void;
@@ -336,12 +338,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
+  const deleteUser = (userId: string) => {
+    setUsers(users.filter(user => user.id !== userId));
+  };
+
   const addPicker = (picker: Picker) => {
     setPickers([...pickers, picker]);
   };
 
   const updatePicker = (updatedPicker: Picker) => {
     setPickers(pickers.map(p => p.id === updatedPicker.id ? updatedPicker : p));
+  };
+
+  const deletePicker = (pickerId: string) => {
+    setPickers(pickers.filter(picker => picker.id !== pickerId));
   };
 
   const getBatchUsages = () => {
@@ -449,8 +459,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     removeMissingItem,
     addUser,
     updateUser,
+    deleteUser,
     addPicker,
     updatePicker,
+    deletePicker,
     getBatchUsages,
     getBatchUsageByBatchNumber,
     recordBatchUsage

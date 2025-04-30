@@ -56,6 +56,7 @@ function Calendar({
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
+      disabled={(date) => date.getDay() === 0 || date.getDay() === 6} // Disable Saturday and Sunday
       weekStartsOn={1} // Start week on Monday (1) instead of Sunday (0)
       {...props}
     />

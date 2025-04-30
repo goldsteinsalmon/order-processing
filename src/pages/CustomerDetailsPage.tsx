@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const CustomerDetailsPage: React.FC = () => {
   const { customers, updateCustomer, orders, completedOrders } = useData();
@@ -22,6 +23,9 @@ const CustomerDetailsPage: React.FC = () => {
 
   const customer = customers.find(customer => customer.id === id);
   const [isEditing, setIsEditing] = useState(false);
+  // Hold reason dialog state
+  const [showHoldDialog, setShowHoldDialog] = useState(false);
+  const [holdReason, setHoldReason] = useState("");
   
   const [formData, setFormData] = useState({
     name: customer?.name || "",
@@ -96,6 +100,50 @@ const CustomerDetailsPage: React.FC = () => {
     
     setIsEditing(false);
   };
+  
+  const toggleHoldStatus = () => {
+    if (!customer) return;
+    
+    if (customer.onHold) {
+      // Remove hold
+      const updatedCustomer = {
+        ...customer,
+        onHold: false,
+        holdReason: undefined,
+        updated: new Date().toISOString()
+      };
+      
+      updateCustomer(updatedCustomer);
+      
+      toast({
+        title: "Hold removed",
+        description: `${customer.name}'s account is now active.`
+      });
+    } else {
+      // Show dialog to get hold reason
+      setHoldReason("");
+      setShowHoldDialog(true);
+    }
+  };
+  
+  const applyHold = () => {
+    if (!customer) return;
+    
+    const updatedCustomer = {
+      ...customer,
+      onHold: true,
+      holdReason: holdReason,
+      updated: new Date().toISOString()
+    };
+    
+    updateCustomer(updatedCustomer);
+    setShowHoldDialog(false);
+    
+    toast({
+      title: "Account on hold",
+      description: `${customer.name}'s account has been placed on hold.`
+    });
+  };
 
   if (!customer) {
     return (
@@ -127,11 +175,24 @@ const CustomerDetailsPage: React.FC = () => {
             </span>
           )}
         </div>
-        {!isEditing && (
-          <Button onClick={() => setIsEditing(true)}>
-            Edit Customer
+        <div className="flex space-x-2">
+          <Button 
+            variant={customer.onHold ? "outline" : "destructive"}
+            onClick={toggleHoldStatus}
+          >
+            {customer.onHold ? "Remove Hold" : (
+              <>
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Place on Hold
+              </>
+            )}
           </Button>
-        )}
+          {!isEditing && (
+            <Button onClick={() => setIsEditing(true)}>
+              Edit Customer
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="details" className="w-full">
@@ -358,6 +419,28 @@ const CustomerDetailsPage: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Hold Dialog */}
+      <Dialog open={showHoldDialog} onOpenChange={setShowHoldDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Place Customer on Hold</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>Please provide a reason for placing this customer on hold.</p>
+            <Textarea 
+              value={holdReason}
+              onChange={(e) => setHoldReason(e.target.value)}
+              placeholder="Enter reason for hold"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowHoldDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={applyHold}>Place on Hold</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

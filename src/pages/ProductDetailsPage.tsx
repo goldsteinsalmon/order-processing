@@ -4,7 +4,7 @@ import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, X, Search, CalendarIcon } from "lucide-react";
+import { ArrowLeft, Save, X, CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -53,8 +53,8 @@ const ProductDetailsPage: React.FC = () => {
       });
     }
     
-    // Get all orders with this product and calculate monthly totals
-    const monthlySales: Record<string, { month: string, totalQuantity: number }> = {};
+    // Get all orders with this product and calculate total quantity
+    let totalQuantity = 0;
     
     filteredOrders.forEach(order => {
       if (!order.items) return;
@@ -63,34 +63,13 @@ const ProductDetailsPage: React.FC = () => {
       const productItems = order.items.filter(item => item.productId === product.id);
       if (productItems.length === 0) return;
       
-      // Get the order date
-      const orderDate = order.orderDate ? parseISO(order.orderDate) : parseISO(order.created);
-      const monthKey = format(orderDate, "yyyy-MM");
-      const monthDisplay = format(orderDate, "MMMM yyyy");
-      
-      // Sum quantities for this month
+      // Sum quantities for this order
       const quantityForOrder = productItems.reduce((sum, item) => sum + item.quantity, 0);
-      
-      if (!monthlySales[monthKey]) {
-        monthlySales[monthKey] = {
-          month: monthDisplay,
-          totalQuantity: 0
-        };
-      }
-      
-      monthlySales[monthKey].totalQuantity += quantityForOrder;
+      totalQuantity += quantityForOrder;
     });
     
-    // Sort by date (most recent first)
-    return Object.values(monthlySales).sort((a, b) => {
-      return a.month.localeCompare(b.month) * -1;
-    });
+    return totalQuantity;
   }, [product, orders, completedOrders, dateFrom, dateTo]);
-
-  // Calculate total sold quantity
-  const totalSoldQuantity = useMemo(() => {
-    return purchaseHistory.reduce((sum, entry) => sum + entry.totalQuantity, 0);
-  }, [purchaseHistory]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!editedProduct) return;
@@ -271,6 +250,7 @@ const ProductDetailsPage: React.FC = () => {
                         onSelect={setDateFrom}
                         initialFocus
                         className="pointer-events-auto"
+                        disabled={(date) => date.getDay() === 0 || date.getDay() === 6} // Disable Saturday and Sunday
                       />
                     </PopoverContent>
                   </Popover>
@@ -297,7 +277,11 @@ const ProductDetailsPage: React.FC = () => {
                         selected={dateTo}
                         onSelect={setDateTo}
                         initialFocus
-                        disabled={(date) => dateFrom ? date < dateFrom : false}
+                        disabled={(date) => 
+                          (dateFrom ? date < dateFrom : false) || 
+                          date.getDay() === 0 || 
+                          date.getDay() === 6 // Disable Saturday and Sunday
+                        }
                         className="pointer-events-auto"
                       />
                     </PopoverContent>
@@ -309,8 +293,8 @@ const ProductDetailsPage: React.FC = () => {
                 </Button>
               </div>
               
-              <div className="mb-4 p-4 border rounded-md bg-gray-50">
-                <div className="text-lg font-medium">Total Sales: <span className="text-xl font-bold">{totalSoldQuantity}</span></div>
+              <div className="mb-4 p-6 border rounded-md bg-gray-50">
+                <div className="text-lg font-medium">Total Sales: <span className="text-xl font-bold">{purchaseHistory}</span></div>
                 {(dateFrom || dateTo) && (
                   <div className="text-sm text-gray-500 mt-1">
                     {dateFrom && dateTo && `From ${format(dateFrom, "PPP")} to ${format(dateTo, "PPP")}`}
@@ -318,33 +302,6 @@ const ProductDetailsPage: React.FC = () => {
                     {!dateFrom && dateTo && `Until ${format(dateTo, "PPP")}`}
                   </div>
                 )}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="px-4 py-2 text-left">Month</th>
-                      <th className="px-4 py-2 text-right">Quantity Sold</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {purchaseHistory.length === 0 ? (
-                      <tr>
-                        <td colSpan={2} className="px-4 py-8 text-center text-gray-500">
-                          No purchase history found for this product
-                        </td>
-                      </tr>
-                    ) : (
-                      purchaseHistory.map((entry, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="px-4 py-2">{entry.month}</td>
-                          <td className="px-4 py-2 text-right">{entry.totalQuantity}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
               </div>
             </CardContent>
           </Card>
