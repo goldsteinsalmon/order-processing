@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,7 +71,7 @@ const CreateOrderForm: React.FC = () => {
     productId: string; 
     quantity: number; 
     id: string;
-  }[]>([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
+  }[]>([{ productId: "", quantity: 0, id: crypto.randomUUID() }]);
   
   const [showSameDayWarning, setShowSameDayWarning] = useState(false);
   const [showCutOffWarning, setShowCutOffWarning] = useState(false);
@@ -476,9 +475,10 @@ const CreateOrderForm: React.FC = () => {
                       <Input
                         type="number"
                         min="1"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 1)}
+                        value={item.quantity || ""}
+                        onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 0)}
                         className="text-center"
+                        placeholder="Qty"
                       />
                     </div>
                     <div className="col-span-1 text-right">

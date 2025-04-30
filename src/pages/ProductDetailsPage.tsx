@@ -77,7 +77,7 @@ const ProductDetailsPage: React.FC = () => {
     const { name, value } = e.target;
     setEditedProduct({
       ...editedProduct,
-      [name]: name === "stockLevel" ? Number(value) : value,
+      [name]: name === "stockLevel" || name === "weight" ? Number(value) : value,
     });
   };
 
@@ -182,6 +182,17 @@ const ProductDetailsPage: React.FC = () => {
                           onChange={handleChange}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Weight (grams)
+                        </label>
+                        <Input
+                          name="weight"
+                          type="number"
+                          value={editedProduct?.weight || 0}
+                          onChange={handleChange}
+                        />
+                      </div>
                     </>
                   ) : (
                     <div className="space-y-3">
@@ -196,6 +207,10 @@ const ProductDetailsPage: React.FC = () => {
                       <div className="grid grid-cols-3 border-b pb-2">
                         <span className="text-gray-600">Stock Level:</span>
                         <span className="col-span-2 font-medium">{product.stockLevel}</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Weight:</span>
+                        <span className="col-span-2 font-medium">{product.weight || 'N/A'} grams</span>
                       </div>
                     </div>
                   )}

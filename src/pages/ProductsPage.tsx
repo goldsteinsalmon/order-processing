@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -106,6 +105,7 @@ const ProductsPage: React.FC = () => {
     return forecasts;
   }, [next7WorkingDays, products, orders]);
 
+  // Handle stock adjustment
   const handleStockAdjustment = (productId: string, value: string) => {
     const adjustment = parseInt(value) || 0;
     setStockAdjustments({
@@ -213,9 +213,10 @@ const ProductsPage: React.FC = () => {
                       <div className="flex items-center">
                         <Input
                           type="number"
-                          value={stockAdjustments[product.id] || 0}
+                          value={stockAdjustments[product.id] || ""}
                           onChange={(e) => handleStockAdjustment(product.id, e.target.value)}
                           className="w-24 text-right"
+                          placeholder="Qty"
                         />
                       </div>
                     </TableCell>
