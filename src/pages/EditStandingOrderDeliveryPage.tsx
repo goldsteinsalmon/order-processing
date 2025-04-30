@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -13,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { StandingOrder, OrderItem, Product } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 const EditStandingOrderDeliveryPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -100,6 +100,8 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     if (!product) return;
     
     const newItem: OrderItem = {
+      id: uuidv4(),
+      productId: product.id,
       product,
       quantity: productQuantity
     };

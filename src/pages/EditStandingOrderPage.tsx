@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -14,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getOrderProcessingDate } from "@/utils/dateUtils";
 import { OrderItem, Product } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 const EditStandingOrderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +108,8 @@ const EditStandingOrderPage: React.FC = () => {
     if (!product) return;
     
     const newItem: OrderItem = {
+      id: uuidv4(),
+      productId: product.id,
       product,
       quantity: productQuantity
     };
