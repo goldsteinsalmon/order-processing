@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string;
@@ -15,7 +16,6 @@ export interface Product {
   sku: string;
   description: string;
   stockLevel: number;
-  unit: string; // e.g., "kg", "unit", etc.
 }
 
 export interface OrderItem {

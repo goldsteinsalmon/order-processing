@@ -27,14 +27,13 @@ const ProductsPage: React.FC = () => {
                 <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">SKU</th>
                 <th className="px-4 py-3 text-left font-medium">Stock Level</th>
-                <th className="px-4 py-3 text-left font-medium">Unit</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                     No products found
                   </td>
                 </tr>
@@ -44,7 +43,6 @@ const ProductsPage: React.FC = () => {
                     <td className="px-4 py-3">{product.name}</td>
                     <td className="px-4 py-3">{product.sku}</td>
                     <td className="px-4 py-3">{product.stockLevel}</td>
-                    <td className="px-4 py-3">{product.unit}</td>
                     <td className="px-4 py-3">
                       <Button 
                         variant="ghost" 

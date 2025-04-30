@@ -51,10 +51,6 @@ const ProductDetailsPage: React.FC = () => {
                 <span className="text-gray-600">Stock Level:</span>
                 <span className="col-span-2 font-medium">{product.stockLevel}</span>
               </div>
-              <div className="grid grid-cols-3 border-b pb-2">
-                <span className="text-gray-600">Unit:</span>
-                <span className="col-span-2 font-medium">{product.unit}</span>
-              </div>
             </div>
           </div>
           <div>

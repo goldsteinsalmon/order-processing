@@ -1,18 +1,24 @@
 
-import React from "react";
+import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, addDays, addWeeks, addMonths, isBefore, isSameDay, startOfDay } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calendar, Edit, SkipForward } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const StandingOrderSchedulePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { standingOrders } = useData();
+  const { standingOrders, updateStandingOrder } = useData();
+  const { toast } = useToast();
+  
+  const [openDialog, setOpenDialog] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   const order = standingOrders.find(order => order.id === id);
   
@@ -89,7 +95,16 @@ const StandingOrderSchedulePage: React.FC = () => {
         dates.push({
           date: new Date(currentDate),
           isModified: !!modifiedDelivery,
-          modifications: modifiedDelivery?.modifications
+          modifications: modifiedDelivery?.modifications,
+          isSkipped: false
+        });
+      } else {
+        // Include skipped dates in the list with a flag
+        dates.push({
+          date: new Date(currentDate),
+          isModified: false,
+          modifications: null,
+          isSkipped: true
         });
       }
       
@@ -105,8 +120,59 @@ const StandingOrderSchedulePage: React.FC = () => {
       count++;
     }
     
-    // Limit to first 10 actual delivery dates
-    return dates.slice(0, 10);
+    // Sort the dates and limit to first 10
+    return dates.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 10);
+  };
+
+  const handleSkipDelivery = (date: Date) => {
+    // Create a copy of the current order
+    const updatedOrder = { ...order };
+    
+    // Initialize skippedDates if it doesn't exist
+    if (!updatedOrder.schedule.skippedDates) {
+      updatedOrder.schedule.skippedDates = [];
+    }
+    
+    // Add the date to skippedDates
+    updatedOrder.schedule.skippedDates.push(date.toISOString());
+    
+    // Save the updated order
+    updateStandingOrder(updatedOrder);
+    
+    // Show success toast
+    toast({
+      title: "Delivery skipped",
+      description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been skipped.`
+    });
+    
+    // Close the dialog
+    setOpenDialog(null);
+  };
+  
+  const handleUnskipDelivery = (date: Date) => {
+    // Create a copy of the current order
+    const updatedOrder = { ...order };
+    
+    // Remove the date from skippedDates
+    if (updatedOrder.schedule.skippedDates) {
+      updatedOrder.schedule.skippedDates = updatedOrder.schedule.skippedDates.filter(
+        skippedDate => !isSameDay(new Date(skippedDate), date)
+      );
+    }
+    
+    // Save the updated order
+    updateStandingOrder(updatedOrder);
+    
+    // Show success toast
+    toast({
+      title: "Delivery restored",
+      description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been restored.`
+    });
+  };
+  
+  const handleEditDelivery = (date: Date) => {
+    // Navigate to a special edit page for this specific delivery date
+    navigate(`/edit-standing-order-delivery/${order.id}?date=${date.toISOString()}`);
   };
   
   const upcomingDates = getUpcomingDates();
@@ -158,12 +224,13 @@ const StandingOrderSchedulePage: React.FC = () => {
                   <th className="text-left font-medium py-2">Delivery Date</th>
                   <th className="text-left font-medium py-2">Status</th>
                   <th className="text-left font-medium py-2">Modifications</th>
+                  <th className="text-left font-medium py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {upcomingDates.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-4 text-center text-gray-500">
+                    <td colSpan={4} className="py-4 text-center text-gray-500">
                       No upcoming deliveries found
                     </td>
                   </tr>
@@ -174,19 +241,90 @@ const StandingOrderSchedulePage: React.FC = () => {
                         {format(delivery.date, "EEEE, MMMM d, yyyy")}
                       </td>
                       <td className="py-3">
-                        {delivery.isModified ? (
+                        {delivery.isSkipped ? (
+                          <Badge variant="destructive">Skipped</Badge>
+                        ) : delivery.isModified ? (
                           <Badge variant="secondary">Modified</Badge>
                         ) : (
                           <Badge variant="default">Scheduled</Badge>
                         )}
                       </td>
                       <td className="py-3">
-                        {delivery.isModified ? (
+                        {delivery.isSkipped ? (
+                          "Delivery skipped"
+                        ) : delivery.isModified ? (
                           <div className="text-red-600">
                             {delivery.modifications?.items ? "Modified items" : ""}
                             {delivery.modifications?.notes ? (delivery.modifications.items ? " and " : "") + "Custom notes" : ""}
                           </div>
                         ) : "None"}
+                      </td>
+                      <td className="py-3">
+                        <div className="flex space-x-2">
+                          {delivery.isSkipped ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleUnskipDelivery(delivery.date)}
+                            >
+                              <Calendar className="h-4 w-4 mr-1" />
+                              Restore
+                            </Button>
+                          ) : (
+                            <>
+                              <Dialog open={openDialog === `skip-${index}`} onOpenChange={(open) => {
+                                if (open) {
+                                  setOpenDialog(`skip-${index}`);
+                                  setSelectedDate(delivery.date);
+                                } else {
+                                  setOpenDialog(null);
+                                  setSelectedDate(null);
+                                }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                  >
+                                    <SkipForward className="h-4 w-4 mr-1" />
+                                    Skip
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Skip Delivery</DialogTitle>
+                                    <DialogDescription>
+                                      Are you sure you want to skip the delivery scheduled for {selectedDate && format(selectedDate, "EEEE, MMMM d, yyyy")}?
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <DialogFooter>
+                                    <Button 
+                                      variant="outline" 
+                                      onClick={() => setOpenDialog(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button 
+                                      variant="default"
+                                      onClick={() => selectedDate && handleSkipDelivery(selectedDate)}
+                                    >
+                                      Skip Delivery
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditDelivery(delivery.date)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))

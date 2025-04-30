@@ -10,13 +10,15 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getOrderProcessingDate } from "@/utils/dateUtils";
+import { OrderItem } from "@/types";
 
 const EditStandingOrderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { standingOrders, updateStandingOrder } = useData();
+  const { standingOrders, updateStandingOrder, products } = useData();
   const { toast } = useToast();
   
   const order = standingOrders.find(order => order.id === id);
@@ -27,6 +29,7 @@ const EditStandingOrderPage: React.FC = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
   const [active, setActive] = useState(true);
   const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<OrderItem[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   
   // Load initial values
@@ -38,23 +41,27 @@ const EditStandingOrderPage: React.FC = () => {
       setDeliveryMethod(order.schedule.deliveryMethod);
       setActive(order.active);
       setNotes(order.notes || "");
+      setItems(order.items || []);
     }
   }, [order]);
   
   // Check for changes
   useEffect(() => {
     if (order) {
+      const itemsChanged = JSON.stringify(items) !== JSON.stringify(order.items);
+      
       const changes = 
         frequency !== order.schedule.frequency ||
         (frequency === "Weekly" || frequency === "Bi-Weekly") && dayOfWeek !== order.schedule.dayOfWeek ||
         frequency === "Monthly" && dayOfMonth !== order.schedule.dayOfMonth ||
         deliveryMethod !== order.schedule.deliveryMethod ||
         active !== order.active ||
-        notes !== (order.notes || "");
+        notes !== (order.notes || "") ||
+        itemsChanged;
       
       setHasChanges(changes);
     }
-  }, [frequency, dayOfWeek, dayOfMonth, deliveryMethod, active, notes, order]);
+  }, [frequency, dayOfWeek, dayOfMonth, deliveryMethod, active, notes, items, order]);
   
   if (!order) {
     return (
@@ -73,6 +80,16 @@ const EditStandingOrderPage: React.FC = () => {
   const getDayOfWeekName = (day: number) => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     return days[day];
+  };
+  
+  // Handle quantity change
+  const handleQuantityChange = (index: number, value: string) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      quantity: parseInt(value) || 0
+    };
+    setItems(newItems);
   };
   
   const handleSave = () => {
@@ -117,6 +134,7 @@ const EditStandingOrderPage: React.FC = () => {
         deliveryMethod,
         nextDeliveryDate: nextDeliveryDate.toISOString()
       },
+      items: items,
       active,
       notes: notes || undefined,
       nextProcessingDate: nextProcessingDate.toISOString(),
@@ -164,6 +182,42 @@ const EditStandingOrderPage: React.FC = () => {
                 </div>
               )}
             </dl>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Items</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left font-medium py-2">Product</th>
+                    <th className="text-left font-medium py-2">SKU</th>
+                    <th className="text-right font-medium py-2 w-32">Quantity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-3">{item.product.name}</td>
+                      <td className="py-3">{item.product.sku}</td>
+                      <td className="py-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(index, e.target.value)}
+                          className="w-20 text-right ml-auto"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
         
