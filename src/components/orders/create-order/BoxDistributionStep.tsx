@@ -77,29 +77,29 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   const handleRemoveBox = (boxNumber: number) => {
     // Get items from the box being removed
     const boxToRemove = boxDistributions.find(box => box.boxNumber === boxNumber);
-    if (boxToRemove) {
-      // Return items to unassigned
-      const itemsToReturn = boxToRemove.items;
-      const updatedUnassignedItems = [...unassignedItems];
-      
-      itemsToReturn.forEach(item => {
-        const existingItem = updatedUnassignedItems.find(uItem => uItem.productId === item.productId);
-        if (existingItem) {
-          existingItem.quantity += item.quantity;
-        } else {
-          const product = products.find(p => p.id === item.productId);
-          updatedUnassignedItems.push({
-            id: crypto.randomUUID(),
-            productId: item.productId,
-            productName: product ? product.name : "Unknown Product",
-            quantity: item.quantity
-          });
-        }
-      });
-      
-      setUnassignedItems(updatedUnassignedItems);
-      setBoxDistributions(boxDistributions.filter(box => box.boxNumber !== boxNumber));
-    }
+    if (!boxToRemove) return;
+    
+    // Return items to unassigned
+    const itemsToReturn = boxToRemove.items;
+    const updatedUnassignedItems = [...unassignedItems];
+    
+    itemsToReturn.forEach(item => {
+      const existingItem = updatedUnassignedItems.find(uItem => uItem.productId === item.productId);
+      if (existingItem) {
+        existingItem.quantity += item.quantity;
+      } else {
+        const product = products.find(p => p.id === item.productId);
+        updatedUnassignedItems.push({
+          id: crypto.randomUUID(),
+          productId: item.productId,
+          productName: product ? product.name : "Unknown Product",
+          quantity: item.quantity
+        });
+      }
+    });
+    
+    setUnassignedItems(updatedUnassignedItems);
+    setBoxDistributions(boxDistributions.filter(box => box.boxNumber !== boxNumber));
   };
   
   const handleAddItemToBox = (boxNumber: number, item: typeof unassignedItems[0], quantity: number) => {
@@ -163,9 +163,10 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   const handleAutoSplitConfirm = () => {
     if (!currentItem) return;
     
-    // Create boxes if needed
+    // Make sure we have enough boxes
     const existingBoxCount = boxDistributions.length;
     if (existingBoxCount < boxCount) {
+      // Create additional boxes as needed
       let highestBoxNumber = existingBoxCount > 0 
         ? Math.max(...boxDistributions.map(box => box.boxNumber))
         : 0;
@@ -181,41 +182,75 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
         });
       }
       
-      setBoxDistributions([...boxDistributions, ...newBoxes]);
+      // Update box distributions with new boxes
+      setBoxDistributions(prevBoxes => [...prevBoxes, ...newBoxes]);
     }
     
-    // Calculate quantities per box
-    const totalQuantity = currentItem.quantity;
-    const boxesToUse = boxCount;
-    
-    const baseQuantity = Math.floor(totalQuantity / boxesToUse);
-    const remainder = totalQuantity % boxesToUse;
-    
-    // Sort boxes by number for consistent distribution
-    const sortedBoxes = [...boxDistributions]
-      .sort((a, b) => a.boxNumber - b.boxNumber)
-      .slice(0, boxesToUse);
-    
-    // Distribute items evenly
-    sortedBoxes.forEach((box, index) => {
-      // Add extra item for remainder distribution
-      const quantityToAdd = index < remainder ? baseQuantity + 1 : baseQuantity;
+    // Wait for state update to complete before continuing
+    setTimeout(() => {
+      // Calculate quantities per box
+      const totalQuantity = currentItem.quantity;
+      const baseQuantity = Math.floor(totalQuantity / boxCount);
+      const remainder = totalQuantity % boxCount;
       
-      if (quantityToAdd > 0) {
-        const itemForBox = {
-          id: currentItem.id,
-          productId: currentItem.productId,
-          productName: currentItem.productName,
-          quantity: quantityToAdd
-        };
+      // Get the boxes we'll distribute to
+      const sortedBoxes = [...boxDistributions]
+        .sort((a, b) => a.boxNumber - b.boxNumber)
+        .slice(0, boxCount);
+      
+      // Create a copy of the current item for each box with appropriate quantity
+      sortedBoxes.forEach((box, index) => {
+        const adjustedQuantity = index < remainder ? baseQuantity + 1 : baseQuantity;
         
-        handleAddItemToBox(box.boxNumber, itemForBox, quantityToAdd);
-      }
-    });
-    
-    // Close dialog
-    setAutoSplitDialogOpen(false);
-    setCurrentItem(null);
+        if (adjustedQuantity > 0) {
+          // Add the item to this box with the calculated quantity
+          const boxItem = {
+            productId: currentItem.productId,
+            productName: currentItem.productName,
+            quantity: adjustedQuantity,
+            weight: 0
+          };
+          
+          // Update box distributions
+          setBoxDistributions(prevBoxes => 
+            prevBoxes.map(prevBox => {
+              if (prevBox.boxNumber === box.boxNumber) {
+                // Check if item already exists in this box
+                const existingItem = prevBox.items.find(item => item.productId === currentItem.productId);
+                
+                if (existingItem) {
+                  // Update existing item quantity
+                  return {
+                    ...prevBox,
+                    items: prevBox.items.map(item => 
+                      item.productId === currentItem.productId
+                        ? { ...item, quantity: item.quantity + adjustedQuantity }
+                        : item
+                    )
+                  };
+                } else {
+                  // Add as new item
+                  return {
+                    ...prevBox,
+                    items: [...prevBox.items, boxItem]
+                  };
+                }
+              }
+              return prevBox;
+            })
+          );
+        }
+      });
+      
+      // Remove the item from unassigned items
+      setUnassignedItems(prevItems => 
+        prevItems.filter(item => item.id !== currentItem.id)
+      );
+      
+      // Close the dialog
+      setAutoSplitDialogOpen(false);
+      setCurrentItem(null);
+    }, 0);
   };
 
   // Manual split functions
