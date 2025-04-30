@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Printer, Check, Save } from "lucide-react";
+import { Printer, Check, Save, ArrowLeft } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
@@ -34,16 +34,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { OrderItem, MissingItem as MissingItemType } from "@/types";
+
+// Extended OrderItem type to include UI state properties
+interface ExtendedOrderItem extends OrderItem {
+  checked: boolean;
+  batchNumber: string;
+}
 
 const PickingList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { orders, completeOrder, pickers, recordBatchUsage, updateOrder } = useData();
+  const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedPickerId, setSelectedPickerId] = useState<string>("");
-  const [allItems, setAllItems] = useState<any[]>([]);
+  const [allItems, setAllItems] = useState<ExtendedOrderItem[]>([]);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [missingItems, setMissingItems] = useState<{id: string, quantity: number}[]>([]);
   
@@ -73,8 +80,8 @@ const PickingList: React.FC = () => {
       // Create a flat list of all items from the order
       const items = selectedOrder.items.map(item => ({
         ...item,
-        checked: item.checked || false,
-        batchNumber: item.batchNumber || "",
+        checked: false, // Initialize checked status
+        batchNumber: item.batchNumber || "", // Initialize batch number
       }));
       setAllItems(items);
       
@@ -174,12 +181,35 @@ const PickingList: React.FC = () => {
         };
       }),
       pickingInProgress: true,
+      status: missingItems.length > 0 ? "Partially Picked" : "Pending",
       pickedBy: selectedPickerId || undefined,
       missingItems: missingItems
     };
     
     // Update the order with progress
     updateOrder(updatedOrder);
+    
+    // Record missing items for the Missing Items page
+    missingItems.forEach(missingItem => {
+      if (missingItem.quantity > 0) {
+        const item = allItems.find(i => i.id === missingItem.id);
+        if (item && selectedOrderId) {
+          // Add to missing items collection for tracking
+          addMissingItem({
+            id: `${selectedOrderId}-${item.id}`,
+            orderId: selectedOrderId,
+            productId: item.productId,
+            quantity: missingItem.quantity,
+            date: new Date().toISOString(),
+            status: "Pending",
+            order: {
+              id: selectedOrderId,
+              customer: selectedOrder.customer,
+            }
+          });
+        }
+      }
+    });
     
     // Show success message
     toast({
@@ -263,16 +293,25 @@ const PickingList: React.FC = () => {
     
     // Close dialog and reset state
     setShowCompletionDialog(false);
-    setSelectedOrderId(null);
-    setSelectedPickerId("");
-    setAllItems([]);
-    setMissingItems([]);
+    
+    // Navigate back to orders page
+    navigate("/orders");
+  };
+
+  // Go back to orders page
+  const handleBackToOrders = () => {
+    navigate("/orders");
   };
   
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Picking List</h2>
+        {selectedOrder && (
+          <Button variant="outline" onClick={handleBackToOrders}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
+          </Button>
+        )}
       </div>
       
       {!selectedOrder && (
@@ -332,53 +371,61 @@ const PickingList: React.FC = () => {
           </div>
           
           <div className="grid grid-cols-1 gap-6">
-            {/* Order Details Card - Moved to the top */}
+            {/* Order Details Card in a more compact layout */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle>Order Details</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Customer</Label>
-                  <div className="font-medium">{selectedOrder.customer.name}</div>
-                </div>
-                
-                <div>
-                  <Label>Order Date</Label>
-                  <div>{format(new Date(selectedOrder.orderDate), "MMMM d, yyyy")}</div>
-                </div>
-                
-                <div>
-                  <Label>Delivery Method</Label>
-                  <div>{selectedOrder.deliveryMethod}</div>
-                </div>
-                
-                {selectedOrder.notes && (
-                  <div>
-                    <Label>Notes</Label>
-                    <div className="text-sm bg-gray-50 p-2 rounded border">
-                      {selectedOrder.notes}
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label>Customer</Label>
+                        <div className="font-medium">{selectedOrder.customer.name}</div>
+                      </div>
+                      
+                      <div>
+                        <Label>Order Date</Label>
+                        <div>{format(new Date(selectedOrder.orderDate), "MMM d, yyyy")}</div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label>Delivery Method</Label>
+                      <div>{selectedOrder.deliveryMethod}</div>
                     </div>
                   </div>
-                )}
-                
-                <div>
-                  <Label htmlFor="picker">Picked By</Label>
-                  <Select 
-                    value={selectedPickerId} 
-                    onValueChange={setSelectedPickerId}
-                  >
-                    <SelectTrigger id="picker">
-                      <SelectValue placeholder="Select picker" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pickers.map(picker => (
-                        <SelectItem key={picker.id} value={picker.id}>
-                          {picker.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  
+                  <div className="space-y-4">
+                    {selectedOrder.notes && (
+                      <div>
+                        <Label>Notes</Label>
+                        <div className="text-sm bg-gray-50 p-2 rounded border">
+                          {selectedOrder.notes}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <Label htmlFor="picker" className="font-bold text-lg text-primary">Picked By</Label>
+                      <Select 
+                        value={selectedPickerId} 
+                        onValueChange={setSelectedPickerId}
+                      >
+                        <SelectTrigger id="picker" className="mt-1 border-2">
+                          <SelectValue placeholder="Select picker" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pickers.map(picker => (
+                            <SelectItem key={picker.id} value={picker.id}>
+                              {picker.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

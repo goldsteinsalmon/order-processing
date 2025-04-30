@@ -1,15 +1,25 @@
 
-import React from "react";
+import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, Edit, Calendar, FilePlus } from "lucide-react";
+import { Eye, Edit, Calendar, FilePlus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
+import { Input } from "@/components/ui/input";
 
 const StandingOrdersPage: React.FC = () => {
   const { standingOrders } = useData();
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filter standing orders based on search term
+  const filteredStandingOrders = standingOrders.filter(order => 
+    order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.schedule.frequency.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.schedule.deliveryMethod.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <Layout>
@@ -18,6 +28,20 @@ const StandingOrdersPage: React.FC = () => {
         <Button onClick={() => navigate("/create-standing-order")}>
           <FilePlus className="mr-2 h-4 w-4" /> Create Standing Order
         </Button>
+      </div>
+      
+      {/* Search input */}
+      <div className="mb-4">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search standing orders..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
       
       <div className="rounded-md border">
@@ -35,14 +59,14 @@ const StandingOrdersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {standingOrders.length === 0 ? (
+              {filteredStandingOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     No standing orders found
                   </td>
                 </tr>
               ) : (
-                standingOrders.map((order) => (
+                filteredStandingOrders.map((order) => (
                   <tr key={order.id} className="border-b">
                     <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
                     <td className="px-4 py-3">{order.customer.name}</td>
