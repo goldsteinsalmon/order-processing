@@ -2,15 +2,28 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Edit, ClipboardList } from "lucide-react";
+import { ArrowLeft, Edit, ClipboardList, Trash2 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders } = useData();
+  const { orders, updateOrder } = useData();
+  const { toast } = useToast();
 
   const order = orders.find(order => order.id === id);
 
@@ -27,6 +40,23 @@ const OrderDetails: React.FC = () => {
 
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
+  
+  const handleDeleteOrder = () => {
+    // Update the order status to Cancelled
+    const cancelledOrder = {
+      ...order,
+      status: "Cancelled" as const
+    };
+    updateOrder(cancelledOrder);
+    
+    toast({
+      title: "Order cancelled",
+      description: `Order ${order.id.substring(0, 8)} has been cancelled.`,
+    });
+    
+    // Navigate back to the orders page
+    navigate("/");
+  };
 
   return (
     <div>
@@ -44,6 +74,25 @@ const OrderDetails: React.FC = () => {
           <Button onClick={() => navigate(`/edit-order/${order.id}`)}>
             <Edit className="mr-2 h-4 w-4" /> Edit Order
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete Order
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will mark the order as cancelled. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteOrder}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -132,9 +181,7 @@ const OrderDetails: React.FC = () => {
                 <tr className="border-b">
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
-                  <th className="text-right font-medium py-2">Unit Price</th>
                   <th className="text-right font-medium py-2">Quantity</th>
-                  <th className="text-right font-medium py-2">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,17 +189,12 @@ const OrderDetails: React.FC = () => {
                   <tr key={item.id} className="border-b">
                     <td className="py-3">{item.product.name}</td>
                     <td className="py-3">{item.product.sku}</td>
-                    <td className="py-3 text-right">£{item.product.price.toFixed(2)}</td>
                     <td className="py-3 text-right">{item.quantity}</td>
-                    <td className="py-3 text-right">£{(item.product.price * item.quantity).toFixed(2)}</td>
                   </tr>
                 ))}
                 <tr className="font-medium">
-                  <td colSpan={3} className="py-3">Total</td>
+                  <td colSpan={2} className="py-3">Total Items</td>
                   <td className="py-3 text-right">{totalItems}</td>
-                  <td className="py-3 text-right">
-                    £{order.items.reduce((acc, item) => acc + (item.product.price * item.quantity), 0).toFixed(2)}
-                  </td>
                 </tr>
               </tbody>
             </table>

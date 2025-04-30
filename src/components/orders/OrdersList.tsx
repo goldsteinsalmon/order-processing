@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Eye, FilePlus } from "lucide-react";
+import { Edit, FilePlus, ClipboardList } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
@@ -35,14 +35,13 @@ const OrdersList: React.FC = () => {
                 <th className="px-4 py-3 text-left font-medium">Order Date</th>
                 <th className="px-4 py-3 text-left font-medium">Delivery Method</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Total Items</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {sortedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                     No orders found
                   </td>
                 </tr>
@@ -69,16 +68,25 @@ const OrdersList: React.FC = () => {
                           {order.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{order.items.length}</td>
                       <td className="px-4 py-3">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => navigate(`/order-details/${order.id}`)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="sr-only">View Details</span>
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => navigate(`/edit-order/${order.id}`)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => navigate(`/picking-list/${order.id}`)}
+                          >
+                            <ClipboardList className="h-4 w-4 mr-1" />
+                            Picking List
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
