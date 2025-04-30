@@ -1,4 +1,5 @@
 
+
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -175,6 +176,7 @@ export interface User {
   email: string;
   role: "Admin" | "Manager" | "User" | "Picker";
   active: boolean;
+  password?: string; // Added optional password field
 }
 
 export interface Picker {
@@ -195,3 +197,4 @@ export interface BatchUsage {
   firstUsed: string;   // First date the batch was used
   lastUsed: string;    // Last date the batch was used
 }
+
