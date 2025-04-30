@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -18,16 +17,18 @@ import OrderDetailsStep from "./OrderDetailsStep";
 import ProductSelectionStep from "./ProductSelectionStep";
 import BoxDistributionStep from "./BoxDistributionStep";
 import { format } from "date-fns";
-
-type OrderStep = "customer" | "details" | "items" | "boxes";
+import { Tabs, TabsContent, Tabslist, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 const CreateOrderSteps: React.FC = () => {
   const navigate = useNavigate();
   const { customers, products, addOrder } = useData();
   const { toast } = useToast();
   
-  // State for managing the current step
-  const [currentStep, setCurrentStep] = React.useState<OrderStep>("customer");
+  // We'll keep currentStep to track progress visually
+  const [currentStep, setCurrentStep] = React.useState<number>(1);
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [showOnHoldWarning, setShowOnHoldWarning] = React.useState(false);
   const [showSameDayWarning, setShowSameDayWarning] = React.useState(false);
@@ -113,7 +114,7 @@ const CreateOrderSteps: React.FC = () => {
   
   // Update unassigned items when order items change
   React.useEffect(() => {
-    if (currentStep === "boxes" && selectedCustomer?.needsDetailedBoxLabels) {
+    if (selectedCustomer?.needsDetailedBoxLabels) {
       const newUnassignedItems = orderItems
         .filter(item => item.productId && item.quantity > 0)
         .map(item => {
@@ -138,159 +139,7 @@ const CreateOrderSteps: React.FC = () => {
         }]);
       }
     }
-  }, [currentStep, orderItems, products, selectedCustomer, boxDistributions]);
-  
-  const handleCancelCustomerSelection = () => {
-    setSelectedCustomer(null);
-    setShowOnHoldWarning(false);
-  };
-  
-  const confirmOnHoldCustomer = () => {
-    if (selectedCustomer) {
-      form.setValue("customerId", selectedCustomer.id);
-      setShowOnHoldWarning(false);
-      // Move to next step
-      setCurrentStep("details");
-    }
-  };
-  
-  const handleContinueToBoxes = () => {
-    // Validate items before proceeding
-    const hasInvalidItems = orderItems.some(
-      item => item.productId === "" || item.quantity <= 0
-    );
-
-    if (hasInvalidItems) {
-      toast({
-        title: "Invalid items",
-        description: "Please ensure all items have a product and a positive quantity.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (selectedCustomer?.needsDetailedBoxLabels) {
-      setCurrentStep("boxes");
-      
-      // Initialize box distributions if needed
-      if (boxDistributions.length === 0) {
-        setBoxDistributions([{ 
-          boxNumber: 1, 
-          items: [], 
-          completed: false,
-          printed: false
-        }]);
-      }
-    } else {
-      // If customer doesn't need box labels, submit the form directly
-      handleSubmit();
-    }
-  };
-  
-  const handleSubmit = () => {
-    // Get form values
-    const data = form.getValues();
-    
-    // Validate items if not using box distribution
-    if (!selectedCustomer?.needsDetailedBoxLabels) {
-      const hasInvalidItems = orderItems.some(
-        item => item.productId === "" || item.quantity <= 0
-      );
-  
-      if (hasInvalidItems) {
-        toast({
-          title: "Invalid items",
-          description: "Please ensure all items have a product and a positive quantity.",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      // For customers with box labels, check if all items are assigned
-      if (unassignedItems.length > 0) {
-        toast({
-          title: "Unassigned items",
-          description: "Please assign all items to boxes before submitting.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Check if there are empty boxes
-      const hasEmptyBoxes = boxDistributions.some(box => box.items.length === 0);
-      if (hasEmptyBoxes) {
-        toast({
-          title: "Empty boxes",
-          description: "Please remove any empty boxes before submitting.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    // Prepare order items array
-    const finalOrderItems: OrderItem[] = selectedCustomer?.needsDetailedBoxLabels 
-      ? boxDistributions.flatMap(box => 
-          box.items.map(item => ({
-            id: crypto.randomUUID(),
-            productId: item.productId,
-            product: products.find(p => p.id === item.productId)!,
-            quantity: item.quantity,
-            boxNumber: box.boxNumber
-          }))
-        )
-      : orderItems.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          product: products.find(p => p.id === item.productId)!,
-          quantity: item.quantity
-        }));
-
-    const newOrder = {
-      id: crypto.randomUUID(),
-      customerId: data.customerId,
-      customer: customers.find(c => c.id === data.customerId)!,
-      customerOrderNumber: data.customerOrderNumber,
-      orderDate: format(data.orderDate, "yyyy-MM-dd"),
-      deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
-      items: finalOrderItems,
-      notes: data.notes,
-      status: "Pending" as const,
-      created: new Date().toISOString(),
-      // Include box distributions if customer needs detailed box labels
-      boxDistributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
-    };
-
-    addOrder(newOrder);
-    
-    toast({
-      title: "Order created",
-      description: "The order has been created successfully.",
-    });
-
-    // Reset form and navigate back
-    resetForm();
-    navigate("/orders");
-  };
-  
-  const resetForm = () => {
-    form.reset({
-      customerId: "",
-      customerOrderNumber: "",
-      orderDate: getDefaultOrderDate(),
-      deliveryMethod: "Delivery",
-      notes: "",
-    });
-    setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
-    setBoxDistributions([{ boxNumber: 1, items: [], completed: false, printed: false }]);
-    setUnassignedItems([]);
-    setCurrentStep("customer");
-    setManualDateChange(false);
-  };
-
-  const handleCancel = () => {
-    navigate("/orders");
-  };
+  }, [orderItems, products, selectedCustomer, boxDistributions]);
   
   const handleCustomerSelect = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
@@ -302,7 +151,20 @@ const CreateOrderSteps: React.FC = () => {
     } else {
       // If not on hold, proceed normally
       form.setValue("customerId", customerId);
-      setCurrentStep("details");
+      setCurrentStep(2);
+    }
+  };
+  
+  const handleCancelCustomerSelection = () => {
+    setSelectedCustomer(null);
+    setShowOnHoldWarning(false);
+  };
+  
+  const confirmOnHoldCustomer = () => {
+    if (selectedCustomer) {
+      form.setValue("customerId", selectedCustomer.id);
+      setShowOnHoldWarning(false);
+      setCurrentStep(2);
     }
   };
   
@@ -342,60 +204,209 @@ const CreateOrderSteps: React.FC = () => {
     );
   };
   
-  // Render appropriate step based on currentStep
-  const renderStep = () => {
-    switch (currentStep) {
-      case "customer":
-        return (
-          <CustomerSelectionStep 
-            onCustomerSelect={handleCustomerSelect} 
-            customers={customers} 
-          />
-        );
-      case "details":
-        return (
-          <OrderDetailsStep
-            form={form}
-            onDateChange={handleDateChange}
-            onNext={() => setCurrentStep("items")}
-            onBack={() => setCurrentStep("customer")}
-          />
-        );
-      case "items":
-        return (
-          <ProductSelectionStep
-            orderItems={orderItems}
-            products={products}
-            onAddItem={handleAddItem}
-            onRemoveItem={handleRemoveItem}
-            onItemChange={handleItemChange}
-            selectedCustomer={selectedCustomer}
-            onContinue={handleContinueToBoxes}
-            onCancel={handleCancel}
-          />
-        );
-      case "boxes":
-        return (
-          <BoxDistributionStep
-            boxDistributions={boxDistributions}
-            setBoxDistributions={setBoxDistributions}
-            unassignedItems={unassignedItems}
-            setUnassignedItems={setUnassignedItems}
-            products={products}
-            onBack={() => setCurrentStep("items")}
-            onSubmit={handleSubmit}
-          />
-        );
-      default:
-        return null;
+  const handleSubmit = () => {
+    // Validate form
+    form.trigger().then(isValid => {
+      if (!isValid) {
+        toast({
+          title: "Validation error",
+          description: "Please fill in all required fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate items
+      const hasInvalidItems = orderItems.some(
+        item => item.productId === "" || item.quantity <= 0
+      );
+  
+      if (hasInvalidItems) {
+        toast({
+          title: "Invalid items",
+          description: "Please ensure all items have a product and a positive quantity.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // For customers with box labels, check if all items are assigned
+      if (selectedCustomer?.needsDetailedBoxLabels) {
+        if (unassignedItems.length > 0) {
+          toast({
+            title: "Unassigned items",
+            description: "Please assign all items to boxes before submitting.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Check if there are empty boxes
+        const hasEmptyBoxes = boxDistributions.some(box => box.items.length === 0);
+        if (hasEmptyBoxes) {
+          toast({
+            title: "Empty boxes",
+            description: "Please remove any empty boxes before submitting.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Get form values
+      const data = form.getValues();
+
+      // Prepare order items array
+      const finalOrderItems: OrderItem[] = selectedCustomer?.needsDetailedBoxLabels 
+        ? boxDistributions.flatMap(box => 
+            box.items.map(item => ({
+              id: crypto.randomUUID(),
+              productId: item.productId,
+              product: products.find(p => p.id === item.productId)!,
+              quantity: item.quantity,
+              boxNumber: box.boxNumber
+            }))
+          )
+        : orderItems.map(item => ({
+            id: item.id,
+            productId: item.productId,
+            product: products.find(p => p.id === item.productId)!,
+            quantity: item.quantity
+          }));
+
+      const newOrder = {
+        id: crypto.randomUUID(),
+        customerId: data.customerId,
+        customer: customers.find(c => c.id === data.customerId)!,
+        customerOrderNumber: data.customerOrderNumber,
+        orderDate: format(data.orderDate, "yyyy-MM-dd"),
+        deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
+        items: finalOrderItems,
+        notes: data.notes,
+        status: "Pending" as const,
+        created: new Date().toISOString(),
+        // Include box distributions if customer needs detailed box labels
+        boxDistributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
+      };
+
+      addOrder(newOrder);
+      
+      toast({
+        title: "Order created",
+        description: "The order has been created successfully.",
+      });
+
+      // Reset form and navigate back
+      resetForm();
+      navigate("/orders");
+    });
+  };
+  
+  const resetForm = () => {
+    form.reset({
+      customerId: "",
+      customerOrderNumber: "",
+      orderDate: getDefaultOrderDate(),
+      deliveryMethod: "Delivery",
+      notes: "",
+    });
+    setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
+    setBoxDistributions([{ boxNumber: 1, items: [], completed: false, printed: false }]);
+    setUnassignedItems([]);
+    setCurrentStep(1);
+    setManualDateChange(false);
+  };
+
+  const handleCancel = () => {
+    navigate("/orders");
+  };
+
+  // Determine progress percentage based on completed steps
+  const calculateProgress = () => {
+    // Basic steps: Customer and Details
+    let steps = 2;
+    let completed = 0;
+    
+    if (customerId) completed++;
+    if (form.formState.isValid) completed++;
+    
+    // If customer needs detailed box labels, add another step
+    if (selectedCustomer?.needsDetailedBoxLabels) {
+      steps = 3;
+      if (unassignedItems.length === 0 && boxDistributions.some(box => box.items.length > 0)) {
+        completed++;
+      }
     }
+    
+    return (completed / steps) * 100;
   };
 
   return (
     <>
       <Form {...form}>
-        <form className="space-y-6">
-          {renderStep()}
+        <form className="space-y-8">
+          <div className="mb-6">
+            <Progress value={calculateProgress()} className="h-2" />
+          </div>
+
+          <Card className="p-6">
+            <h3 className="text-lg font-medium mb-4">1. Customer</h3>
+            <CustomerSelectionStep 
+              onCustomerSelect={handleCustomerSelect} 
+              customers={customers} 
+            />
+          </Card>
+
+          <Card className={`p-6 ${!customerId ? 'opacity-50' : ''}`}>
+            <h3 className="text-lg font-medium mb-4">2. Order Details</h3>
+            <OrderDetailsStep
+              form={form}
+              onDateChange={handleDateChange}
+              onNext={() => setCurrentStep(3)}
+              onBack={() => {}}
+              hideNavigationButtons={true}
+            />
+          </Card>
+
+          <Card className={`p-6 ${!customerId ? 'opacity-50' : ''}`}>
+            <h3 className="text-lg font-medium mb-4">3. Products</h3>
+            <ProductSelectionStep
+              orderItems={orderItems}
+              products={products}
+              onAddItem={handleAddItem}
+              onRemoveItem={handleRemoveItem}
+              onItemChange={handleItemChange}
+              selectedCustomer={selectedCustomer}
+              onContinue={() => {}}
+              onCancel={handleCancel}
+              hideNavigationButtons={true}
+            />
+          </Card>
+
+          {selectedCustomer?.needsDetailedBoxLabels && (
+            <Card className={`p-6 ${!customerId ? 'opacity-50' : ''}`}>
+              <h3 className="text-lg font-medium mb-4">4. Box Distribution</h3>
+              <BoxDistributionStep
+                boxDistributions={boxDistributions}
+                setBoxDistributions={setBoxDistributions}
+                unassignedItems={unassignedItems}
+                setUnassignedItems={setUnassignedItems}
+                products={products}
+                onBack={() => {}}
+                onSubmit={() => {}}
+                hideNavigationButtons={true}
+              />
+            </Card>
+          )}
+
+          <div className="flex justify-end space-x-4 pt-6">
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleSubmit}>
+              Create Order
+            </Button>
+          </div>
         </form>
       </Form>
 

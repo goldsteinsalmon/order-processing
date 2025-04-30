@@ -26,24 +26,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface OrderDetailsStepProps {
   form: UseFormReturn<OrderFormValues>;
   onDateChange: (date?: Date) => void;
   onNext: () => void;
   onBack: () => void;
+  hideNavigationButtons?: boolean;
 }
 
 const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
   form,
   onDateChange,
   onNext,
-  onBack
+  onBack,
+  hideNavigationButtons = false
 }) => {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-medium">Order Details</h3>
-      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
           control={form.control}
@@ -117,16 +118,35 @@ const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem className="col-span-1 md:col-span-2">
+              <FormLabel>Notes</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Add any special instructions or notes about this order"
+                  className="min-h-24"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
       
-      <div className="flex justify-between">
-        <Button type="button" variant="outline" onClick={onBack}>
-          Back
-        </Button>
-        <Button type="button" onClick={onNext}>
-          Continue
-        </Button>
-      </div>
+      {!hideNavigationButtons && (
+        <div className="flex justify-between">
+          <Button type="button" variant="outline" onClick={onBack}>
+            Back
+          </Button>
+          <Button type="button" onClick={onNext}>
+            Continue
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

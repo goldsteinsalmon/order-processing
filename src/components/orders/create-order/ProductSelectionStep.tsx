@@ -23,6 +23,7 @@ interface ProductSelectionStepProps {
   selectedCustomer: Customer | null;
   onContinue: () => void;
   onCancel: () => void;
+  hideNavigationButtons?: boolean;
 }
 
 const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
@@ -33,7 +34,8 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
   onItemChange,
   selectedCustomer,
   onContinue,
-  onCancel
+  onCancel,
+  hideNavigationButtons = false
 }) => {
   const [productSearch, setProductSearch] = useState("");
   const [showProductSearch, setShowProductSearch] = useState(false);
@@ -72,15 +74,12 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
   
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Items *</h3>
-        {selectedCustomer?.needsDetailedBoxLabels && (
-          <div className="flex items-center text-sm text-blue-600">
-            <Package className="h-4 w-4 mr-1" />
-            This customer requires detailed box labels
-          </div>
-        )}
-      </div>
+      {selectedCustomer?.needsDetailedBoxLabels && (
+        <div className="flex items-center text-sm text-blue-600 mb-2">
+          <Package className="h-4 w-4 mr-1" />
+          This customer requires detailed box labels
+        </div>
+      )}
       
       <div className="space-y-4">
         <div className="grid grid-cols-12 gap-4 font-medium">
@@ -150,14 +149,16 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
         </Button>
       </div>
       
-      <div className="flex justify-end space-x-4 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="button" onClick={onContinue}>
-          {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
-        </Button>
-      </div>
+      {!hideNavigationButtons && (
+        <div className="flex justify-end space-x-4 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={onContinue}>
+            {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
+          </Button>
+        </div>
+      )}
       
       {/* Product Search Dialog */}
       <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>

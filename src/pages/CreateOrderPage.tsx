@@ -17,7 +17,7 @@ const CreateOrderPage: React.FC = () => {
         </Button>
         <h2 className="text-2xl font-bold">Create Order</h2>
       </div>
-      <p className="text-gray-500 mb-6">Create a new order for a customer</p>
+      <p className="text-gray-500 mb-6">Fill in all information below to create a new order</p>
       <CreateOrderForm />
     </Layout>
   );
