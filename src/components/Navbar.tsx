@@ -5,7 +5,7 @@ import { useData } from "../context/DataContext";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 
 interface NavLinkProps {
   to: string;
@@ -43,6 +43,7 @@ const Navbar: React.FC = () => {
     showBadge = false 
   }) => {
     const isActive = location.pathname === to || location.pathname.startsWith(`${to}/`);
+    const isMissingItemsLink = to === "/missing-items";
     
     // Only show on mobile if specified
     if (!isMobile && onlyMobile) return null;
@@ -61,7 +62,7 @@ const Navbar: React.FC = () => {
       <Link to={to} className={className} onClick={onClose}>
         {icon}
         <span>{label}</span>
-        {showBadge && typeof badgeCount === 'number' && badgeCount > 0 && (
+        {isMissingItemsLink && typeof badgeCount === 'number' && badgeCount > 0 && (
           <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-red-500 text-white">
             {badgeCount}
           </span>
@@ -79,7 +80,7 @@ const Navbar: React.FC = () => {
       <NavLink to="/standing-orders" label="Standing Orders" />
       <NavLink to="/products" label="Products" />
       <NavLink to="/returns" label="Returns" />
-      <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} showBadge={true} />
+      <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} />
       <NavLink to="/batch-tracking" label="Batch Tracking" />
       <NavLink to="/admin" label="Admin" />
     </div>
@@ -103,7 +104,7 @@ const Navbar: React.FC = () => {
           <NavLink to="/standing-orders" label="Standing Orders" onClose={handleClose} />
           <NavLink to="/products" label="Products" onClose={handleClose} />
           <NavLink to="/returns" label="Returns" onClose={handleClose} />
-          <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} showBadge={true} onClose={handleClose} />
+          <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} onClose={handleClose} />
           <NavLink to="/batch-tracking" label="Batch Tracking" onClose={handleClose} />
           <NavLink to="/admin" label="Admin" onClose={handleClose} />
         </nav>

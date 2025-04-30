@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, isToday, isBefore, startOfDay, addBusinessDays } from "date-fns";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { getNextWorkingDay, isBusinessDay, isSameDayOrder } from "@/utils/dateUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { OrderItem } from "@/types";
 
 const orderSchema = z.object({
@@ -63,10 +72,32 @@ const CreateOrderForm: React.FC = () => {
   const [showCutOffWarning, setShowCutOffWarning] = useState(false);
   const [manualDateChange, setManualDateChange] = useState(false);
   
-  // Product addition state for the new UI
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  // Search state
+  const [productSearch, setProductSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [showProductSearch, setShowProductSearch] = useState(false);
   
+  // Sort products by SKU
+  const sortedProducts = [...products].sort((a, b) => 
+    a.sku.localeCompare(b.sku)
+  );
+  
+  // Filtered products based on search
+  const filteredProducts = productSearch.trim() !== "" 
+    ? sortedProducts.filter(product => 
+        product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+        product.sku.toLowerCase().includes(productSearch.toLowerCase())
+      )
+    : sortedProducts;
+  
+  // Filtered customers based on search
+  const filteredCustomers = customerSearch.trim() !== ""
+    ? customers.filter(customer =>
+        customer.name.toLowerCase().includes(customerSearch.toLowerCase())
+      )
+    : customers;
+    
   // Get the default order date based on current time
   const getDefaultOrderDate = () => {
     const currentHour = new Date().getHours();
@@ -112,30 +143,7 @@ const CreateOrderForm: React.FC = () => {
   }, [orderDate, manualDateChange]);
 
   const handleAddItem = () => {
-    if (!selectedProductId) {
-      toast({
-        title: "No product selected",
-        description: "Please select a product to add to the order.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newItem = {
-      productId: selectedProductId,
-      quantity: selectedQuantity,
-      id: crypto.randomUUID() 
-    };
-
-    setOrderItems([...orderItems, newItem]);
-    setSelectedProductId("");
-    setSelectedQuantity(1);
-    
-    // Success toast
-    toast({
-      title: "Item added",
-      description: "The item has been added to the order."
-    });
+    setOrderItems([...orderItems, { productId: "", quantity: 1, id: crypto.randomUUID() }]);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -153,6 +161,16 @@ const CreateOrderForm: React.FC = () => {
         return item;
       })
     );
+  };
+  
+  const handleSelectCustomer = (customerId: string) => {
+    form.setValue("customerId", customerId);
+    setShowCustomerSearch(false);
+  };
+  
+  const handleSelectProduct = (id: string, productId: string) => {
+    handleItemChange(id, "productId", productId);
+    setShowProductSearch(false);
   };
 
   const onSubmit = (data: OrderFormValues) => {
@@ -215,31 +233,65 @@ const CreateOrderForm: React.FC = () => {
     navigate("/orders");
   };
 
+  const getSelectedCustomerName = () => {
+    const customerId = form.watch("customerId");
+    if (!customerId) return "Select a customer...";
+    
+    const customer = customers.find(c => c.id === customerId);
+    return customer ? customer.name : "Select a customer...";
+  };
+  
+  const getSelectedProductName = (productId: string) => {
+    if (!productId) return "Select a product...";
+    
+    const product = products.find(p => p.id === productId);
+    return product ? `${product.name} (${product.sku})` : "Select a product...";
+  };
+
   return (
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Customer Selection with Search */}
             <FormField
               control={form.control}
               name="customerId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Customer *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a customer..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      className="w-full justify-between" 
+                      onClick={() => setShowCustomerSearch(true)}
+                    >
+                      {getSelectedCustomerName()}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </div>
+                  <CommandDialog open={showCustomerSearch} onOpenChange={setShowCustomerSearch}>
+                    <CommandInput 
+                      placeholder="Search customers..."
+                      value={customerSearch}
+                      onValueChange={setCustomerSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>No customers found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredCustomers.map(customer => (
+                          <CommandItem 
+                            key={customer.id} 
+                            value={customer.id}
+                            onSelect={() => handleSelectCustomer(customer.id)}
+                          >
+                            {customer.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </CommandDialog>
                   <FormMessage />
                 </FormItem>
               )}
@@ -328,107 +380,90 @@ const CreateOrderForm: React.FC = () => {
               <h3 className="text-lg font-medium">Items *</h3>
             </div>
             
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                <FormLabel>Product</FormLabel>
-                <Select
-                  value={selectedProductId}
-                  onValueChange={setSelectedProductId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col">
-                <FormLabel>Quantity</FormLabel>
-                <div className="flex gap-2 h-10">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={selectedQuantity}
-                    onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
-                    className="flex-1"
-                  />
-                  <Button 
-                    type="button" 
-                    className="flex-none" 
-                    onClick={handleAddItem}
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Add
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
             <div className="space-y-4">
               <div className="grid grid-cols-12 gap-4 font-medium">
-                <div className="col-span-5">Product</div>
-                <div className="col-span-3">SKU</div>
-                <div className="col-span-3 text-center">Quantity</div>
+                <div className="col-span-6 md:col-span-5">Product</div>
+                <div className="col-span-3 md:col-span-3">SKU</div>
+                <div className="col-span-2 md:col-span-3 text-center">Quantity</div>
                 <div className="col-span-1"></div>
               </div>
 
-              {orderItems.length === 0 ? (
-                <div className="py-4 text-center text-gray-500 border rounded">
-                  No items added to this order
-                </div>
-              ) : (
-                orderItems.map((item, index) => {
-                  const product = products.find(p => p.id === item.productId);
-                  return (
-                    <div key={item.id} className="grid grid-cols-12 gap-4 items-center py-2 border-b">
-                      <div className="col-span-5">
-                        <Select
-                          value={item.productId}
-                          onValueChange={(value) => handleItemChange(item.id, "productId", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a product..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-3">
-                        {product ? product.sku : ""}
-                      </div>
-                      <div className="col-span-3">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 1)}
-                          className="text-center"
-                        />
-                      </div>
-                      <div className="col-span-1 text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(item.id)}
-                          disabled={orderItems.length <= 1}
-                        >
-                          <Minus className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
+              {orderItems.map((item, index) => {
+                const product = products.find(p => p.id === item.productId);
+                return (
+                  <div key={item.id} className="grid grid-cols-12 gap-4 items-center py-2 border-b">
+                    <div className="col-span-6 md:col-span-5">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full justify-start text-left"
+                        onClick={() => setShowProductSearch(true)}
+                      >
+                        <span className="truncate">
+                          {getSelectedProductName(item.productId)}
+                        </span>
+                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                      {showProductSearch && (
+                        <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
+                          <CommandInput 
+                            placeholder="Search products by name or SKU..."
+                            value={productSearch}
+                            onValueChange={setProductSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No products found.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredProducts.map(product => (
+                                <CommandItem 
+                                  key={product.id} 
+                                  value={product.id}
+                                  onSelect={() => handleSelectProduct(item.id, product.id)}
+                                >
+                                  <span>{product.name}</span>
+                                  <span className="ml-2 text-muted-foreground">({product.sku})</span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </CommandDialog>
+                      )}
                     </div>
-                  );
-                })
-              )}
+                    <div className="col-span-3">
+                      {product ? product.sku : ""}
+                    </div>
+                    <div className="col-span-2 md:col-span-3">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 1)}
+                        className="text-center"
+                      />
+                    </div>
+                    <div className="col-span-1 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={orderItems.length <= 1}
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              <Button 
+                type="button" 
+                variant="outline"
+                className="w-full mt-2" 
+                onClick={handleAddItem}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add Another Product
+              </Button>
             </div>
           </div>
 

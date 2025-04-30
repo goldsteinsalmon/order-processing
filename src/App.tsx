@@ -48,6 +48,7 @@ const App: React.FC = () => {
         <Route path="/edit-order/:id" element={<EditCompletedOrderPage />} />
         <Route path="/edit-completed-order/:id" element={<EditCompletedOrderPage />} />
         <Route path="/view-completed-order/:id" element={<ViewCompletedOrderPage />} />
+        <Route path="/picking-list" element={<PickingListPage />} />
         <Route path="/picking-list/:id" element={<PickingListPage />} />
         
         <Route path="/standing-orders" element={<StandingOrdersPage />} />

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -5,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Printer, Check, ArrowRight } from "lucide-react";
+import { Printer, Check } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { 
   Table, 
   TableBody, 
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 
 const PickingList: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const { orders, completeOrder, pickers, recordBatchUsage } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -55,6 +56,16 @@ const PickingList: React.FC = () => {
   const selectedOrder = selectedOrderId 
     ? orders.find(order => order.id === selectedOrderId) 
     : null;
+
+  // If id param exists, set it as selected order when component mounts
+  useEffect(() => {
+    if (id) {
+      const orderExists = orders.find(order => order.id === id);
+      if (orderExists && orderExists.status === "Pending") {
+        setSelectedOrderId(id);
+      }
+    }
+  }, [id, orders]);
   
   // Update allItems when selectedOrderId changes
   useEffect(() => {
@@ -74,7 +85,6 @@ const PickingList: React.FC = () => {
   }, [selectedOrderId, selectedOrder]);
   
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
     onAfterPrint: () => {
       toast({
@@ -217,40 +227,42 @@ const PickingList: React.FC = () => {
         <h2 className="text-2xl font-bold">Picking List</h2>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Order to Pick</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingOrders.length === 0 ? (
-              <div className="col-span-full text-center py-8 text-gray-500">
-                No pending orders to pick
-              </div>
-            ) : (
-              pendingOrders.map(order => (
-                <Card 
-                  key={order.id} 
-                  className={`cursor-pointer transition-all ${
-                    selectedOrderId === order.id ? 'ring-2 ring-primary' : ''
-                  }`}
-                  onClick={() => setSelectedOrderId(order.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="font-medium">{order.customer.name}</div>
-                    <div className="text-sm text-gray-500">
-                      {format(new Date(order.orderDate), "MMMM d, yyyy")}
-                    </div>
-                    <div className="text-sm mt-2">
-                      {order.items.length} items
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {!selectedOrder && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Order to Pick</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingOrders.length === 0 ? (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  No pending orders to pick
+                </div>
+              ) : (
+                pendingOrders.map(order => (
+                  <Card 
+                    key={order.id} 
+                    className={`cursor-pointer transition-all ${
+                      selectedOrderId === order.id ? 'ring-2 ring-primary' : ''
+                    }`}
+                    onClick={() => setSelectedOrderId(order.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="font-medium">{order.customer.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {format(new Date(order.orderDate), "MMMM d, yyyy")}
+                      </div>
+                      <div className="text-sm mt-2">
+                        {order.items.length} items
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       {selectedOrder && (
         <>
@@ -259,7 +271,7 @@ const PickingList: React.FC = () => {
               Order for {selectedOrder.customer.name}
             </h3>
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={handlePrint}>
+              <Button variant="outline" onClick={() => handlePrint()}>
                 <Printer className="h-4 w-4 mr-2" /> Print
               </Button>
               <Button onClick={handleCompleteOrder}>
