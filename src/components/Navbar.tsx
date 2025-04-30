@@ -14,39 +14,17 @@ interface NavLinkProps {
   badgeCount?: number;
   onlyMobile?: boolean;
   onClose?: () => void;
+  showBadge?: boolean;
 }
 
 const Navbar: React.FC = () => {
-  const { orders, standingOrders, missingItems, returns, complaints } = useData();
+  const { missingItems } = useData();
   const [isOpen, setIsOpen] = useState(false);
   const isMobile = useIsMobile();
   const location = useLocation();
   
-  // Count pending orders
-  const pendingOrdersCount = orders.filter(
-    order => order.status !== "Completed" && order.status !== "Cancelled"
-  ).length;
-  
-  // Count missing items
+  // Only count missing items
   const missingItemsCount = missingItems.length;
-  
-  // Count open returns
-  const openReturnsCount = returns.filter(
-    ret => ret.resolutionStatus !== "Resolved"
-  ).length;
-
-  // Count standing orders needing processing
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Set to midnight
-  
-  const standingOrdersToProcessCount = standingOrders.filter(so => {
-    if (!so.active || !so.nextProcessingDate) return false;
-    
-    const nextProcessingDate = new Date(so.nextProcessingDate);
-    nextProcessingDate.setHours(0, 0, 0, 0);
-    
-    return nextProcessingDate <= today;
-  }).length;
   
   // Get today's date for display
   const todayFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
@@ -55,7 +33,15 @@ const Navbar: React.FC = () => {
   const handleClose = () => setIsOpen(false);
   
   // Helper for links that will be used in both desktop and mobile
-  const NavLink: React.FC<NavLinkProps> = ({ to, label, icon, badgeCount, onlyMobile, onClose }) => {
+  const NavLink: React.FC<NavLinkProps> = ({ 
+    to, 
+    label, 
+    icon, 
+    badgeCount, 
+    onlyMobile, 
+    onClose,
+    showBadge = false 
+  }) => {
     const isActive = location.pathname === to || location.pathname.startsWith(`${to}/`);
     
     // Only show on mobile if specified
@@ -75,7 +61,7 @@ const Navbar: React.FC = () => {
       <Link to={to} className={className} onClick={onClose}>
         {icon}
         <span>{label}</span>
-        {typeof badgeCount === 'number' && badgeCount > 0 && (
+        {showBadge && typeof badgeCount === 'number' && badgeCount > 0 && (
           <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-semibold rounded-full bg-red-500 text-white">
             {badgeCount}
           </span>
@@ -87,13 +73,13 @@ const Navbar: React.FC = () => {
   // Desktop Navigation
   const DesktopNav = () => (
     <div className="hidden md:flex items-center space-x-1">
-      <NavLink to="/" label="Orders" badgeCount={pendingOrdersCount} />
+      <NavLink to="/" label="Orders" />
       <NavLink to="/completed-orders" label="Completed Orders" />
       <NavLink to="/customers" label="Customers" />
-      <NavLink to="/standing-orders" label="Standing Orders" badgeCount={standingOrdersToProcessCount} />
+      <NavLink to="/standing-orders" label="Standing Orders" />
       <NavLink to="/products" label="Products" />
-      <NavLink to="/returns" label="Returns" badgeCount={openReturnsCount} />
-      <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} />
+      <NavLink to="/returns" label="Returns" />
+      <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} showBadge={true} />
       <NavLink to="/batch-tracking" label="Batch Tracking" />
       <NavLink to="/admin" label="Admin" />
     </div>
@@ -111,13 +97,13 @@ const Navbar: React.FC = () => {
       </SheetTrigger>
       <SheetContent side="left" className="w-[300px] sm:w-[400px]">
         <nav className="flex flex-col space-y-4 mt-6">
-          <NavLink to="/" label="Orders" badgeCount={pendingOrdersCount} onClose={handleClose} />
+          <NavLink to="/" label="Orders" onClose={handleClose} />
           <NavLink to="/completed-orders" label="Completed Orders" onClose={handleClose} />
           <NavLink to="/customers" label="Customers" onClose={handleClose} />
-          <NavLink to="/standing-orders" label="Standing Orders" badgeCount={standingOrdersToProcessCount} onClose={handleClose} />
+          <NavLink to="/standing-orders" label="Standing Orders" onClose={handleClose} />
           <NavLink to="/products" label="Products" onClose={handleClose} />
-          <NavLink to="/returns" label="Returns" badgeCount={openReturnsCount} onClose={handleClose} />
-          <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} onClose={handleClose} />
+          <NavLink to="/returns" label="Returns" onClose={handleClose} />
+          <NavLink to="/missing-items" label="Missing Items" badgeCount={missingItemsCount} showBadge={true} onClose={handleClose} />
           <NavLink to="/batch-tracking" label="Batch Tracking" onClose={handleClose} />
           <NavLink to="/admin" label="Admin" onClose={handleClose} />
         </nav>

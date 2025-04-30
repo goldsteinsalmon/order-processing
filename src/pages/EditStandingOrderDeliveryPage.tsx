@@ -315,17 +315,12 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="flex justify-between items-center">
-              <span>Items</span>
-              <Button type="button" onClick={handleAddItem} variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" /> Add Item
-              </Button>
-            </CardTitle>
+            <CardTitle>Items</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="mb-6 flex flex-col gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                <div className="md:col-span-4">
                   <label className="block text-sm font-medium mb-1">Product</label>
                   <Select value={selectedProductId} onValueChange={setSelectedProductId}>
                     <SelectTrigger>
@@ -340,24 +335,23 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
+                <div className="md:col-span-1">
                   <label className="block text-sm font-medium mb-1">Quantity</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={selectedQuantity}
-                      onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
-                      className="flex-1"
-                    />
-                    <Button 
-                      type="button" 
-                      className="flex-none" 
-                      onClick={handleAddItem}
-                    >
-                      <Plus className="h-4 w-4 mr-2" /> Add
-                    </Button>
-                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={selectedQuantity}
+                    onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <Button 
+                    type="button" 
+                    className="w-full" 
+                    onClick={handleAddItem}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Add
+                  </Button>
                 </div>
               </div>
             </div>
