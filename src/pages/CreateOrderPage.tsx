@@ -28,9 +28,7 @@ const CreateOrderPage: React.FC = () => {
       </div>
       <p className="text-gray-500 mb-6">Create a new order for a customer</p>
       
-      <Suspense fallback={<FormFallback />}>
-        <CreateOrderForm />
-      </Suspense>
+      <CreateOrderForm />
     </Layout>
   );
 };

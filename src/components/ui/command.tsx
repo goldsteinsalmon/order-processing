@@ -59,38 +59,14 @@ const CommandList = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
 >(({ className, ...props }, ref) => {
-  // Use a ref to maintain stability and minimize re-renders
-  const listRef = React.useRef<React.ElementRef<typeof CommandPrimitive.List>>(null);
-  // Combine the forwarded ref with our local ref
-  React.useImperativeHandle(ref, () => listRef.current!);
-  
-  // Track component mounting state
-  const [mounted, setMounted] = React.useState(false);
-  
-  React.useEffect(() => {
-    // Set mounted state after the component is mounted
-    const timeout = setTimeout(() => {
-      setMounted(true);
-    }, 0);
-    
-    return () => {
-      clearTimeout(timeout);
-      setMounted(false);
-    };
-  }, []);
-  
-  // Return a placeholder div with matching styling until fully mounted
-  if (!mounted) {
-    return <div className="max-h-[300px] overflow-y-auto overflow-x-hidden" />;
-  }
-  
+  // Completely simplified implementation to fix the Array.from error
   return (
     <CommandPrimitive.List
-      ref={listRef}
+      ref={ref}
       className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
       {...props}
     />
-  );
+  )
 })
 
 CommandList.displayName = CommandPrimitive.List.displayName
