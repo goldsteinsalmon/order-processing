@@ -38,24 +38,21 @@ export const products: Product[] = [
     name: "Fresh Apples", 
     sku: "FR-APL-001", 
     description: "Red apples, 1kg bag", 
-    stockLevel: 150, 
-    unit: "bag" 
+    stockLevel: 150 
   },
   { 
     id: "p2", 
     name: "Organic Carrots", 
     sku: "ORG-CRT-002", 
     description: "Organic carrots, 500g bag", 
-    stockLevel: 85, 
-    unit: "bag" 
+    stockLevel: 85 
   },
   { 
     id: "p3", 
     name: "Free Range Eggs", 
     sku: "EGG-FR-003", 
     description: "Free range eggs, pack of 6", 
-    stockLevel: 120, 
-    unit: "pack" 
+    stockLevel: 120 
   },
 ];
 

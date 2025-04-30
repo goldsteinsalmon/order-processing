@@ -89,7 +89,7 @@ const PrintBoxLabel: React.FC = () => {
                   {order.items.map((item) => (
                     <div key={item.id} className="text-sm mb-1 flex justify-between">
                       <span>{item.product.name}</span>
-                      <span>{item.quantity} {item.product.unit}</span>
+                      <span>{item.quantity}</span>
                     </div>
                   ))}
                 </div>
