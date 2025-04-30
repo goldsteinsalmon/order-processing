@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string;
@@ -47,7 +48,7 @@ export interface Order {
   deliveryMethod: "Delivery" | "Collection";
   items: OrderItem[];
   notes?: string;
-  status: "Pending" | "Picking" | "Completed" | "Cancelled";
+  status: "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items";
   picker?: string;
   isPicked?: boolean;
   totalBlownPouches?: number;
@@ -56,7 +57,7 @@ export interface Order {
   pickingProgress?: PickingProgress | null;
   created: string;
   updated?: string;
-  batchNumber?: string; // Adding this field to fix the CompletedOrders.tsx error
+  batchNumber?: string;
 }
 
 export interface StandingOrder {

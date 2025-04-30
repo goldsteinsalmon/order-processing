@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Check, X, FileCheck } from "lucide-react";
@@ -181,13 +182,16 @@ const PickingList: React.FC = () => {
       batchNumber: batchNumbers[item.id] || "",
     }));
 
+    // Check if any items are unavailable to update order status
+    const hasUnavailableItems = updatedItems.some(item => item.isUnavailable && item.unavailableQuantity);
+    
     // Create updated order with explicit type for status
     const updatedOrder = {
       ...order,
       items: updatedItems,
       picker: selectedPicker,
       isPicked: true,
-      status: "Picking" as const,
+      status: hasUnavailableItems ? "Missing Items" as const : "Picking" as const,
       totalBlownPouches: totalBlownPouches,
       updated: new Date().toISOString(),
       pickingProgress: null, // Clear progress once completed
@@ -199,7 +203,7 @@ const PickingList: React.FC = () => {
         const missingItem = {
           id: crypto.randomUUID(),
           orderId: order.id,
-          order: order,
+          order: updatedOrder,
           productId: item.productId,
           product: item.product,
           quantity: item.unavailableQuantity!,
@@ -355,6 +359,7 @@ const PickingList: React.FC = () => {
                           className="w-20 mx-auto"
                           inputMode="numeric"
                           pattern="[0-9]*"
+                          className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       ) : (
                         "-"
@@ -367,7 +372,7 @@ const PickingList: React.FC = () => {
                         value={blownPouches[item.id] === null ? "" : blownPouches[item.id]}
                         onChange={(e) => handleBlownPouchesChange(item.id, e.target.value)}
                         placeholder="0"
-                        className="w-20 mx-auto"
+                        className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         inputMode="numeric"
                         pattern="[0-9]*"
                       />
