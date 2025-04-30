@@ -1,5 +1,3 @@
-
-
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -10,6 +8,7 @@ export interface Customer {
   type: "Private" | "Trade";
   onHold?: boolean;
   holdReason?: string;
+  created?: string; // Added created property
 }
 
 export interface Product {
@@ -19,6 +18,7 @@ export interface Product {
   description: string;
   stockLevel: number;
   weight?: number; // Weight in grams
+  created?: string; // Added created property
 }
 
 export interface OrderItem {
@@ -197,4 +197,3 @@ export interface BatchUsage {
   firstUsed: string;   // First date the batch was used
   lastUsed: string;    // Last date the batch was used
 }
-
