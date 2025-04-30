@@ -238,6 +238,7 @@ const CreateOrderForm: React.FC = () => {
     console.log("Selecting product:", productId, "for item:", itemId);
     handleItemChange(itemId, "productId", productId);
     setShowProductSearch(false);
+    setActiveProductItemId(null);
   };
 
   const onSubmit = (data: OrderFormValues) => {
@@ -490,6 +491,7 @@ const CreateOrderForm: React.FC = () => {
                         className="w-full justify-start text-left"
                         onClick={() => {
                           setActiveProductItemId(item.id);
+                          setProductSearch(""); // Reset search when opening
                           setShowProductSearch(true);
                         }}
                       >
@@ -625,41 +627,39 @@ const CreateOrderForm: React.FC = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Product Search Dialog - Separated per product item */}
-      {showProductSearch && (
-        <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <CommandInput 
-              placeholder="Search products by name or SKU..."
-              value={productSearch}
-              onValueChange={setProductSearch}
-              autoFocus={true}
-              className="pl-8"
-            />
-          </div>
-          <CommandList>
-            <CommandEmpty>No products found.</CommandEmpty>
-            <CommandGroup>
-              {filteredProducts.map(product => (
-                <CommandItem 
-                  key={product.id} 
-                  value={product.name} // Use name as the value for matching
-                  onSelect={() => {
-                    console.log(`Product selected: ${product.name} (${product.id})`);
-                    if (activeProductItemId) {
-                      handleSelectProduct(activeProductItemId, product.id);
-                    }
-                  }}
-                >
-                  <span>{product.name}</span>
-                  <span className="ml-2 text-muted-foreground">({product.sku})</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </CommandDialog>
-      )}
+      {/* Product Search Dialog - Improved */}
+      <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search products by name or SKU..."
+            value={productSearch}
+            onValueChange={setProductSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No products found.</CommandEmpty>
+          <CommandGroup heading="Products">
+            {filteredProducts.map(product => (
+              <CommandItem 
+                key={product.id} 
+                value={`${product.name} ${product.sku}`} // Combined value for better matching
+                onSelect={() => {
+                  console.log(`Product selected: ${product.name} (${product.id})`);
+                  if (activeProductItemId) {
+                    handleSelectProduct(activeProductItemId, product.id);
+                  }
+                }}
+              >
+                <span>{product.name}</span>
+                <span className="ml-2 text-muted-foreground">({product.sku})</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
     </>
   );
 };

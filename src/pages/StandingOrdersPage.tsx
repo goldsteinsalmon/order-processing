@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -7,19 +7,95 @@ import { Eye, Edit, Calendar, FilePlus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { Input } from "@/components/ui/input";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const StandingOrdersPage: React.FC = () => {
-  const { standingOrders } = useData();
+  const { standingOrders, customers } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Advanced search
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  
+  // Filter customers
+  const filteredCustomers = useMemo(() => {
+    let filtered = [...customers];
+    
+    if (customerSearch.trim()) {
+      const lowerSearch = customerSearch.toLowerCase();
+      filtered = customers.filter(customer => {
+        const nameMatch = customer.name.toLowerCase().includes(lowerSearch);
+        const emailMatch = customer.email ? customer.email.toLowerCase().includes(lowerSearch) : false;
+        const phoneMatch = customer.phone ? customer.phone.includes(customerSearch) : false;
+        const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(lowerSearch) : false;
+        
+        return nameMatch || emailMatch || phoneMatch || accountMatch;
+      });
+    }
+    
+    // Sort by account number alphabetically
+    return filtered.sort((a, b) => {
+      const accountA = a.accountNumber || '';
+      const accountB = b.accountNumber || '';
+      return accountA.localeCompare(accountB);
+    });
+  }, [customers, customerSearch]);
 
-  // Filter standing orders based on search term
-  const filteredStandingOrders = standingOrders.filter(order => 
-    order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.schedule.frequency.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.schedule.deliveryMethod.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get selected customer name
+  const getSelectedCustomerName = () => {
+    if (!selectedCustomerId) return null;
+    const customer = customers.find(c => c.id === selectedCustomerId);
+    return customer ? customer.name : null;
+  };
+
+  // Handle customer selection
+  const handleSelectCustomer = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    setShowCustomerSearch(false);
+  };
+
+  // Reset filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedCustomerId(null);
+  };
+
+  // Filter standing orders based on search term and selected customer
+  const filteredStandingOrders = useMemo(() => {
+    let filtered = standingOrders;
+    
+    // Filter by selected customer
+    if (selectedCustomerId) {
+      filtered = filtered.filter(order => order.customerId === selectedCustomerId);
+    }
+    
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.customer.name.toLowerCase().includes(searchLower) ||
+        order.id.toLowerCase().includes(searchLower) ||
+        (order.customerOrderNumber?.toLowerCase().includes(searchLower) || false) ||
+        order.schedule.frequency.toLowerCase().includes(searchLower) ||
+        order.schedule.deliveryMethod.toLowerCase().includes(searchLower) ||
+        order.items.some(item => 
+          item.product.name.toLowerCase().includes(searchLower) ||
+          item.product.sku.toLowerCase().includes(searchLower)
+        )
+      );
+    }
+    
+    return filtered;
+  }, [standingOrders, searchTerm, selectedCustomerId]);
 
   return (
     <Layout>
@@ -30,20 +106,47 @@ const StandingOrdersPage: React.FC = () => {
         </Button>
       </div>
       
-      {/* Search input */}
-      <div className="mb-4">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search standing orders..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+      {/* Search and filter section */}
+      <div className="mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Search input */}
+          <div className="relative w-full md:max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search standing orders..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          
+          {/* Customer filter */}
+          <div>
+            <Button 
+              variant={selectedCustomerId ? "default" : "outline"} 
+              onClick={() => setShowCustomerSearch(true)}
+              className="w-full md:w-auto"
+            >
+              {selectedCustomerId ? `Customer: ${getSelectedCustomerName()}` : "Filter by Customer"}
+            </Button>
+          </div>
+          
+          {/* Clear filters button - only show if there are any filters applied */}
+          {(selectedCustomerId || searchTerm) && (
+            <div>
+              <Button 
+                variant="ghost" 
+                onClick={clearFilters}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          )}
         </div>
       </div>
       
+      {/* Standing orders table */}
       <div className="rounded-md border">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -117,6 +220,35 @@ const StandingOrdersPage: React.FC = () => {
           </table>
         </div>
       </div>
+      
+      {/* Customer Search Dialog */}
+      <CommandDialog open={showCustomerSearch} onOpenChange={setShowCustomerSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search customers by name, email, phone or account..."
+            value={customerSearch}
+            onValueChange={setCustomerSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No customers found.</CommandEmpty>
+          <CommandGroup heading="Customers">
+            {filteredCustomers.map(customer => (
+              <CommandItem 
+                key={customer.id} 
+                value={customer.name}
+                onSelect={() => handleSelectCustomer(customer.id)}
+              >
+                {customer.name}
+                {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
     </Layout>
   );
 };

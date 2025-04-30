@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -14,9 +15,19 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Trash2, CalendarIcon } from "lucide-react";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, Trash2, CalendarIcon, Search } from "lucide-react";
 import { shouldProcessImmediately, getOrderProcessingDate } from "@/utils/dateUtils";
-import { Order } from "@/types";
+import { Order, Customer } from "@/types";
 import { cn } from "@/lib/utils";
 
 const CreateStandingOrderForm: React.FC = () => {
@@ -33,7 +44,15 @@ const CreateStandingOrderForm: React.FC = () => {
   const [notes, setNotes] = useState("");
   const [orderItems, setOrderItems] = useState<{id: string; productId: string; quantity: number}[]>([]);
   
+  // Search state
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showOnHoldWarning, setShowOnHoldWarning] = useState(false);
+  
   // Product selection
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState("");
   const [selectedProductQuantity, setSelectedProductQuantity] = useState<number | null>(null);
   
@@ -47,6 +66,74 @@ const CreateStandingOrderForm: React.FC = () => {
       setFirstDeliveryDate(new Date());
     }
   }, [frequency]);
+
+  // Sort products by SKU
+  const sortedProducts = useMemo(() => 
+    [...products].sort((a, b) => a.sku.localeCompare(b.sku)),
+    [products]
+  );
+  
+  // Filtered products based on search
+  const filteredProducts = useMemo(() => {
+    if (productSearch.trim() === "") return sortedProducts;
+    
+    const searchLower = productSearch.toLowerCase();
+    return sortedProducts.filter(product => 
+      product.name.toLowerCase().includes(searchLower) ||
+      product.sku.toLowerCase().includes(searchLower)
+    );
+  }, [productSearch, sortedProducts]);
+  
+  // Filter customers
+  const filteredCustomers = useMemo(() => {
+    let filtered = [...customers];
+    
+    if (customerSearch.trim()) {
+      const lowerSearch = customerSearch.toLowerCase();
+      filtered = customers.filter(customer => {
+        const nameMatch = customer.name.toLowerCase().includes(lowerSearch);
+        const emailMatch = customer.email ? customer.email.toLowerCase().includes(lowerSearch) : false;
+        const phoneMatch = customer.phone ? customer.phone.includes(customerSearch) : false;
+        const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(lowerSearch) : false;
+        
+        return nameMatch || emailMatch || phoneMatch || accountMatch;
+      });
+    }
+    
+    // Sort by account number alphabetically
+    return filtered.sort((a, b) => {
+      const accountA = a.accountNumber || '';
+      const accountB = b.accountNumber || '';
+      return accountA.localeCompare(accountB);
+    });
+  }, [customers, customerSearch]);
+
+  const handleSelectCustomer = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    
+    // If customer is on hold, show warning dialog
+    if (customer && customer.onHold) {
+      setSelectedCustomer(customer);
+      setShowOnHoldWarning(true);
+    } else {
+      // If not on hold, proceed normally
+      setCustomerId(customerId);
+      setShowCustomerSearch(false);
+    }
+  };
+  
+  const confirmOnHoldCustomer = () => {
+    if (selectedCustomer) {
+      setCustomerId(selectedCustomer.id);
+      setShowOnHoldWarning(false);
+      setShowCustomerSearch(false);
+    }
+  };
+  
+  const cancelOnHoldCustomer = () => {
+    setSelectedCustomer(null);
+    setShowOnHoldWarning(false);
+  };
 
   const addProductToOrder = () => {
     if (!selectedProductId) {
@@ -76,6 +163,18 @@ const CreateStandingOrderForm: React.FC = () => {
     setOrderItems([...orderItems, newItem]);
     setSelectedProductId("");
     setSelectedProductQuantity(null);
+  };
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setShowProductSearch(false);
+    // Focus on quantity input after selecting a product
+    setTimeout(() => {
+      const quantityInput = document.getElementById("quantity") as HTMLInputElement;
+      if (quantityInput) {
+        quantityInput.focus();
+      }
+    }, 100);
   };
 
   const removeProductFromOrder = (itemId: string) => {
@@ -190,6 +289,26 @@ const CreateStandingOrderForm: React.FC = () => {
 
     navigate("/standing-orders");
   };
+  
+  const getSelectedCustomerName = () => {
+    if (!customerId) return "Select a customer...";
+    
+    const customer = customers.find(c => c.id === customerId);
+    return customer ? customer.name : "Select a customer...";
+  };
+  
+  const isCustomerOnHold = (customerId: string) => {
+    if (!customerId) return false;
+    const customer = customers.find(c => c.id === customerId);
+    return customer?.onHold || false;
+  };
+  
+  const getSelectedProductName = (productId: string) => {
+    if (!productId) return "Select a product...";
+    
+    const product = products.find(p => p.id === productId);
+    return product ? `${product.name} (${product.sku})` : "Select a product...";
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -199,18 +318,18 @@ const CreateStandingOrderForm: React.FC = () => {
           <div className="space-y-4">
             <div>
               <Label htmlFor="customer">Customer *</Label>
-              <Select value={customerId} onValueChange={setCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map(customer => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Button 
+                type="button" 
+                variant="outline"
+                className={cn(
+                  "w-full justify-between",
+                  isCustomerOnHold(customerId) && "text-red-500 font-medium"
+                )}
+                onClick={() => setShowCustomerSearch(true)}
+              >
+                {getSelectedCustomerName()}
+                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
             </div>
             
             <div>
@@ -332,18 +451,20 @@ const CreateStandingOrderForm: React.FC = () => {
           <div className="flex space-x-4 mb-4">
             <div className="flex-1">
               <Label htmlFor="product">Select Product</Label>
-              <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} ({product.sku})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between text-left"
+                onClick={() => {
+                  setProductSearch(""); // Reset search when opening
+                  setShowProductSearch(true);
+                }}
+              >
+                <span className="truncate">
+                  {getSelectedProductName(selectedProductId)}
+                </span>
+                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
             </div>
             
             <div className="w-24">
@@ -441,6 +562,96 @@ const CreateStandingOrderForm: React.FC = () => {
         </Button>
         <Button type="submit">Create Standing Order</Button>
       </div>
+
+      {/* Customer Search Dialog */}
+      <CommandDialog open={showCustomerSearch} onOpenChange={setShowCustomerSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search customers by name, email, phone or account..."
+            value={customerSearch}
+            onValueChange={setCustomerSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No customers found.</CommandEmpty>
+          <CommandGroup heading="Customers">
+            {filteredCustomers.map(customer => (
+              <CommandItem 
+                key={customer.id} 
+                value={customer.name} // Use name as the value for matching
+                onSelect={() => handleSelectCustomer(customer.id)}
+                className={customer.onHold ? "text-red-500 font-medium" : ""}
+              >
+                {customer.name}
+                {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+                {customer.onHold && " (On Hold)"}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+
+      {/* Product Search Dialog */}
+      <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search products by name or SKU..."
+            value={productSearch}
+            onValueChange={setProductSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No products found.</CommandEmpty>
+          <CommandGroup heading="Products">
+            {filteredProducts.map(product => (
+              <CommandItem 
+                key={product.id} 
+                value={`${product.name} ${product.sku}`} // Combined value for better matching
+                onSelect={() => handleSelectProduct(product.id)}
+              >
+                <span>{product.name}</span>
+                <span className="ml-2 text-muted-foreground">({product.sku})</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+
+      {/* On Hold Customer Warning Dialog */}
+      <AlertDialog open={showOnHoldWarning} onOpenChange={setShowOnHoldWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Customer On Hold Warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedCustomer && (
+                <>
+                  <p className="font-medium text-red-500 mb-2">
+                    {selectedCustomer.name} is currently on hold.
+                  </p>
+                  <p className="mb-4">
+                    Reason: {selectedCustomer.holdReason || "No reason provided"}
+                  </p>
+                  <p>Are you sure you want to proceed with this customer?</p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelOnHoldCustomer}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOnHoldCustomer}>
+              Yes, Proceed Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 };
