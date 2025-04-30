@@ -5,7 +5,6 @@ import { useData } from "../context/DataContext";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { format } from "date-fns";
 
 interface NavLinkProps {
   to: string;
@@ -24,9 +23,6 @@ const Navbar: React.FC = () => {
   
   // Only count missing items
   const missingItemsCount = missingItems.length;
-  
-  // Get today's date for display
-  const todayFormatted = format(new Date(), "EEEE, MMMM d, yyyy");
   
   // Handle menu close
   const handleClose = () => setIsOpen(false);
@@ -116,14 +112,9 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between w-full">
           <div className="flex items-center gap-2">
             <MobileNav />
-            <span className="font-bold text-lg">Order Manager</span>
           </div>
           
           <DesktopNav />
-          
-          <div className="text-sm text-muted-foreground hidden md:block">
-            {todayFormatted}
-          </div>
         </div>
       </div>
     </header>
