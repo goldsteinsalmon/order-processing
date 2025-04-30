@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -22,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders, updateOrder } = useData();
+  const { orders, updateOrder, deleteOrder } = useData();
   const { toast } = useToast();
 
   const order = orders.find(order => order.id === id);
@@ -42,16 +41,12 @@ const OrderDetails: React.FC = () => {
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
   const handleDeleteOrder = () => {
-    // Update the order status to Cancelled
-    const cancelledOrder = {
-      ...order,
-      status: "Cancelled" as const
-    };
-    updateOrder(cancelledOrder);
+    // Delete the order instead of just marking as cancelled
+    deleteOrder(order.id);
     
     toast({
-      title: "Order cancelled",
-      description: `Order ${order.id.substring(0, 8)} has been cancelled.`,
+      title: "Order deleted",
+      description: `Order ${order.id.substring(0, 8)} has been deleted.`,
     });
     
     // Navigate back to the orders page

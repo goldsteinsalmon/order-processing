@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, isToday, isBefore, startOfDay } from "date-fns";
 import { Plus, Minus } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { getNextWorkingDay, isBusinessDay, isSameDayOrder } from "@/utils/dateUtils";
@@ -71,26 +71,21 @@ const CreateOrderForm: React.FC = () => {
   const orderDate = form.watch("orderDate");
   
   useEffect(() => {
-    if (!manualDateChange) {
+    if (!manualDateChange || !orderDate) {
       return;
     }
 
-    // Only show same day warning if manually selecting today's date
-    if (orderDate && isSameDayOrder(orderDate)) {
-      setShowSameDayWarning(true);
-    } else {
-      setShowSameDayWarning(false);
-    }
+    // Check for same day warning - only show when selecting today's date
+    setShowSameDayWarning(isToday(orderDate));
     
-    // Only show cut-off warning when manually selecting next working day after 12 PM
+    // Check for cut-off warning - only show when selecting next working day after 12 PM
     const currentHour = new Date().getHours();
-    const isNextDay = format(orderDate, "yyyy-MM-dd") === format(getNextWorkingDay(new Date()), "yyyy-MM-dd");
+    const nextWorkingDay = getNextWorkingDay(new Date());
     
-    if (currentHour >= 12 && isNextDay && manualDateChange) {
-      setShowCutOffWarning(true);
-    } else {
-      setShowCutOffWarning(false);
-    }
+    // Format both dates to compare just the date part (ignoring time)
+    const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDay, "yyyy-MM-dd");
+    
+    setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
   }, [orderDate, manualDateChange]);
 
   const handleAddItem = () => {
@@ -231,7 +226,9 @@ const CreateOrderForm: React.FC = () => {
                             field.onChange(date);
                           }
                         }}
-                        disabled={(date) => !isBusinessDay(date)}
+                        disabled={(date) => 
+                          !isBusinessDay(date) || isBefore(date, startOfDay(new Date()))
+                        }
                         initialFocus
                         className="p-3 pointer-events-auto"
                       />

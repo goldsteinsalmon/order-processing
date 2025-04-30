@@ -42,6 +42,7 @@ interface DataContextType {
   updateProduct: (product: Product) => void;
   addOrder: (order: Order) => void;
   updateOrder: (order: Order) => void;
+  deleteOrder: (orderId: string) => void;
   completeOrder: (order: Order) => void;
   addStandingOrder: (standingOrder: StandingOrder) => void;
   updateStandingOrder: (standingOrder: StandingOrder) => void;
@@ -111,6 +112,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Normal update in orders list
       setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     }
+  };
+
+  const deleteOrder = (orderId: string) => {
+    setOrders(orders.filter(order => order.id !== orderId));
   };
 
   const completeOrder = (order: Order) => {
@@ -331,6 +336,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateProduct,
     addOrder,
     updateOrder,
+    deleteOrder,
     completeOrder,
     addStandingOrder,
     updateStandingOrder,

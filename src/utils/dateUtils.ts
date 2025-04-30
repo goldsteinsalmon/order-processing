@@ -1,4 +1,3 @@
-
 import { format, isWeekend, addDays, isToday, isBefore, parseISO, startOfDay, isSaturday, isSunday } from "date-fns";
 
 // Get the next working day
@@ -7,7 +6,7 @@ export const getNextWorkingDay = (date: Date = new Date()): Date => {
   
   // If it's after 12 PM, add an extra day
   if (date.getHours() >= 12) {
-    nextDay = addDays(nextDay, 2);
+    nextDay = addDays(nextDay, 1);
   } else {
     nextDay = addDays(nextDay, 1);
   }
