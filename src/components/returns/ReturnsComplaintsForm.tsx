@@ -1,573 +1,455 @@
-import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { format } from "date-fns";
-import { useData } from "@/context/DataContext";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Return } from "@/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { useData } from "@/context/DataContext";
+import { Return, Complaint } from "@/types";
+import { v4 as uuidv4 } from "uuid";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
-const complaintsSchema = z.object({
-  customerType: z.enum(["Private", "Trade"], {
-    required_error: "Customer type is required",
-  }),
-  customerName: z.string().min(1, "Customer name is required"),
-  customerId: z.string().optional(),
-  contactEmail: z.string().email("Invalid email").optional().or(z.literal('')),
-  contactPhone: z.string().optional(),
-  dateReturned: z.date({ required_error: "Date returned is required" }),
-  orderNumber: z.string().optional(),
-  invoiceNumber: z.string().optional(),
-  productSku: z.string().optional(),
-  complaintType: z.string().min(1, "Complaint type is required"),
-  complaintDetails: z.string().min(1, "Complaint details are required"),
-  returnsRequired: z.enum(["Yes", "No"], { required_error: "Returns required selection is required" }),
-  returnStatus: z.string().optional(),
-  resolutionStatus: z.enum(["Open", "In Progress", "Resolved"], {
-    required_error: "Resolution status is required",
-  }),
-  resolutionNotes: z.string().optional(),
-});
-
-type ComplaintsFormValues = z.infer<typeof complaintsSchema>;
-
+// This component handles both Returns and Complaints forms in one place
 const ReturnsComplaintsForm: React.FC = () => {
-  const { products, customers, addComplaint, addReturn } = useData();
+  const { addReturn, addComplaint, products, customers } = useData();
   const { toast } = useToast();
-
-  const form = useForm<ComplaintsFormValues>({
-    resolver: zodResolver(complaintsSchema),
-    defaultValues: {
-      customerType: "Private",
-      dateReturned: new Date(),
-      returnsRequired: "No",
-      resolutionStatus: "Open",
-    },
-  });
-
-  const customerType = form.watch("customerType");
-  const returnsRequired = form.watch("returnsRequired");
-  const customerId = form.watch("customerId");
   
-  // Update customer details when a trade customer is selected
-  useEffect(() => {
-    if (customerType === "Trade" && customerId) {
-      const selectedCustomer = customers.find(c => c.id === customerId);
-      if (selectedCustomer) {
-        form.setValue("customerName", selectedCustomer.name);
-        form.setValue("contactEmail", selectedCustomer.email || "");
-        form.setValue("contactPhone", selectedCustomer.phone || "");
-      }
-    }
-  }, [customerId, customerType, customers, form]);
-  
-  const complaintTypes = [
-    "Foreign Object Found",
-    "Quality Issue",
-    "Wrong Product",
-    "Late Delivery",
-    "Damaged Packaging",
-    "Taste Issue",
-    "Missing Item",
-    "Other",
-  ];
+  const [formType, setFormType] = useState<"returns" | "complaints">("returns");
+  const [customerType, setCustomerType] = useState<"Private" | "Trade">("Private");
+  const [customerName, setCustomerName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [date, setDate] = useState<Date>(new Date());
+  const [orderNumber, setOrderNumber] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [productSku, setProductSku] = useState("");
+  const [productId, setProductId] = useState("");
+  const [quantity, setQuantity] = useState<number>(1); // Added quantity field
+  const [complaintType, setComplaintType] = useState("");
+  const [complaintDetails, setComplaintDetails] = useState("");
+  const [returnReason, setReturnReason] = useState("");
+  const [returnsRequired, setReturnsRequired] = useState<"Yes" | "No">("Yes");
+  const [returnStatus, setReturnStatus] = useState<"Pending" | "Processing" | "Completed" | "No Return Required">("Pending");
+  const [resolutionStatus, setResolutionStatus] = useState<"Open" | "In Progress" | "Resolved">("Open");
+  const [resolutionNotes, setResolutionNotes] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
 
-  const returnStatusOptions = [
-    "Pending",
-    "Processing",
-    "Completed",
-    "No Return Required",
-  ] as const;
-
-  type ReturnStatusType = typeof returnStatusOptions[number];
-
-  const onSubmit = (data: ComplaintsFormValues) => {
-    // If returns are required, create a return record
-    if (data.returnsRequired === "Yes" && data.productSku) {
-      const product = products.find(p => p.id === data.productSku);
-      if (product) {
-        // Convert returnStatus string to the correct literal type
-        const inputReturnStatus = data.returnStatus || "Pending";
-        
-        // Type guard to ensure returnStatus is one of the allowed values
-        const validReturnStatus: ReturnStatusType = 
-          (inputReturnStatus === "Pending" || 
-          inputReturnStatus === "Processing" || 
-          inputReturnStatus === "Completed" || 
-          inputReturnStatus === "No Return Required") 
-            ? inputReturnStatus as ReturnStatusType 
-            : "Pending";
-        
-        const returnItem: Return = {
-          id: crypto.randomUUID(),
-          customerType: data.customerType,
-          customerName: data.customerName,
-          customerId: data.customerId,
-          contactEmail: data.contactEmail,
-          contactPhone: data.contactPhone,
-          dateReturned: format(data.dateReturned, "yyyy-MM-dd"),
-          orderNumber: data.orderNumber,
-          invoiceNumber: data.invoiceNumber,
-          productSku: data.productSku,
-          product: product,
-          reason: data.complaintDetails,
-          returnsRequired: data.returnsRequired,
-          returnStatus: validReturnStatus,
-          resolutionStatus: data.resolutionStatus,
-          resolutionNotes: data.resolutionNotes,
-          created: new Date().toISOString(),
-        };
-        
-        addReturn(returnItem);
-      }
-    }
-
-    // Create complaint record with proper type checking for returnStatus
-    const inputReturnStatus = data.returnsRequired === "Yes" ? 
-      (data.returnStatus || "Pending") : "No Return Required";
-    
-    // Type guard for complaint returnStatus
-    const validReturnStatus: ReturnStatusType = 
-      (inputReturnStatus === "Pending" || 
-      inputReturnStatus === "Processing" || 
-      inputReturnStatus === "Completed" || 
-      inputReturnStatus === "No Return Required") 
-        ? inputReturnStatus as ReturnStatusType 
-        : "Pending";
-    
-    const complaint = {
-      id: crypto.randomUUID(),
-      customerType: data.customerType,
-      customerName: data.customerName,
-      customerId: data.customerId,
-      contactEmail: data.contactEmail,
-      contactPhone: data.contactPhone,
-      dateSubmitted: format(data.dateReturned, "yyyy-MM-dd"),
-      orderNumber: data.orderNumber,
-      invoiceNumber: data.invoiceNumber,
-      productSku: data.productSku,
-      product: data.productSku ? products.find(p => p.id === data.productSku) : undefined,
-      complaintType: data.complaintType,
-      complaintDetails: data.complaintDetails,
-      returnsRequired: data.returnsRequired,
-      returnStatus: validReturnStatus,
-      resolutionStatus: data.resolutionStatus,
-      resolutionNotes: data.resolutionNotes,
-      created: new Date().toISOString(),
-    };
-    
-    addComplaint(complaint);
-
-    toast({
-      title: "Complaint registered",
-      description: "The complaint has been successfully registered.",
-    });
-
-    // Reset form
-    form.reset({
-      customerType: "Private",
-      customerName: "",
-      customerId: "",
-      contactEmail: "",
-      contactPhone: "",
-      dateReturned: new Date(),
-      orderNumber: "",
-      invoiceNumber: "",
-      productSku: "",
-      complaintType: "",
-      complaintDetails: "",
-      returnsRequired: "No",
-      returnStatus: "",
-      resolutionStatus: "Open",
-      resolutionNotes: "",
-    });
+  const resetForm = () => {
+    setFormType("returns");
+    setCustomerType("Private");
+    setCustomerName("");
+    setContactEmail("");
+    setContactPhone("");
+    setDate(new Date());
+    setOrderNumber("");
+    setInvoiceNumber("");
+    setProductSku("");
+    setProductId("");
+    setQuantity(1);
+    setComplaintType("");
+    setComplaintDetails("");
+    setReturnReason("");
+    setReturnsRequired("Yes");
+    setReturnStatus("Pending");
+    setResolutionStatus("Open");
+    setResolutionNotes("");
+    setSelectedCustomerId("");
   };
-
+  
+  // Update the handleSubmit function to include quantity
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (formType === "returns") {
+      // Create a new return
+      const selectedProduct = products.find(p => p.id === productId);
+      
+      if (!selectedProduct) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please select a valid product."
+        });
+        return;
+      }
+      
+      const newReturn: Return = {
+        id: uuidv4(),
+        customerId: customerType === "Trade" ? selectedCustomerId : undefined,
+        customerType,
+        customerName,
+        contactEmail: contactEmail || undefined,
+        contactPhone: contactPhone || undefined,
+        dateReturned: date.toISOString(),
+        orderNumber: orderNumber || undefined,
+        invoiceNumber: invoiceNumber || undefined,
+        productSku: selectedProduct.sku,
+        product: selectedProduct,
+        quantity: quantity, // Include quantity in the return
+        reason: returnReason || undefined,
+        returnsRequired,
+        returnStatus,
+        resolutionStatus,
+        resolutionNotes: resolutionNotes || undefined,
+        created: new Date().toISOString()
+      };
+      
+      addReturn(newReturn);
+      toast({
+        title: "Return Created",
+        description: "The return has been successfully recorded."
+      });
+    } else {
+      
+      const selectedProduct = productId ? products.find(p => p.id === productId) : undefined;
+      
+      const newComplaint: Complaint = {
+        id: uuidv4(),
+        customerId: customerType === "Trade" ? selectedCustomerId : undefined,
+        customerType,
+        customerName,
+        contactEmail: contactEmail || undefined,
+        contactPhone: contactPhone || undefined,
+        dateSubmitted: date.toISOString(),
+        orderNumber: orderNumber || undefined,
+        invoiceNumber: invoiceNumber || undefined,
+        productSku: selectedProduct?.sku,
+        product: selectedProduct,
+        complaintType,
+        complaintDetails,
+        returnsRequired,
+        returnStatus,
+        resolutionStatus,
+        resolutionNotes: resolutionNotes || undefined,
+        created: new Date().toISOString()
+      };
+      
+      addComplaint(newComplaint);
+      toast({
+        title: "Complaint Created",
+        description: "The complaint has been successfully recorded."
+      });
+    }
+    
+    // Reset form after submission
+    resetForm();
+  };
+  
+  // Handle customer selection
+  const handleCustomerChange = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    
+    // Find the selected customer
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      // Auto-fill fields with customer information
+      setCustomerName(customer.name);
+      setContactEmail(customer.email);
+      setContactPhone(customer.phone);
+    }
+  };
+  
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-2">New Customer Return</h2>
-      <p className="text-gray-500 mb-6">Register a new customer return or complaint</p>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="bg-white p-6 rounded-lg border shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="customerType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Type *</FormLabel>
-                    <FormControl>
-                      <RadioGroup 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          // Reset customer-specific fields when changing type
-                          if (value === "Private") {
-                            form.setValue("customerId", "");
-                          }
-                        }} 
-                        defaultValue={field.value}
-                        className="flex space-x-6"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Private" id="private" />
-                          <label htmlFor="private">Private Customer</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Trade" id="trade" />
-                          <label htmlFor="trade">Trade Customer</label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {customerType === "Trade" ? (
-                <FormField
-                  control={form.control}
-                  name="customerId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Select Customer *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a customer..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} 
-                              {customer.accountNumber && ` - ${customer.accountNumber}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+      <h2 className="text-2xl font-bold mb-6">Record a Return or Complaint</h2>
+      
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>What would you like to record?</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={formType}
+            onValueChange={(value: "returns" | "complaints") => setFormType(value)}
+            className="flex space-x-4"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="returns" id="returns" />
+              <Label htmlFor="returns">Product Return</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="complaints" id="complaints" />
+              <Label htmlFor="complaints">Customer Complaint</Label>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+      
+      <form onSubmit={handleSubmit}>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Customer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="customerType">Customer Type</Label>
+              <RadioGroup
+                value={customerType}
+                onValueChange={(value: "Private" | "Trade") => setCustomerType(value)}
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Private" id="private" />
+                  <Label htmlFor="private">Private Customer</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Trade" id="trade" />
+                  <Label htmlFor="trade">Trade Account</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {customerType === "Trade" ? (
+              <div>
+                <Label htmlFor="tradeCustomer">Select Trade Customer</Label>
+                <Select 
+                  value={selectedCustomerId} 
+                  onValueChange={handleCustomerChange}
+                >
+                  <SelectTrigger id="tradeCustomer">
+                    <SelectValue placeholder="Select a trade customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers
+                      .filter(customer => customer.type === "Trade")
+                      .map(customer => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="customerName">Customer Name</Label>
+                <Input
+                  id="customerName"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  required
                 />
-              ) : (
-                <FormField
-                  control={form.control}
-                  name="customerName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Customer Name *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter customer name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              </div>
+            )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="contactEmail">Email (Optional)</Label>
+                <Input
+                  id="contactEmail"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
                 />
-              )}
-
-              <FormField
-                control={form.control}
-                name="contactEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter email (optional)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="contactPhone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Phone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter phone number (optional)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Return Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="dateReturned"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date Returned *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className="pl-3 text-left font-normal"
-                          >
-                            {field.value ? (
-                              format(field.value, "MMMM d, yyyy")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 pointer-events-auto">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => date && field.onChange(date)}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="orderNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Order Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter order number (optional)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="invoiceNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Invoice Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter invoice number (optional)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="productSku"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product SKU</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a product..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} - {product.sku}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Complaint Information</h3>
-            <div className="grid grid-cols-1 gap-6">
-              <FormField
-                control={form.control}
-                name="complaintType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Complaint Type *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select complaint type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {complaintTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="complaintDetails"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Complaint Details *</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter details about the complaint"
-                        className="resize-none min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg border shadow-sm">
-            <h3 className="text-lg font-semibold mb-4">Resolution Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="returnsRequired"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Returns Required *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select option" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Yes">Yes</SelectItem>
-                        <SelectItem value="No">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {returnsRequired === "Yes" && (
-                <FormField
-                  control={form.control}
-                  name="returnStatus"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Return Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {returnStatusOptions.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+              </div>
+              <div>
+                <Label htmlFor="contactPhone">Phone (Optional)</Label>
+                <Input
+                  id="contactPhone"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
                 />
-              )}
-
-              <FormField
-                control={form.control}
-                name="resolutionStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Resolution Status *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Open">Open</SelectItem>
-                        <SelectItem value="In Progress">In Progress</SelectItem>
-                        <SelectItem value="Resolved">Resolved</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="resolutionNotes"
-                render={({ field }) => (
-                  <FormItem className="col-span-2">
-                    <FormLabel>Resolution Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter resolution notes (optional)"
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Order Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="date">
+                {formType === "returns" ? "Date Returned" : "Date of Complaint"}
+              </Label>
+              <Input
+                id="date"
+                type="date"
+                value={format(date, "yyyy-MM-dd")}
+                onChange={(e) => setDate(new Date(e.target.value))}
+                required
               />
             </div>
-          </div>
-
-          <div className="flex justify-end space-x-4">
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-            <Button type="submit">Submit</Button>
-          </div>
-        </form>
-      </Form>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="orderNumber">Order Number (Optional)</Label>
+                <Input
+                  id="orderNumber"
+                  value={orderNumber}
+                  onChange={(e) => setOrderNumber(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
+                <Input
+                  id="invoiceNumber"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="productSku">Product</Label>
+              <Select 
+                value={productId} 
+                onValueChange={setProductId}
+                required={formType === "returns"}
+              >
+                <SelectTrigger id="productSku">
+                  <SelectValue placeholder="Select a product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map(product => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.sku} - {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {formType === "returns" && (
+              <div>
+                <Label htmlFor="quantity">Quantity</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full"
+                  required
+                />
+              </div>
+            )}
+            
+            {formType === "returns" ? (
+              <div>
+                <Label htmlFor="returnReason">Reason for Return</Label>
+                <Textarea
+                  id="returnReason"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder="Describe why the product is being returned"
+                  rows={3}
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="complaintType">Type of Complaint</Label>
+                  <Select value={complaintType} onValueChange={setComplaintType} required>
+                    <SelectTrigger id="complaintType">
+                      <SelectValue placeholder="Select complaint type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Quality Issue">Quality Issue</SelectItem>
+                      <SelectItem value="Foreign Object">Foreign Object Found</SelectItem>
+                      <SelectItem value="Late Delivery">Late Delivery</SelectItem>
+                      <SelectItem value="Incorrect Order">Incorrect Order</SelectItem>
+                      <SelectItem value="Customer Service">Customer Service</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="complaintDetails">Complaint Details</Label>
+                  <Textarea
+                    id="complaintDetails"
+                    value={complaintDetails}
+                    onChange={(e) => setComplaintDetails(e.target.value)}
+                    placeholder="Provide details about the complaint"
+                    rows={3}
+                    required
+                  />
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Resolution Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Returns Required</Label>
+              <RadioGroup
+                value={returnsRequired}
+                onValueChange={(value: "Yes" | "No") => setReturnsRequired(value)}
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Yes" id="returnsYes" />
+                  <Label htmlFor="returnsYes">Yes</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="No" id="returnsNo" />
+                  <Label htmlFor="returnsNo">No</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {returnsRequired === "Yes" && (
+              <div>
+                <Label htmlFor="returnStatus">Return Status</Label>
+                <Select value={returnStatus} onValueChange={(value: "Pending" | "Processing" | "Completed" | "No Return Required") => setReturnStatus(value)}>
+                  <SelectTrigger id="returnStatus">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Processing">Processing</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                    <SelectItem value="No Return Required">No Return Required</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <div>
+              <Label htmlFor="resolutionStatus">Resolution Status</Label>
+              <Select value={resolutionStatus} onValueChange={(value: "Open" | "In Progress" | "Resolved") => setResolutionStatus(value)}>
+                <SelectTrigger id="resolutionStatus">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="resolutionNotes">Resolution Notes</Label>
+              <Textarea
+                id="resolutionNotes"
+                value={resolutionNotes}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                placeholder="Notes about resolution or actions taken"
+                rows={3}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <div className="flex justify-end">
+          <Button type="submit" className="mr-2">
+            Submit {formType === "returns" ? "Return" : "Complaint"}
+          </Button>
+          <Button type="button" variant="outline" onClick={resetForm}>
+            Reset Form
+          </Button>
+        </div>
+      </form>
     </div>
   );
 };

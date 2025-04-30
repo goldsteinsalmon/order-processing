@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -14,10 +15,12 @@ import {
   TableRow, 
   TableCell 
 } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
 
 const ProductsPage: React.FC = () => {
   const { products, orders, addProduct, updateProduct } = useData();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -128,6 +131,12 @@ const ProductsPage: React.FC = () => {
     
     setStockAdjustments(resetAdjustments);
     setHasChanges(false);
+    
+    // Show success toast
+    toast({
+      title: "Stock Updated",
+      description: "Stock levels have been successfully updated."
+    });
   };
 
   return (

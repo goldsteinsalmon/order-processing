@@ -33,7 +33,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const [productQuantity, setProductQuantity] = useState<number>(1);
-  const [processImmediately, setProcessImmediately] = useState<boolean>(false);
+  const [processAsOrder, setProcessAsOrder] = useState<boolean>(true); // Default to creating a new order
   
   // Available products (excluding those already in the order)
   const availableProducts = products.filter(
@@ -45,7 +45,6 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   // Find the standing order
   useEffect(() => {
     const foundOrder = standingOrders.find(order => order.id === id);
-    console.log("Found standing order:", foundOrder?.id);
     
     if (foundOrder) {
       setOrder(foundOrder);
@@ -56,18 +55,14 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
           new Date(delivery.date).toDateString() === deliveryDate.toDateString()
         );
         
-        console.log("Found modified delivery:", modifiedDelivery);
-        
         if (modifiedDelivery) {
           // Use the modified items if they exist
           if (modifiedDelivery.modifications.items) {
-            console.log("Setting modified items:", modifiedDelivery.modifications.items);
             // Make deep copy to avoid reference issues
             const itemsCopy = JSON.parse(JSON.stringify(modifiedDelivery.modifications.items));
             setItems(itemsCopy);
           } else {
             // Otherwise use the default items
-            console.log("Setting default items (from modified)");
             const itemsCopy = JSON.parse(JSON.stringify(foundOrder.items));
             setItems(itemsCopy);
           }
@@ -76,14 +71,12 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
           setNotes(modifiedDelivery.modifications.notes || "");
         } else {
           // Use the default items and notes
-          console.log("Setting default items (no modification found)");
           const itemsCopy = JSON.parse(JSON.stringify(foundOrder.items));
           setItems(itemsCopy);
           setNotes(foundOrder.notes || "");
         }
       } else {
         // Use the default items and notes
-        console.log("Setting default items (no delivery date)");
         const itemsCopy = JSON.parse(JSON.stringify(foundOrder.items));
         setItems(itemsCopy);
         setNotes(foundOrder.notes || "");
@@ -145,9 +138,9 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     setHasChanges(true);
   };
   
-  // Handle process immediately change
-  const handleProcessImmediatelyChange = (value: boolean) => {
-    setProcessImmediately(value);
+  // Handle process as order change
+  const handleProcessAsOrderChange = (value: boolean) => {
+    setProcessAsOrder(value);
     setHasChanges(true);
   };
   
@@ -155,22 +148,20 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const handleSave = () => {
     if (!order || !deliveryDate) return;
     
-    console.log("Saving changes with items:", items);
-    console.log("Process immediately:", processImmediately);
-    
-    if (processImmediately) {
+    // Always create a new order based on this standing order
+    if (processAsOrder) {
       // Create a new order with this delivery's changes
       const newOrder = {
         id: uuidv4(),
         customerId: order.customer.id,
         customer: order.customer,
         customerOrderNumber: order.customerOrderNumber,
-        orderDate: deliveryDate.toISOString(),
+        orderDate: new Date().toISOString(),
         requiredDate: deliveryDate.toISOString(),
         deliveryMethod: order.schedule.deliveryMethod,
         items: JSON.parse(JSON.stringify(items)), // Make sure we pass a deep copy of the items array
-        notes: notes ? `${notes} (Modified from Standing Order #${order.id.substring(0, 8)})` : 
-          `Modified from Standing Order #${order.id.substring(0, 8)}`,
+        notes: notes ? `${notes} (Created from Standing Order #${order.id.substring(0, 8)})` : 
+          `Created from Standing Order #${order.id.substring(0, 8)}`,
         status: "Pending" as const,
         created: new Date().toISOString(),
         fromStandingOrder: order.id
@@ -179,24 +170,30 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       // Add the new order
       addOrder(newOrder);
       
-      // Mark this delivery as processed in the standing order
-      const updatedOrder: StandingOrder = JSON.parse(JSON.stringify(order));
-      
-      // Initialize skippedDates if it doesn't exist
-      if (!updatedOrder.schedule.skippedDates) {
-        updatedOrder.schedule.skippedDates = [];
+      // If the "Skip this date in standing order" option is checked, 
+      // mark this delivery as skipped in the standing order
+      if (document.getElementById('skipInStandingOrder') && 
+          (document.getElementById('skipInStandingOrder') as HTMLInputElement).checked) {
+        
+        // Mark this delivery as processed in the standing order
+        const updatedOrder: StandingOrder = JSON.parse(JSON.stringify(order));
+        
+        // Initialize skippedDates if it doesn't exist
+        if (!updatedOrder.schedule.skippedDates) {
+          updatedOrder.schedule.skippedDates = [];
+        }
+        
+        // Add this date to skipped dates
+        updatedOrder.schedule.skippedDates.push(deliveryDate.toISOString());
+        
+        // Update the standing order
+        updateStandingOrder(updatedOrder);
       }
-      
-      // Add this date to skipped dates
-      updatedOrder.schedule.skippedDates.push(deliveryDate.toISOString());
-      
-      // Update the standing order
-      updateStandingOrder(updatedOrder);
       
       // Show success toast
       toast({
         title: "Order Created",
-        description: `A modified order for ${format(deliveryDate, "EEEE, MMMM d, yyyy")} has been created and this date will be skipped in the standing order.`
+        description: `A new order has been created for ${format(deliveryDate, "EEEE, MMMM d, yyyy")} and added to your orders list.`
       });
     } else {
       // Create a copy of the order
@@ -212,8 +209,6 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         delivery => new Date(delivery.date).toDateString() === deliveryDate.toDateString()
       );
       
-      console.log("Existing modified delivery index:", existingIndex);
-      
       // Create the modified delivery object
       const modifiedDelivery = {
         date: deliveryDate.toISOString(),
@@ -223,16 +218,12 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         }
       };
       
-      console.log("Modified delivery to save:", modifiedDelivery);
-      
       // Update or add the modified delivery
       if (existingIndex >= 0) {
         updatedOrder.schedule.modifiedDeliveries[existingIndex] = modifiedDelivery;
       } else {
         updatedOrder.schedule.modifiedDeliveries.push(modifiedDelivery);
       }
-      
-      console.log("Updated standing order:", updatedOrder);
       
       // Update the standing order
       updateStandingOrder(updatedOrder);
@@ -248,7 +239,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     navigate(`/standing-order-schedule/${order.id}`);
   };
   
-  // Handle remove modifications
+  // Handle reset to default
   const handleResetToDefault = () => {
     if (!order || !deliveryDate) return;
     
@@ -294,7 +285,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         <Button variant="ghost" onClick={() => navigate(`/standing-order-schedule/${order.id}`)} className="mr-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
-        <h2 className="text-2xl font-bold">Edit Delivery</h2>
+        <h2 className="text-2xl font-bold">Create Order from Standing Order</h2>
       </div>
       
       <Card className="mb-6">
@@ -396,7 +387,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
                 {items.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-8 text-center text-gray-500">
-                      No products added to this delivery
+                      No products added to this order
                     </td>
                   </tr>
                 ) : (
@@ -439,20 +430,31 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
           <Textarea
             value={notes}
             onChange={(e) => handleNotesChange(e.target.value)}
-            placeholder="Add any special instructions or notes for this delivery"
+            placeholder="Add any special instructions or notes for this order"
             rows={3}
           />
           
           <div className="flex items-center space-x-2 pt-2">
             <input
               type="checkbox"
-              id="processImmediately"
-              checked={processImmediately}
-              onChange={(e) => handleProcessImmediatelyChange(e.target.checked)}
+              id="skipInStandingOrder"
               className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
             />
-            <label htmlFor="processImmediately" className="text-sm font-medium">
-              Process as a separate order immediately (this will skip this date in the standing order schedule)
+            <label htmlFor="skipInStandingOrder" className="text-sm font-medium">
+              Skip this date in the standing order schedule
+            </label>
+          </div>
+          
+          <div className="flex items-center space-x-2 pt-2">
+            <input
+              type="checkbox"
+              id="processAsOrder"
+              checked={processAsOrder}
+              onChange={(e) => handleProcessAsOrderChange(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <label htmlFor="processAsOrder" className="text-sm font-medium text-green-700 font-bold">
+              Create as new order (appears in Orders list)
             </label>
           </div>
         </CardContent>
@@ -463,7 +465,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
               onClick={handleResetToDefault}
               className="mr-2"
             >
-              Reset to Default Order
+              Reset to Default
             </Button>
           </div>
           <div className="flex space-x-2">
@@ -476,8 +478,9 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
             <Button 
               onClick={handleSave} 
               disabled={!hasChanges}
+              className="bg-green-600 hover:bg-green-700"
             >
-              Save Changes
+              {processAsOrder ? "Create Order" : "Save Changes"}
             </Button>
           </div>
         </CardFooter>
