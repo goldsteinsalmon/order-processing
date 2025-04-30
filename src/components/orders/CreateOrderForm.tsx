@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -72,16 +71,22 @@ const CreateOrderForm: React.FC = () => {
   const orderDate = form.watch("orderDate");
   
   useEffect(() => {
-    // Check if order date is today (same day)
+    if (!manualDateChange) {
+      return;
+    }
+
+    // Only show same day warning if manually selecting today's date
     if (orderDate && isSameDayOrder(orderDate)) {
       setShowSameDayWarning(true);
     } else {
       setShowSameDayWarning(false);
     }
     
-    // Check if current time is after 12 PM (noon) and the date was manually changed
+    // Only show cut-off warning when manually selecting next working day after 12 PM
     const currentHour = new Date().getHours();
-    if (currentHour >= 12 && manualDateChange && !isSameDayOrder(orderDate)) {
+    const isNextDay = format(orderDate, "yyyy-MM-dd") === format(getNextWorkingDay(new Date()), "yyyy-MM-dd");
+    
+    if (currentHour >= 12 && isNextDay && manualDateChange) {
       setShowCutOffWarning(true);
     } else {
       setShowCutOffWarning(false);
@@ -364,10 +369,10 @@ const CreateOrderForm: React.FC = () => {
             <DialogTitle>Same Day Order Warning</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>You've selected a same-day order. Please confirm that this is intended, as same-day orders may have limited processing time.</p>
+            <p>You are picking today's date. Are you sure you want to place a same-day order?</p>
           </div>
           <div className="flex justify-end">
-            <Button onClick={() => setShowSameDayWarning(false)}>Acknowledge</Button>
+            <Button onClick={() => setShowSameDayWarning(false)}>Yes, I'm Sure</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -379,10 +384,10 @@ const CreateOrderForm: React.FC = () => {
             <DialogTitle>Order Cut-off Time Warning</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>It's past the 12 PM cut-off time. The next available delivery date has been selected automatically.</p>
+            <p>It's past the 12 PM cut-off time. Are you sure you want to place an order for the next working day?</p>
           </div>
           <div className="flex justify-end">
-            <Button onClick={() => setShowCutOffWarning(false)}>Acknowledge</Button>
+            <Button onClick={() => setShowCutOffWarning(false)}>Yes, I'm Sure</Button>
           </div>
         </DialogContent>
       </Dialog>
