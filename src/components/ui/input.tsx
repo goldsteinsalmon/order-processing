@@ -5,6 +5,15 @@ import { cn } from "@/lib/utils"
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
+    // Add event handlers to prevent wheel events from changing number input values
+    const handleWheel = React.useCallback((e: React.WheelEvent<HTMLInputElement>) => {
+      // Prevent mouse wheel from changing the value when input has focus
+      if (type === "number") {
+        e.currentTarget.blur();
+        setTimeout(() => e.currentTarget.focus(), 0);
+      }
+    }, [type]);
+
     return (
       <input
         type={type}
@@ -14,6 +23,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        onWheel={type === "number" ? handleWheel : undefined}
         {...props}
       />
     )
