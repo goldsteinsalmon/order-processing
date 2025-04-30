@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { format, parseISO } from "date-fns";
@@ -14,14 +14,42 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Search } from "lucide-react";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages } = useData();
+  const { batchUsages, completedOrders } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+  const [validBatchUsages, setValidBatchUsages] = useState([...batchUsages]);
+  
+  // Validate batch usages against completed orders to fix any potential issues
+  useEffect(() => {
+    // Collect all batch numbers from completed orders
+    const validBatchNumbers = new Set();
+    
+    completedOrders.forEach(order => {
+      if (order.batchNumbers) {
+        order.batchNumbers.forEach(batch => {
+          if (batch) validBatchNumbers.add(batch);
+        });
+      }
+      
+      // Also check individual items for batch numbers
+      order.items.forEach(item => {
+        if (item.batchNumber) validBatchNumbers.add(item.batchNumber);
+      });
+    });
+    
+    // Filter batch usages to only include those that are in completed orders
+    const filteredBatchUsages = batchUsages.filter(usage => 
+      validBatchNumbers.has(usage.batchNumber)
+    );
+    
+    setValidBatchUsages(filteredBatchUsages);
+  }, [batchUsages, completedOrders]);
   
   // Filter batch usages based on search term
-  const filteredBatchUsages = batchUsages
+  const filteredBatchUsages = validBatchUsages
     .filter(batch => searchTerm === "" || batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       // Sort by first used date (oldest first)
@@ -41,12 +69,15 @@ const BatchTrackingPage: React.FC = () => {
       </div>
       
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-grow">
+        <div className="flex items-center mb-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              type="search"
               placeholder="Search by batch number..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
             />
           </div>
         </div>

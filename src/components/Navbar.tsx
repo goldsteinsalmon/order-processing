@@ -14,7 +14,6 @@ interface NavLinkProps {
   badgeCount?: number;
   onlyMobile?: boolean;
   onClose?: () => void;
-  showBadge?: boolean;
 }
 
 const Navbar: React.FC = () => {
@@ -39,8 +38,7 @@ const Navbar: React.FC = () => {
     icon, 
     badgeCount, 
     onlyMobile, 
-    onClose,
-    showBadge = false 
+    onClose
   }) => {
     const isActive = location.pathname === to || location.pathname.startsWith(`${to}/`);
     const isMissingItemsLink = to === "/missing-items";

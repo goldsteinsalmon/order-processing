@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Printer, Check } from "lucide-react";
+import { Printer, Check, Save } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
@@ -37,7 +37,7 @@ import {
 
 const PickingList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { orders, completeOrder, pickers, recordBatchUsage } = useData();
+  const { orders, completeOrder, pickers, recordBatchUsage, updateOrder } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -85,6 +85,7 @@ const PickingList: React.FC = () => {
   }, [selectedOrderId, selectedOrder]);
   
   const handlePrint = useReactToPrint({
+    content: () => printRef.current,
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
     onAfterPrint: () => {
       toast({
@@ -106,7 +107,7 @@ const PickingList: React.FC = () => {
   };
   
   const handleBatchNumber = (itemId: string, batchNumber: string) => {
-    // Fix by adding the orderId parameter (4th parameter)
+    // Fix by adding the orderId parameter
     if (selectedOrderId && batchNumber) {
       const item = allItems.find((i) => i.id === itemId);
       if (item) {
@@ -138,6 +139,42 @@ const PickingList: React.FC = () => {
       // Add new entry
       setMissingItems([...missingItems, { id: itemId, quantity }]);
     }
+  };
+  
+  // Save current progress
+  const handleSaveProgress = () => {
+    if (!selectedOrder) return;
+    
+    // Create a copy of the order with updated items (including batch numbers and checks)
+    const updatedOrder = {
+      ...selectedOrder,
+      items: selectedOrder.items.map(item => {
+        const updatedItem = allItems.find(i => i.id === item.id);
+        if (!updatedItem) return item;
+        
+        // Find if this item has a missing quantity
+        const missingItem = missingItems.find(mi => mi.id === item.id);
+        const missingQuantity = missingItem ? missingItem.quantity : 0;
+        
+        return {
+          ...item,
+          batchNumber: updatedItem.batchNumber || item.batchNumber,
+          checked: updatedItem.checked || false,
+          missingQuantity: missingQuantity
+        };
+      }),
+      pickingInProgress: true,
+      pickedBy: selectedPickerId || undefined
+    };
+    
+    // Update the order with progress
+    updateOrder(updatedOrder);
+    
+    // Show success message
+    toast({
+      title: "Progress saved",
+      description: "Your picking progress has been saved."
+    });
   };
   
   const handleCompleteOrder = () => {
@@ -273,6 +310,9 @@ const PickingList: React.FC = () => {
             <div className="flex space-x-2">
               <Button variant="outline" onClick={() => handlePrint()}>
                 <Printer className="h-4 w-4 mr-2" /> Print
+              </Button>
+              <Button variant="secondary" onClick={handleSaveProgress}>
+                <Save className="h-4 w-4 mr-2" /> Save Progress
               </Button>
               <Button onClick={handleCompleteOrder}>
                 <Check className="h-4 w-4 mr-2" /> Complete Order

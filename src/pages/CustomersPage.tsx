@@ -1,14 +1,29 @@
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, UserPlus } from "lucide-react";
+import { Eye, UserPlus, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 
 const CustomersPage: React.FC = () => {
   const { customers } = useData();
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filter customers based on search term
+  const filteredCustomers = useMemo(() => {
+    if (!searchTerm.trim()) return customers;
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    return customers.filter(customer => 
+      customer.name.toLowerCase().includes(lowerSearch) ||
+      (customer.email && customer.email.toLowerCase().includes(lowerSearch)) ||
+      (customer.phone && customer.phone.includes(searchTerm)) ||
+      (customer.accountNumber && customer.accountNumber.toLowerCase().includes(lowerSearch))
+    );
+  }, [customers, searchTerm]);
 
   return (
     <Layout>
@@ -17,6 +32,19 @@ const CustomersPage: React.FC = () => {
         <Button onClick={() => navigate("/create-customer")}>
           <UserPlus className="mr-2 h-4 w-4" /> Add Customer
         </Button>
+      </div>
+      
+      <div className="mb-4">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search customers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
       
       <div className="rounded-md border">
@@ -33,14 +61,14 @@ const CustomersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {customers.length === 0 ? (
+              {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    No customers found
+                    {searchTerm ? "No matching customers found" : "No customers found"}
                   </td>
                 </tr>
               ) : (
-                customers.map((customer) => (
+                filteredCustomers.map((customer) => (
                   <tr key={customer.id} className="border-b">
                     <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
                     <td className="px-4 py-3">{customer.name}</td>

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, PackagePlus, Save } from "lucide-react";
+import { Eye, PackagePlus, Save, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { format, addDays, startOfDay, isSameDay, parseISO } from "date-fns";
@@ -23,6 +23,7 @@ const ProductsPage: React.FC = () => {
   const { toast } = useToast();
   const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Sort products by SKU
   const sortedProducts = useMemo(() => {
@@ -30,6 +31,17 @@ const ProductsPage: React.FC = () => {
       return (a.sku || '').localeCompare(b.sku || '');
     });
   }, [products]);
+
+  // Filter products based on search
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return sortedProducts;
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    return sortedProducts.filter((product) => 
+      product.name.toLowerCase().includes(lowerSearch) ||
+      (product.sku && product.sku.toLowerCase().includes(lowerSearch))
+    );
+  }, [sortedProducts, searchTerm]);
 
   // Initialize stock adjustments
   useEffect(() => {
@@ -158,6 +170,19 @@ const ProductsPage: React.FC = () => {
       )}
 
       <div className="space-y-6">
+        <div className="flex items-center mb-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search products by name or SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -171,14 +196,14 @@ const ProductsPage: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedProducts.length === 0 ? (
+              {filteredProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                    No products found
+                    {searchTerm ? "No matching products found" : "No products found"}
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedProducts.map((product) => (
+                filteredProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>{product.sku}</TableCell>
                     <TableCell>{product.name}</TableCell>
@@ -221,7 +246,6 @@ const ProductsPage: React.FC = () => {
                 <tr className="border-b bg-gray-50">
                   <th className="px-4 py-3 text-left font-medium">SKU</th>
                   <th className="px-4 py-3 text-left font-medium">Product</th>
-                  <th className="px-4 py-3 text-left font-medium">Weight (g)</th>
                   <th className="px-4 py-3 text-left font-medium">Current Stock</th>
                   {next7WorkingDays.map((day) => (
                     <th key={format(day, "yyyy-MM-dd")} className="px-4 py-3 text-center font-medium">
@@ -234,14 +258,14 @@ const ProductsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {sortedProducts.length === 0 ? (
+                {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={4 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
-                      No products found
+                    <td colSpan={3 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
+                      {searchTerm ? "No matching products found" : "No products found"}
                     </td>
                   </tr>
                 ) : (
-                  sortedProducts.map((product) => {
+                  filteredProducts.map((product) => {
                     // Calculate running stock level
                     let runningStock = product.stockLevel;
                     const dailyStocks: Record<string, number> = {};
@@ -257,7 +281,6 @@ const ProductsPage: React.FC = () => {
                       <tr key={product.id} className="border-b">
                         <td className="px-4 py-3">{product.sku}</td>
                         <td className="px-4 py-3">{product.name}</td>
-                        <td className="px-4 py-3">{product.weight || "N/A"}</td>
                         <td className="px-4 py-3">{product.stockLevel}</td>
                         {next7WorkingDays.map((day) => {
                           const dateKey = format(day, "yyyy-MM-dd");

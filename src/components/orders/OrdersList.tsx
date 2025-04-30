@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { Edit, FilePlus, ClipboardList } from "lucide-react";
 import { useData } from "@/context/DataContext";
@@ -7,14 +7,33 @@ import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-const OrdersList: React.FC = () => {
+interface OrdersListProps {
+  searchTerm?: string;
+}
+
+const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
   const { orders } = useData();
   const navigate = useNavigate();
   
+  // Filter orders by search term
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm.trim()) return orders;
+    
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return orders.filter(order => 
+      order.customer.name.toLowerCase().includes(lowerSearchTerm) ||
+      order.id.toLowerCase().includes(lowerSearchTerm) ||
+      order.deliveryMethod.toLowerCase().includes(lowerSearchTerm) ||
+      order.status.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [orders, searchTerm]);
+  
   // Sort orders by date
-  const sortedOrders = [...orders].sort((a, b) => {
-    return new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
-  });
+  const sortedOrders = useMemo(() => {
+    return [...filteredOrders].sort((a, b) => {
+      return new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
+    });
+  }, [filteredOrders]);
 
   // Helper function to generate change description
   const getChangeDescription = (order) => {
@@ -60,7 +79,7 @@ const OrdersList: React.FC = () => {
               {sortedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    No orders found
+                    {searchTerm ? "No matching orders found" : "No orders found"}
                   </td>
                 </tr>
               ) : (
