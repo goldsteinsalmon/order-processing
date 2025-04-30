@@ -3,13 +3,15 @@ import React, { useEffect } from "react";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Save, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
+import { useToast } from "@/hooks/use-toast";
 
 const PrintBoxLabelPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { orders, updateOrder } = useData();
+  const { toast } = useToast();
 
   // Extract the orderId from the URL - /print-box-label/:id
   const pathParts = location.pathname.split('/');
@@ -21,6 +23,33 @@ const PrintBoxLabelPage: React.FC = () => {
   
   // Check if this box is allowed to be printed (order exists and if box number is specified, it's a valid box)
   const order = orders.find(order => order.id === orderId);
+
+  // Handle saving data and marking box as completed
+  const saveBoxData = () => {
+    if (order && boxNumber) {
+      const boxNum = parseInt(boxNumber);
+      
+      // Mark this box as completed
+      if (boxNum > 0) {
+        const updatedCompletedBoxes = [...(order.completedBoxes || [])];
+        if (!updatedCompletedBoxes.includes(boxNum)) {
+          updatedCompletedBoxes.push(boxNum);
+          
+          // Update the order with this box marked as completed
+          updateOrder({
+            ...order,
+            completedBoxes: updatedCompletedBoxes
+          });
+        }
+        
+        // Show success toast
+        toast({
+          title: "Box data saved",
+          description: `Box ${boxNum} has been marked as complete.`
+        });
+      }
+    }
+  };
   
   // When box number is specified, verify that all previous boxes (except box 0) have been completed
   useEffect(() => {
@@ -49,7 +78,18 @@ const PrintBoxLabelPage: React.FC = () => {
     }
   }, [order, boxNumber, updateOrder]);
 
+  const handlePrintAndSave = () => {
+    // Save box data first
+    saveBoxData();
+    
+    // Then trigger print
+    window.print();
+  };
+
   const handleReturn = () => {
+    // Save box data before returning
+    saveBoxData();
+    
     // Navigate back to picking list for this order
     if (orderId) {
       // If we're printing a specific box, determine the next box to process
@@ -84,10 +124,16 @@ const PrintBoxLabelPage: React.FC = () => {
   return (
     <div className="print-page">
       <div className="mb-4 py-3 no-print">
-        <Button variant="outline" onClick={handleReturn}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> 
-          Back to Picking List
-        </Button>
+        <div className="flex justify-between items-center">
+          <Button variant="outline" onClick={handleReturn}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> 
+            Back to Picking List
+          </Button>
+          <Button variant="default" onClick={handlePrintAndSave}>
+            <Printer className="h-4 w-4 mr-2" /> 
+            Print & Save Box
+          </Button>
+        </div>
       </div>
       <PrintBoxLabel />
     </div>
