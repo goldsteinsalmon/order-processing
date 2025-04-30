@@ -23,9 +23,10 @@ interface ExtendedOrderItem extends OrderItem {
 
 interface PickingListProps {
   orderId?: string;
+  nextBoxToFocus?: number;
 }
 
-const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
+const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
   const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem, removeMissingItem } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -123,6 +124,32 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       setResolvedMissingItems([]);
     }
   }, [selectedOrderId, selectedOrder]);
+  
+  // Add effect to focus on the specified box when nextBoxToFocus is provided
+  useEffect(() => {
+    if (nextBoxToFocus && selectedOrder && selectedOrder.boxDistributions) {
+      // Check if this box exists in the order
+      const boxExists = selectedOrder.boxDistributions.some(box => box.boxNumber === nextBoxToFocus);
+      
+      if (boxExists) {
+        // Scroll to the box - this could be improved with a ref, but for now we'll use the box ID
+        setTimeout(() => {
+          const boxElement = document.getElementById(`box-${nextBoxToFocus}`);
+          if (boxElement) {
+            boxElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Add a highlight class that we'll animate with CSS
+            boxElement.classList.add('highlight-box');
+            
+            // Remove the highlight class after the animation completes
+            setTimeout(() => {
+              boxElement.classList.remove('highlight-box');
+            }, 2000);
+          }
+        }, 100);
+      }
+    }
+  }, [nextBoxToFocus, selectedOrder]);
   
   // Check if the customer needs detailed box labels
   const needsDetailedBoxLabels = selectedOrder?.customer.needsDetailedBoxLabels || false;

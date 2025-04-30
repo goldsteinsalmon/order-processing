@@ -1,4 +1,3 @@
-
 import React from "react";
 import { OrderItem } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -307,6 +306,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         return (
           <Card 
             key={boxNumber} 
+            id={`box-${boxNumber}`} // Add id for scrolling and highlighting
             className={`
               ${boxComplete ? "border-green-500 border-2" : ""}
               ${isBoxDisabled ? "opacity-60" : ""}
