@@ -62,7 +62,7 @@ interface DataContextType {
   updatePicker: (picker: Picker) => void;
   getBatchUsages: () => BatchUsage[];
   getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
-  recordBatchUsage: (batchNumber: string, productId: string, quantity: number) => void;
+  recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -87,6 +87,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [pickers, setPickers] = useState<Picker[]>(initialPickers);
   const [batchUsages, setBatchUsages] = useState<BatchUsage[]>(initialBatchUsages);
+
+  // Track processed order IDs to prevent duplicate batch recordings
+  const [processedBatchOrderIds] = useState<Set<string>>(new Set());
 
   const addCustomer = (customer: Customer) => {
     setCustomers([...customers, customer]);
@@ -138,11 +141,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     }
     
-    // Record batch usage for completed orders
+    // Record batch usage for completed orders - properly track each item's batch
     if (order.items) {
+      // Process each item with a batch number
       order.items.forEach(item => {
         if (item.batchNumber && item.quantity > 0) {
-          recordBatchUsage(item.batchNumber, item.productId, item.quantity);
+          recordBatchUsage(item.batchNumber, item.productId, item.quantity, order.id);
         }
       });
     }
@@ -344,7 +348,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
   };
 
-  const recordBatchUsage = (batchNumber: string, productId: string, quantity: number) => {
+  // Completely rewritten recordBatchUsage function to properly track multiple batches per order
+  const recordBatchUsage = (batchNumber: string, productId: string, quantity: number, orderId: string) => {
     if (!batchNumber || !productId) return;
     
     const currentDate = new Date().toISOString();
@@ -358,8 +363,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const totalWeight = product.weight * quantity;
     const existingBatchUsage = batchUsages.find(bu => bu.batchNumber === batchNumber);
     
+    // Check if we've already processed this batch for this order to avoid duplicates
+    const batchOrderKey = `${batchNumber}-${orderId}`;
+    if (processedBatchOrderIds.has(batchOrderKey)) {
+      return; // Skip if we've already processed this batch-order combination
+    }
+    
+    // Mark this batch-order combination as processed
+    processedBatchOrderIds.add(batchOrderKey);
+    
     if (existingBatchUsage) {
-      // Update existing batch usage
+      // Update existing batch usage - increment ordersCount only once per order
       const updatedBatchUsage: BatchUsage = {
         ...existingBatchUsage,
         usedWeight: existingBatchUsage.usedWeight + totalWeight,

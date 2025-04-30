@@ -82,6 +82,11 @@ const CreateOrderForm: React.FC = () => {
     },
   });
 
+  // Re-initialize form with updated default date when component mounts to ensure correct date is used
+  useEffect(() => {
+    form.setValue("orderDate", getDefaultOrderDate());
+  }, []);
+
   const orderDate = form.watch("orderDate");
   
   useEffect(() => {

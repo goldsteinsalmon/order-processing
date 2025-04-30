@@ -1,56 +1,84 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isAfter } from "date-fns";
 import { useData } from "@/context/DataContext";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderItem } from "@/types";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Plus, Minus, Save } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-
-interface ItemWithQuantity extends OrderItem {
-  originalQuantity: number;
-  newQuantity: number;
-}
+import { Calendar } from "@/components/ui/calendar";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { isBusinessDay } from "@/utils/dateUtils";
 
 const EditStandingOrderDeliveryPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const deliveryDateParam = searchParams.get("date");
-  const deliveryDate = deliveryDateParam ? new Date(deliveryDateParam) : null;
   
   const navigate = useNavigate();
-  const { standingOrders, addOrder, updateStandingOrder } = useData();
+  const { standingOrders, addOrder, updateStandingOrder, products } = useData();
   const { toast } = useToast();
   
-  const [items, setItems] = useState<ItemWithQuantity[]>([]);
-  const [notes, setNotes] = useState("");
+  // State for order form
+  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [orderDate, setOrderDate] = useState<Date | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
   const [customerOrderNumber, setCustomerOrderNumber] = useState("");
+  const [notes, setNotes] = useState("");
+  const [orderItems, setOrderItems] = useState<{ 
+    id: string; 
+    productId: string; 
+    quantity: number;
+  }[]>([]);
+  
+  // Product addition state
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
   
   const standingOrder = standingOrders.find(order => order.id === id);
   
   useEffect(() => {
-    if (standingOrder) {
-      // Convert order items to have quantity input fields
-      setItems(
+    if (standingOrder && deliveryDateParam) {
+      const parsedDate = new Date(deliveryDateParam);
+      
+      // Set up form with standing order data
+      setCustomerId(standingOrder.customerId);
+      setCustomerName(standingOrder.customer.name);
+      setOrderDate(parsedDate);
+      setDeliveryMethod(standingOrder.schedule.deliveryMethod);
+      setCustomerOrderNumber(standingOrder.customerOrderNumber || "");
+      setNotes(standingOrder.notes || "");
+      
+      // Convert order items for the form
+      setOrderItems(
         standingOrder.items.map(item => ({
-          ...item,
-          originalQuantity: item.quantity,
-          newQuantity: item.quantity
+          id: uuidv4(),
+          productId: item.productId,
+          quantity: item.quantity
         }))
       );
-      
-      setNotes(standingOrder.notes || "");
-      setCustomerOrderNumber(standingOrder.customerOrderNumber || "");
     }
-  }, [standingOrder]);
+  }, [standingOrder, deliveryDateParam]);
   
-  if (!standingOrder || !deliveryDate) {
+  if (!standingOrder || !deliveryDateParam || !orderDate) {
     return (
       <Layout>
         <div className="p-8 text-center">
@@ -63,58 +91,95 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     );
   }
   
-  const handleQuantityChange = (id: string, value: string) => {
-    const quantity = parseInt(value);
-    
-    setItems(currentItems => 
-      currentItems.map(item => 
-        item.id === id ? { ...item, newQuantity: isNaN(quantity) ? 0 : quantity } : item
-      )
+  const handleAddItem = () => {
+    if (!selectedProductId) {
+      toast({
+        title: "No product selected",
+        description: "Please select a product to add to the order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newItem = {
+      id: uuidv4(),
+      productId: selectedProductId,
+      quantity: selectedQuantity
+    };
+
+    setOrderItems([...orderItems, newItem]);
+    setSelectedProductId("");
+    setSelectedQuantity(1);
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    setOrderItems(orderItems.filter(item => item.id !== itemId));
+  };
+
+  const handleItemChange = (id: string, field: "productId" | "quantity", value: string | number) => {
+    setOrderItems(
+      orderItems.map(item => {
+        if (item.id === id) {
+          return { ...item, [field]: value };
+        }
+        return item;
+      })
     );
   };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (orderItems.length === 0) {
+      toast({
+        title: "No products added",
+        description: "Please add at least one product to the order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create full order items with product data
+    const fullOrderItems: OrderItem[] = orderItems
+      .filter(item => item.productId && item.quantity > 0)
+      .map(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (!product) {
+          throw new Error(`Product with ID ${item.productId} not found`);
+        }
+        return {
+          id: item.id,
+          productId: item.productId,
+          product: product,
+          quantity: item.quantity,
+        };
+      });
     
-    // Create a new order from the standing order with modified quantities
-    const orderItems = items
-      .filter(item => item.newQuantity > 0)
-      .map(item => ({
-        id: uuidv4(),
-        productId: item.productId,
-        product: item.product,
-        quantity: item.newQuantity
-      }));
+    if (fullOrderItems.length === 0) {
+      toast({
+        title: "Invalid items",
+        description: "Please ensure all items have a product and quantity.",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    // Check if there are any quantity changes to track
-    const changes = items
-      .filter(item => item.originalQuantity !== item.newQuantity)
-      .map(item => ({
-        productId: item.productId,
-        productName: item.product.name,
-        originalQuantity: item.originalQuantity,
-        newQuantity: item.newQuantity,
-        date: new Date().toISOString()
-      }));
-    
-    // Create the new order with the specific delivery date from the parameter
+    // Create the new order using the scheduled delivery date
     const newOrder = {
       id: uuidv4(),
       customerId: standingOrder.customerId,
       customer: standingOrder.customer,
-      customerOrderNumber: customerOrderNumber || standingOrder.customerOrderNumber,
-      orderDate: new Date().toISOString(),  // Today's date as order creation date
-      requiredDate: deliveryDateParam,      // Use the original delivery date from the schedule
-      deliveryMethod: standingOrder.schedule.deliveryMethod,
-      items: orderItems,
+      customerOrderNumber: customerOrderNumber,
+      orderDate: orderDate.toISOString(), // Use the scheduled date from the standing order
+      requiredDate: orderDate.toISOString(),
+      deliveryMethod: deliveryMethod,
+      items: fullOrderItems,
       notes: notes ? 
         `${notes} (Processed from Standing Order #${standingOrder.id.substring(0, 8)})` : 
         `Processed from Standing Order #${standingOrder.id.substring(0, 8)}`,
       status: "Pending" as const,
       created: new Date().toISOString(),
       fromStandingOrder: standingOrder.id,
-      hasChanges: changes.length > 0,
-      changes: changes.length > 0 ? changes : undefined
     };
     
     // Mark the date as processed in the standing order
@@ -126,9 +191,13 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     }
     
     // Add this date to processedDates if not already there
-    if (!updatedStandingOrder.schedule.processedDates.some(d => 
-      format(new Date(d), "yyyy-MM-dd") === format(deliveryDate, "yyyy-MM-dd"))) {
-      updatedStandingOrder.schedule.processedDates.push(deliveryDate.toISOString());
+    const deliveryDateStr = format(orderDate, "yyyy-MM-dd");
+    const alreadyProcessed = updatedStandingOrder.schedule.processedDates.some(
+      d => format(new Date(d), "yyyy-MM-dd") === deliveryDateStr
+    );
+    
+    if (!alreadyProcessed) {
+      updatedStandingOrder.schedule.processedDates.push(orderDate.toISOString());
     }
     
     // Update the standing order with the processed date
@@ -164,19 +233,42 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
           <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div className="flex space-x-2">
               <dt className="font-medium">Customer:</dt>
-              <dd>{standingOrder.customer.name}</dd>
+              <dd>{customerName}</dd>
             </div>
             <div className="flex space-x-2">
               <dt className="font-medium">Delivery Date:</dt>
-              <dd>{format(deliveryDate, "EEEE, MMMM d, yyyy")}</dd>
+              <dd>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      {orderDate ? format(orderDate, "EEEE, MMMM d, yyyy") : "Select date..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={orderDate}
+                      onSelect={(date) => date && setOrderDate(date)}
+                      disabled={(date) => !isBusinessDay(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </dd>
             </div>
             <div className="flex space-x-2">
               <dt className="font-medium">Delivery Method:</dt>
-              <dd>{standingOrder.schedule.deliveryMethod}</dd>
-            </div>
-            <div className="flex space-x-2">
-              <dt className="font-medium">Frequency:</dt>
-              <dd>{standingOrder.schedule.frequency}</dd>
+              <dd>
+                <Select value={deliveryMethod} onValueChange={(value) => setDeliveryMethod(value as "Delivery" | "Collection")}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Delivery">Delivery</SelectItem>
+                    <SelectItem value="Collection">Collection</SelectItem>
+                  </SelectContent>
+                </Select>
+              </dd>
             </div>
           </dl>
         </CardContent>
@@ -217,45 +309,110 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Items</CardTitle>
+            <CardTitle className="flex justify-between items-center">
+              <span>Items</span>
+              <Button type="button" onClick={handleAddItem} variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" /> Add Item
+              </Button>
+            </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">Product</label>
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map(product => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} ({product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-24">
+                <label className="block text-sm font-medium mb-1">Quantity</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={selectedQuantity}
+                  onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
+                />
+              </div>
+            </div>
+            
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left font-medium py-2">Product</th>
                     <th className="text-left font-medium py-2">SKU</th>
-                    <th className="text-center font-medium py-2">Original Qty</th>
-                    <th className="text-center font-medium py-2">New Qty</th>
+                    <th className="text-center font-medium py-2">Quantity</th>
+                    <th className="text-right font-medium py-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-3">{item.product.name}</td>
-                      <td className="py-3">{item.product.sku}</td>
-                      <td className="py-3 text-center">{item.originalQuantity}</td>
-                      <td className="py-3 text-center">
-                        <Input
-                          type="number"
-                          min="0"
-                          value={item.newQuantity}
-                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                          className="w-20 mx-auto text-center"
-                        />
+                  {orderItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-4 text-center text-gray-500">
+                        No items added to this order
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    orderItems.map((item) => {
+                      const product = products.find(p => p.id === item.productId);
+                      return (
+                        <tr key={item.id} className="border-b">
+                          <td className="py-3">
+                            <Select 
+                              value={item.productId} 
+                              onValueChange={(value) => handleItemChange(item.id, "productId", value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue>
+                                  {product ? product.name : "Select product"}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map(p => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name} ({p.sku})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="py-3">{product ? product.sku : ""}</td>
+                          <td className="py-3 text-center">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={item.quantity}
+                              onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 0)}
+                              className="w-20 mx-auto text-center"
+                            />
+                          </td>
+                          <td className="py-3 text-right">
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleRemoveItem(item.id)}
+                            >
+                              <Minus className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </CardContent>
-          <CardFooter>
-            <p className="text-sm text-muted-foreground">
-              Set quantities to 0 for items you want to exclude from this delivery.
-            </p>
-          </CardFooter>
         </Card>
         
         <div className="flex justify-end mt-6 space-x-4">
