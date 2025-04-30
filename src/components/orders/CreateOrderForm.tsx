@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -186,7 +185,7 @@ const CreateOrderForm: React.FC = () => {
   }, [orderDate, manualDateChange]);
 
   const handleAddItem = () => {
-    setOrderItems([...orderItems, { productId: "", quantity: 1, id: crypto.randomUUID() }]);
+    setOrderItems([...orderItems, { productId: "", quantity: 0, id: crypto.randomUUID() }]);
   };
 
   const handleRemoveItem = (id: string) => {
@@ -510,7 +509,7 @@ const CreateOrderForm: React.FC = () => {
                         min="1"
                         value={item.quantity || ""}
                         onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 0)}
-                        className="text-center"
+                        className="text-center text-gray-500"
                         placeholder="Qty"
                       />
                     </div>

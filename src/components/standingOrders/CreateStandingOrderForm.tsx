@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -475,7 +474,7 @@ const CreateStandingOrderForm: React.FC = () => {
                 min="1"
                 value={selectedProductQuantity === null ? "" : selectedProductQuantity}
                 onChange={e => setSelectedProductQuantity(e.target.value ? parseInt(e.target.value) : null)}
-                className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-gray-500"
                 placeholder="Qty"
               />
             </div>

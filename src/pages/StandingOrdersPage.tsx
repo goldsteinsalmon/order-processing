@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/command";
 
 const StandingOrdersPage: React.FC = () => {
-  const { standingOrders, customers } = useData();
+  const { standingOrders, customers, products } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -25,6 +25,11 @@ const StandingOrdersPage: React.FC = () => {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  
+  // Product search
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   
   // Filter customers
   const filteredCustomers = useMemo(() => {
@@ -50,11 +55,36 @@ const StandingOrdersPage: React.FC = () => {
     });
   }, [customers, customerSearch]);
 
+  // Filter products
+  const filteredProducts = useMemo(() => {
+    let filtered = [...products];
+    
+    if (productSearch.trim()) {
+      const lowerSearch = productSearch.toLowerCase();
+      filtered = products.filter(product => {
+        const nameMatch = product.name.toLowerCase().includes(lowerSearch);
+        const skuMatch = product.sku.toLowerCase().includes(lowerSearch);
+        
+        return nameMatch || skuMatch;
+      });
+    }
+    
+    // Sort by SKU alphabetically
+    return filtered.sort((a, b) => a.sku.localeCompare(b.sku));
+  }, [products, productSearch]);
+
   // Get selected customer name
   const getSelectedCustomerName = () => {
     if (!selectedCustomerId) return null;
     const customer = customers.find(c => c.id === selectedCustomerId);
     return customer ? customer.name : null;
+  };
+
+  // Get selected product name
+  const getSelectedProductName = () => {
+    if (!selectedProductId) return null;
+    const product = products.find(p => p.id === selectedProductId);
+    return product ? `${product.name} (${product.sku})` : null;
   };
 
   // Handle customer selection
@@ -63,19 +93,33 @@ const StandingOrdersPage: React.FC = () => {
     setShowCustomerSearch(false);
   };
 
+  // Handle product selection
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setShowProductSearch(false);
+  };
+
   // Reset filters
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedCustomerId(null);
+    setSelectedProductId(null);
   };
 
-  // Filter standing orders based on search term and selected customer
+  // Filter standing orders based on search term, selected customer, and selected product
   const filteredStandingOrders = useMemo(() => {
     let filtered = standingOrders;
     
     // Filter by selected customer
     if (selectedCustomerId) {
       filtered = filtered.filter(order => order.customerId === selectedCustomerId);
+    }
+    
+    // Filter by selected product
+    if (selectedProductId) {
+      filtered = filtered.filter(order => 
+        order.items.some(item => item.productId === selectedProductId)
+      );
     }
     
     // Filter by search term
@@ -95,7 +139,7 @@ const StandingOrdersPage: React.FC = () => {
     }
     
     return filtered;
-  }, [standingOrders, searchTerm, selectedCustomerId]);
+  }, [standingOrders, searchTerm, selectedCustomerId, selectedProductId]);
 
   return (
     <Layout>
@@ -132,8 +176,19 @@ const StandingOrdersPage: React.FC = () => {
             </Button>
           </div>
           
+          {/* Product filter (new) */}
+          <div>
+            <Button 
+              variant={selectedProductId ? "default" : "outline"} 
+              onClick={() => setShowProductSearch(true)}
+              className="w-full md:w-auto"
+            >
+              {selectedProductId ? `Product: ${getSelectedProductName()}` : "Filter by Product"}
+            </Button>
+          </div>
+          
           {/* Clear filters button - only show if there are any filters applied */}
-          {(selectedCustomerId || searchTerm) && (
+          {(selectedCustomerId || selectedProductId || searchTerm) && (
             <div>
               <Button 
                 variant="ghost" 
@@ -244,6 +299,35 @@ const StandingOrdersPage: React.FC = () => {
               >
                 {customer.name}
                 {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+      
+      {/* Product Search Dialog (new) */}
+      <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search products by name or SKU..."
+            value={productSearch}
+            onValueChange={setProductSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No products found.</CommandEmpty>
+          <CommandGroup heading="Products">
+            {filteredProducts.map(product => (
+              <CommandItem 
+                key={product.id} 
+                value={`${product.name} ${product.sku}`}
+                onSelect={() => handleSelectProduct(product.id)}
+              >
+                <span>{product.name}</span>
+                <span className="ml-2 text-muted-foreground">({product.sku})</span>
               </CommandItem>
             ))}
           </CommandGroup>
