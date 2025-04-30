@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, addDays, addWeeks, addMonths, isBefore, isSameDay, startOfDay } from "date-fns";
-import { ArrowLeft, Calendar, Edit, SkipForward } from "lucide-react";
+import { ArrowLeft, Calendar, Edit } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +44,14 @@ const StandingOrderSchedulePage: React.FC = () => {
       if (!order.schedule.skippedDates) return false;
       return order.schedule.skippedDates.some(skippedDate => 
         isSameDay(new Date(skippedDate), date)
+      );
+    };
+    
+    // Function to check if a date is in the processed dates list (already processed through editing)
+    const isProcessedDate = (date: Date) => {
+      if (!order.schedule.processedDates) return false;
+      return order.schedule.processedDates.some(processedDate => 
+        isSameDay(new Date(processedDate), date)
       );
     };
     
@@ -90,14 +98,24 @@ const StandingOrderSchedulePage: React.FC = () => {
       // Skip weekend days (0 is Sunday, 6 is Saturday)
       const dayOfWeek = currentDate.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        if (!isSkippedDate(currentDate)) {
+        if (isProcessedDate(currentDate)) {
+          // Include processed dates in the list with a flag
+          dates.push({
+            date: new Date(currentDate),
+            isModified: false,
+            modifications: null,
+            isSkipped: false,
+            isProcessed: true
+          });
+        } else if (!isSkippedDate(currentDate)) {
           const modifiedDelivery = getModifiedDelivery(currentDate);
           
           dates.push({
             date: new Date(currentDate),
             isModified: !!modifiedDelivery,
             modifications: modifiedDelivery?.modifications,
-            isSkipped: false
+            isSkipped: false,
+            isProcessed: false
           });
         } else {
           // Include skipped dates in the list with a flag
@@ -105,7 +123,8 @@ const StandingOrderSchedulePage: React.FC = () => {
             date: new Date(currentDate),
             isModified: false,
             modifications: null,
-            isSkipped: true
+            isSkipped: true,
+            isProcessed: false
           });
         }
       }
@@ -170,7 +189,21 @@ const StandingOrderSchedulePage: React.FC = () => {
   };
   
   const handleEditDelivery = (date: Date) => {
-    // Navigate to a special edit page for this specific delivery date
+    // Mark the date as processed
+    const updatedOrder = { ...order };
+    
+    // Initialize processedDates if it doesn't exist
+    if (!updatedOrder.schedule.processedDates) {
+      updatedOrder.schedule.processedDates = [];
+    }
+    
+    // Add the date to processedDates if not already there
+    if (!updatedOrder.schedule.processedDates.some(d => isSameDay(new Date(d), date))) {
+      updatedOrder.schedule.processedDates.push(date.toISOString());
+      updateStandingOrder(updatedOrder);
+    }
+    
+    // Navigate to a special edit page for this specific delivery date with the date preserved as ISO string
     navigate(`/edit-standing-order-delivery/${order.id}?date=${date.toISOString()}`);
   };
   
@@ -242,6 +275,8 @@ const StandingOrderSchedulePage: React.FC = () => {
                       <td className="py-3">
                         {delivery.isSkipped ? (
                           <Badge variant="destructive">Skipped</Badge>
+                        ) : delivery.isProcessed ? (
+                          <Badge variant="default">Processed</Badge>
                         ) : delivery.isModified ? (
                           <Badge variant="secondary">Modified</Badge>
                         ) : (
@@ -251,6 +286,8 @@ const StandingOrderSchedulePage: React.FC = () => {
                       <td className="py-3">
                         {delivery.isSkipped ? (
                           "Delivery skipped"
+                        ) : delivery.isProcessed ? (
+                          "Order already processed"
                         ) : delivery.isModified ? (
                           <div className="text-red-600">
                             {delivery.modifications?.items ? "Modified items" : ""}
@@ -269,26 +306,19 @@ const StandingOrderSchedulePage: React.FC = () => {
                               <Calendar className="h-4 w-4 mr-1" />
                               Restore
                             </Button>
+                          ) : delivery.isProcessed ? (
+                            <span className="text-green-600 text-sm">
+                              Already processed
+                            </span>
                           ) : (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleSkipDelivery(delivery.date)}
-                              >
-                                <SkipForward className="h-4 w-4 mr-1" />
-                                Skip
-                              </Button>
-                              
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleEditDelivery(delivery.date)}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            </>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditDelivery(delivery.date)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Process Order
+                            </Button>
                           )}
                         </div>
                       </td>

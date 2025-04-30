@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Check, X, FileCheck } from "lucide-react";
+import { ArrowLeft, Save, FileCheck } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,6 @@ const PickingList: React.FC = () => {
   const [unavailableItems, setUnavailableItems] = useState<{ [key: string]: boolean }>({});
   const [unavailableQuantities, setUnavailableQuantities] = useState<{ [key: string]: number | null }>({});
   const [blownPouches, setBlownPouches] = useState<{ [key: string]: number | null }>({});
-
-  // Helper function to calculate total weight for an item
-  const calculateItemWeight = (item: OrderItem): number => {
-    return (item.product.weight || 0) * item.quantity;
-  };
 
   // Helper function to generate change description
   const getChangeDescription = (order) => {
@@ -279,20 +275,17 @@ const PickingList: React.FC = () => {
       batchNumber: batchNumbers[item.id] || "",
     }));
 
-    // Check if any items are unavailable to update order status
-    const hasUnavailableItems = updatedItems.some(item => item.isUnavailable);
-    
     // Create updated order with explicit type for status
     const updatedOrder = {
       ...order,
       items: updatedItems,
       picker: selectedPicker,
       isPicked: true,
-      status: "Completed" as const, // Always mark as completed
+      status: "Completed" as const,
       totalBlownPouches: totalBlownPouches,
       updated: new Date().toISOString(),
       pickingProgress: null, // Clear progress once completed
-      batchNumber: Object.values(batchNumbers)[0] || "", // Use first batch number for order reference
+      batchNumbers: Object.values(batchNumbers).filter((value, index, self) => self.indexOf(value) === index), // Store unique batch numbers
     };
 
     // Process missing items and record batch usage
@@ -336,11 +329,6 @@ const PickingList: React.FC = () => {
   };
 
   const changeDesc = getChangeDescription(order);
-  
-  // Calculate total weight for the order
-  const totalOrderWeight = order.items.reduce((total, item) => {
-    return total + calculateItemWeight(item);
-  }, 0);
 
   return (
     <div>
@@ -421,10 +409,6 @@ const PickingList: React.FC = () => {
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Delivery Method:</dt>
                 <dd className="col-span-2">{order.deliveryMethod}</dd>
-              </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Total Weight:</dt>
-                <dd className="col-span-2">{totalOrderWeight} g</dd>
               </div>
             </dl>
           </CardContent>

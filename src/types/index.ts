@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -86,6 +85,7 @@ export interface StandingOrder {
     deliveryMethod: "Delivery" | "Collection";
     nextDeliveryDate?: string; // ISO date string for next delivery
     skippedDates?: string[]; // ISO date strings for skipped deliveries
+    processedDates?: string[]; // ISO date strings for manually processed deliveries
     modifiedDeliveries?: {
       date: string;
       modifications: {

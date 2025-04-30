@@ -17,7 +17,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages, products } = useData();
+  const { batchUsages, products, completedOrders } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [productFilter, setProductFilter] = useState<string>("all");
@@ -83,8 +83,7 @@ const BatchTrackingPage: React.FC = () => {
                   <TableRow>
                     <TableHead>Batch Number</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead className="text-right">Total Weight Used (g)</TableHead>
+                    <TableHead className="text-right">Total Weight (kg)</TableHead>
                     <TableHead className="text-right">Orders</TableHead>
                     <TableHead>First Used</TableHead>
                     <TableHead>Last Used</TableHead>
@@ -93,19 +92,17 @@ const BatchTrackingPage: React.FC = () => {
                 <TableBody>
                   {filteredBatchUsages.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                      <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                         No batch usage records found
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredBatchUsages.map((batch) => {
-                      const product = products.find(p => p.id === batch.productId);
                       return (
                         <TableRow key={batch.id}>
                           <TableCell className="font-medium">{batch.batchNumber}</TableCell>
                           <TableCell>{batch.productName}</TableCell>
-                          <TableCell>{product?.sku || 'N/A'}</TableCell>
-                          <TableCell className="text-right">{batch.usedWeight}</TableCell>
+                          <TableCell className="text-right">{(batch.usedWeight / 1000).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             <button
                               className="text-blue-600 hover:underline cursor-pointer"

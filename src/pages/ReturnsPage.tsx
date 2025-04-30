@@ -94,8 +94,8 @@ const ReturnsPage: React.FC = () => {
                         <TableCell>{item.product?.name || item.productSku || "N/A"}</TableCell>
                         <TableCell>
                           {item.type === "return" 
-                            ? `Qty: ${item.quantity || 1} - ${item.reason || "Not specified"}` 
-                            : item.complaintType || "Not specified"}
+                            ? `Qty: ${(item as any).quantity || 1} - ${(item as any).reason || "Not specified"}` 
+                            : (item as any).complaintType || "Not specified"}
                         </TableCell>
                         <TableCell>
                           <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${

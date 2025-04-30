@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { 
   Customer, 
@@ -187,8 +188,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           customerId: standingOrder.customerId,
           customer: standingOrder.customer,
           customerOrderNumber: standingOrder.customerOrderNumber,
-          orderDate: standingOrder.schedule.nextDeliveryDate || new Date().toISOString(),
-          requiredDate: standingOrder.schedule.nextDeliveryDate || new Date().toISOString(),
+          orderDate: new Date().toISOString(), // Use current date as order date
+          requiredDate: standingOrder.schedule.nextDeliveryDate, // Use scheduled delivery date
           deliveryMethod: standingOrder.schedule.deliveryMethod,
           items: standingOrder.items,
           notes: standingOrder.notes ? 
@@ -344,6 +345,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const recordBatchUsage = (batchNumber: string, productId: string, quantity: number) => {
+    if (!batchNumber || !productId) return;
+    
     const currentDate = new Date().toISOString();
     const product = products.find(p => p.id === productId);
     
