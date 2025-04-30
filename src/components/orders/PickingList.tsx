@@ -43,6 +43,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [resolvedMissingItems, setResolvedMissingItems] = useState<{id: string, quantity: number}[]>([]);
   const [completedBoxes, setCompletedBoxes] = useState<number[]>([]);
   const [printBoxNumber, setPrintBoxNumber] = useState<number | null>(null);
+  const [savedBoxes, setSavedBoxes] = useState<number[]>([]);
   
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -112,16 +113,25 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Reset resolved missing items
       setResolvedMissingItems([]);
       
-      // Reset completed boxes or load from order state
+      // Reset or load saved and completed boxes from order state
       if (selectedOrder.completedBoxes && selectedOrder.completedBoxes.length > 0) {
         setCompletedBoxes(selectedOrder.completedBoxes);
       } else {
         setCompletedBoxes([]);
       }
+      
+      // Load saved boxes status if it exists in the order
+      if (selectedOrder.savedBoxes && selectedOrder.savedBoxes.length > 0) {
+        setSavedBoxes(selectedOrder.savedBoxes);
+      } else {
+        setSavedBoxes([]);
+      }
     } else {
       setAllItems([]);
       setMissingItems([]);
       setResolvedMissingItems([]);
+      setCompletedBoxes([]);
+      setSavedBoxes([]);
     }
   }, [selectedOrderId, selectedOrder]);
   
@@ -172,13 +182,46 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const handlePrintBoxLabel = (boxNumber: number) => {
     if (!selectedOrderId) return;
     
+    // Save progress first to ensure all data is preserved
+    handleSaveProgress();
+    
     // Add to completed boxes if not already there
     if (!completedBoxes.includes(boxNumber)) {
-      setCompletedBoxes(prev => [...prev, boxNumber]);
+      const newCompletedBoxes = [...completedBoxes, boxNumber];
+      setCompletedBoxes(newCompletedBoxes);
+      
+      // Also update the order with this information
+      if (selectedOrder) {
+        updateOrder({
+          ...selectedOrder,
+          completedBoxes: newCompletedBoxes,
+          savedBoxes: savedBoxes,
+          pickedBy: selectedPickerId,
+          pickingInProgress: true
+        });
+      }
     }
     
     // Navigate to print box label page for this specific box
     navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
+  };
+  
+  // Handle saving a specific box's progress
+  const handleSaveBoxProgress = (boxNumber: number) => {
+    if (!selectedOrder) return;
+    
+    // Add to saved boxes if not already there
+    if (!savedBoxes.includes(boxNumber)) {
+      setSavedBoxes(prev => [...prev, boxNumber]);
+    }
+    
+    // Save overall progress to ensure everything is preserved
+    handleSaveProgress();
+    
+    toast({
+      title: "Box saved",
+      description: `Box ${boxNumber} data has been saved.`
+    });
   };
   
   const handleCheckItem = (itemId: string, checked: boolean) => {
@@ -286,7 +329,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       pickedBy: selectedPickerId || undefined,
       picker: selectedPickerId ? pickers.find(p => p.id === selectedPickerId)?.name : undefined, // Save the picker name
       missingItems: missingItems,
-      completedBoxes: completedBoxes // Save the printed boxes state
+      completedBoxes: completedBoxes, // Save the printed boxes state
+      savedBoxes: savedBoxes // Save the saved boxes state
     };
     
     // Update the order with progress
@@ -577,8 +621,10 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
             onResolveMissingItem={handleResolveMissingItem}
             onWeightChange={handleWeightChange}
             onPrintBoxLabel={handlePrintBoxLabel}
+            onSaveBoxProgress={handleSaveBoxProgress}
             groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
             completedBoxes={completedBoxes}
+            savedBoxes={savedBoxes}
           />
           
           {/* Total Weight Summary */}

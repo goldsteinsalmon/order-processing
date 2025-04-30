@@ -1,9 +1,9 @@
 
 import React, { useEffect } from "react";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Printer } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,10 +35,18 @@ const PrintBoxLabelPage: React.FC = () => {
         if (!updatedCompletedBoxes.includes(boxNum)) {
           updatedCompletedBoxes.push(boxNum);
           
-          // Update the order with this box marked as completed
+          // Also ensure the box is marked as saved
+          const updatedSavedBoxes = [...(order.savedBoxes || [])];
+          if (!updatedSavedBoxes.includes(boxNum)) {
+            updatedSavedBoxes.push(boxNum);
+          }
+          
+          // Update the order with this box marked as completed and saved
           updateOrder({
             ...order,
-            completedBoxes: updatedCompletedBoxes
+            completedBoxes: updatedCompletedBoxes,
+            savedBoxes: updatedSavedBoxes,
+            pickedBy: order.pickedBy // Ensure picker details are preserved
           });
           
           // Show success toast

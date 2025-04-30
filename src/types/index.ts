@@ -116,6 +116,7 @@ export interface Order {
   pickingInProgress?: boolean;
   boxDistributions?: Box[]; // Added for box distribution information
   completedBoxes?: number[]; // Added to track which box labels have been printed
+  savedBoxes?: number[]; // Added to track which boxes have been saved
 }
 
 export interface StandingOrder {
