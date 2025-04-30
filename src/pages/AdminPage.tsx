@@ -432,26 +432,37 @@ const AdminPage: React.FC = () => {
         skipEmptyLines: true,
         complete: (results) => {
           if (results.data && Array.isArray(results.data) && results.data.length > 0) {
-            // Process the imported products - FIXED: Map all rows and add each product
-            const importedProducts = results.data.map(row => ({
-              id: uuidv4(),
-              name: (row as any).name || "Unknown Product",
-              sku: (row as any).sku || `SKU-${Math.floor(Math.random() * 10000)}`,
-              stockLevel: parseInt((row as any).stockLevel, 10) || 0,
-              weight: parseInt((row as any).weight, 10) || 0,
-              description: (row as any).description || "",
-              created: new Date().toISOString(),
-            }));
-            
-            // Add each product to the data context
-            importedProducts.forEach(product => {
-              addProduct(product);
-            });
-            
-            toast({
-              title: "Products imported",
-              description: `Successfully imported ${importedProducts.length} products.`
-            });
+            try {
+              // Process the imported products - ensure we're mapping through all rows
+              const importedProducts = results.data.map(row => ({
+                id: uuidv4(),
+                name: (row as any).name || "Unknown Product",
+                sku: (row as any).sku || `SKU-${Math.floor(Math.random() * 10000)}`,
+                stockLevel: parseInt((row as any).stockLevel, 10) || 0,
+                weight: parseInt((row as any).weight, 10) || 0,
+                description: (row as any).description || "",
+                created: new Date().toISOString(),
+              }));
+              
+              console.log(`Importing ${importedProducts.length} products:`, importedProducts);
+              
+              // Add each product individually to ensure they're all processed
+              importedProducts.forEach(product => {
+                addProduct(product);
+              });
+              
+              toast({
+                title: "Products imported",
+                description: `Successfully imported ${importedProducts.length} products.`
+              });
+            } catch (error) {
+              console.error("Error processing products:", error);
+              toast({
+                title: "Import error",
+                description: `Error processing products: ${(error as Error).message}`,
+                variant: "destructive"
+              });
+            }
           } else {
             toast({
               title: "Import error",
