@@ -279,10 +279,10 @@ const AdminPage: React.FC = () => {
   
   // Template download functions - Updated to use CSV with corrected fields
   const downloadCustomerTemplate = () => {
-    // CSV header and example row (removed 'type' field)
+    // CSV header and example row
     const csvContent = [
-      "accountNumber,name,email,phone,address",
-      "ACC123,Example Customer,customer@example.com,01234567890,123 Example Street"
+      "accountNumber,name,email,phone,address,type",
+      "ACC123,Example Customer,customer@example.com,01234567890,123 Example Street,Private"
     ].join("\n");
     
     // Create a blob and download
@@ -371,6 +371,7 @@ const AdminPage: React.FC = () => {
               email: (row as any).email || "",
               phone: (row as any).phone || "",
               address: (row as any).address || "",
+              type: (row as any).type || "Private", // Add default type if missing
               onHold: false,
               created: new Date().toISOString(),
             }));
