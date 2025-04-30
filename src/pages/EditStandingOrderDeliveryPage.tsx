@@ -77,7 +77,6 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const [showSameDayWarning, setShowSameDayWarning] = useState(false);
   const [showCutOffWarning, setShowCutOffWarning] = useState(false);
   const [manualDateChange, setManualDateChange] = useState(false);
-  const [skipInStandingOrder, setSkipInStandingOrder] = useState(false);
   
   // Find the standing order
   useEffect(() => {
@@ -231,7 +230,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       customer: order.customer,
       customerOrderNumber: data.customerOrderNumber,
       orderDate: new Date().toISOString(),
-      requiredDate: data.deliveryDate.toISOString(),
+      requiredDate: data.deliveryDate.toISOString(), // Keep the selected delivery date
       deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
       items: fullOrderItems,
       notes: data.notes ? 
@@ -245,54 +244,21 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     // Add the new order
     addOrder(newOrder);
     
-    // If skip in standing order is checked, add the date to skipped dates
-    if (skipInStandingOrder) {
-      const updatedOrder = { ...order };
-      
-      // Initialize skippedDates if it doesn't exist
-      if (!updatedOrder.schedule.skippedDates) {
-        updatedOrder.schedule.skippedDates = [];
-      }
-      
-      // Add this date to skipped dates
-      updatedOrder.schedule.skippedDates.push(data.deliveryDate.toISOString());
-      
-      // Update the standing order
-      updateStandingOrder(updatedOrder);
-    } else {
-      // Save modifications to the standing order for this date
-      const updatedOrder = { ...order };
-      
-      // Initialize modifiedDeliveries if it doesn't exist
-      if (!updatedOrder.schedule.modifiedDeliveries) {
-        updatedOrder.schedule.modifiedDeliveries = [];
-      }
-      
-      // Find the index of the existing modified delivery if it exists
-      const existingIndex = updatedOrder.schedule.modifiedDeliveries.findIndex(
-        delivery => data.deliveryDate && 
-          new Date(delivery.date).toDateString() === data.deliveryDate.toDateString()
-      );
-      
-      // Create the modified delivery object
-      const modifiedDelivery = {
-        date: data.deliveryDate.toISOString(),
-        modifications: {
-          items: fullOrderItems,
-          notes: data.notes || undefined
-        }
-      };
-      
-      // Update or add the modified delivery
-      if (existingIndex >= 0) {
-        updatedOrder.schedule.modifiedDeliveries[existingIndex] = modifiedDelivery;
-      } else {
-        updatedOrder.schedule.modifiedDeliveries.push(modifiedDelivery);
-      }
-      
-      // Update the standing order
-      updateStandingOrder(updatedOrder);
+    // Mark this delivery as skipped in the standing order
+    const updatedOrder = { ...order };
+    
+    // Initialize skippedDates if it doesn't exist
+    if (!updatedOrder.schedule.skippedDates) {
+      updatedOrder.schedule.skippedDates = [];
     }
+    
+    // Add this date to skipped dates
+    if (parsedDate) {
+      updatedOrder.schedule.skippedDates.push(parsedDate.toISOString());
+    }
+    
+    // Update the standing order
+    updateStandingOrder(updatedOrder);
 
     toast({
       title: "Order created",
@@ -492,19 +458,6 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
               </FormItem>
             )}
           />
-          
-          <div className="flex items-center space-x-2 border-t pt-4">
-            <input
-              type="checkbox"
-              id="skipInStandingOrder"
-              checked={skipInStandingOrder}
-              onChange={(e) => setSkipInStandingOrder(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-primary"
-            />
-            <label htmlFor="skipInStandingOrder" className="text-sm font-medium">
-              Skip this date in the standing order schedule after creating this order
-            </label>
-          </div>
 
           <div className="flex justify-end space-x-4">
             <Button type="button" variant="outline" onClick={() => navigate(`/standing-order-schedule/${order.id}`)}>

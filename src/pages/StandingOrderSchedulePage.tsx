@@ -8,7 +8,6 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const StandingOrderSchedulePage: React.FC = () => {
@@ -17,7 +16,6 @@ const StandingOrderSchedulePage: React.FC = () => {
   const { standingOrders, updateStandingOrder } = useData();
   const { toast } = useToast();
   
-  const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   const order = standingOrders.find(order => order.id === id);
@@ -148,9 +146,6 @@ const StandingOrderSchedulePage: React.FC = () => {
       title: "Delivery skipped",
       description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been skipped.`
     });
-    
-    // Close the dialog
-    setOpenDialog(null);
   };
   
   const handleUnskipDelivery = (date: Date) => {
@@ -276,47 +271,14 @@ const StandingOrderSchedulePage: React.FC = () => {
                             </Button>
                           ) : (
                             <>
-                              <Dialog open={openDialog === `skip-${index}`} onOpenChange={(open) => {
-                                if (open) {
-                                  setOpenDialog(`skip-${index}`);
-                                  setSelectedDate(delivery.date);
-                                } else {
-                                  setOpenDialog(null);
-                                  setSelectedDate(null);
-                                }
-                              }}>
-                                <DialogTrigger asChild>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                  >
-                                    <SkipForward className="h-4 w-4 mr-1" />
-                                    Skip
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Skip Delivery</DialogTitle>
-                                    <DialogDescription>
-                                      Are you sure you want to skip the delivery scheduled for {selectedDate && format(selectedDate, "EEEE, MMMM d, yyyy")}?
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <DialogFooter>
-                                    <Button 
-                                      variant="outline" 
-                                      onClick={() => setOpenDialog(null)}
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button 
-                                      variant="default"
-                                      onClick={() => selectedDate && handleSkipDelivery(selectedDate)}
-                                    >
-                                      Skip Delivery
-                                    </Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleSkipDelivery(delivery.date)}
+                              >
+                                <SkipForward className="h-4 w-4 mr-1" />
+                                Skip
+                              </Button>
                               
                               <Button 
                                 variant="outline" 
