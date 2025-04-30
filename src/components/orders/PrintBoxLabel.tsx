@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -65,19 +64,40 @@ const PrintBoxLabel: React.FC = () => {
 
   // Initialize from box distributions if they exist
   useEffect(() => {
-    if (order && order.boxDistributions && order.boxDistributions.length > 0) {
+    if (!order) return;
+    
+    if (order.boxDistributions && order.boxDistributions.length > 0) {
       // Convert the order's box distributions to the format we need
       const distributions = order.boxDistributions.map(box => {
-        const totalBoxWeight = box.items.reduce((sum, item) => sum + item.weight, 0);
+        // Calculate box weight from the items and any manually entered weights
+        let totalBoxWeight = 0;
         
-        return {
-          boxNumber: box.boxNumber,
-          items: box.items.map(item => ({
+        // Map the items and include any picked weights
+        const updatedItems = box.items.map(item => {
+          // Find the original order item to get the manually entered weight if available
+          const orderItem = order.items.find(oi => 
+            oi.productId === item.productId && 
+            oi.boxNumber === box.boxNumber
+          );
+          
+          // Use picked weight from order item if it exists and requires weight input
+          const weight = orderItem && orderItem.product.requiresWeightInput && orderItem.pickedWeight
+            ? orderItem.pickedWeight
+            : item.weight;
+          
+          totalBoxWeight += weight || 0;
+          
+          return {
             productId: item.productId,
             productName: item.productName,
             quantity: item.quantity,
-            weight: item.weight
-          })),
+            weight: weight || 0
+          };
+        });
+        
+        return {
+          boxNumber: box.boxNumber,
+          items: updatedItems,
           totalBoxWeight
         };
       });
