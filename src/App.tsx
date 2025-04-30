@@ -14,8 +14,13 @@ import CompletedOrdersPage from "./pages/CompletedOrdersPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import MissingItemsPage from "./pages/MissingItemsPage";
 import CustomersPage from "./pages/CustomersPage";
+import CustomerDetailsPage from "./pages/CustomerDetailsPage";
+import CreateCustomerPage from "./pages/CreateCustomerPage";
 import ProductsPage from "./pages/ProductsPage";
+import ProductDetailsPage from "./pages/ProductDetailsPage";
+import CreateProductPage from "./pages/CreateProductPage";
 import StandingOrdersPage from "./pages/StandingOrdersPage";
+import CreateStandingOrderPage from "./pages/CreateStandingOrderPage";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 
@@ -35,10 +40,15 @@ const App = () => (
             <Route path="/picking-list/:id" element={<PickingListPage />} />
             <Route path="/completed-orders" element={<CompletedOrdersPage />} />
             <Route path="/standing-orders" element={<StandingOrdersPage />} />
+            <Route path="/create-standing-order" element={<CreateStandingOrderPage />} />
             <Route path="/missing-items" element={<MissingItemsPage />} />
             <Route path="/returns" element={<ReturnsPage />} />
             <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/customer-details/:id" element={<CustomerDetailsPage />} />
+            <Route path="/create-customer" element={<CreateCustomerPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/product-details/:id" element={<ProductDetailsPage />} />
+            <Route path="/create-product" element={<CreateProductPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -3,7 +3,7 @@ import React from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, PackagePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ProductsPage: React.FC = () => {
@@ -12,7 +12,12 @@ const ProductsPage: React.FC = () => {
 
   return (
     <Layout>
-      <h2 className="text-2xl font-bold mb-6">Products</h2>
+      <div className="flex justify-between mb-6">
+        <h2 className="text-2xl font-bold">Products</h2>
+        <Button onClick={() => navigate("/create-product")}>
+          <PackagePlus className="mr-2 h-4 w-4" /> Add Product
+        </Button>
+      </div>
       
       <div className="rounded-md border">
         <div className="overflow-x-auto">
@@ -27,24 +32,32 @@ const ProductsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-b">
-                  <td className="px-4 py-3">{product.name}</td>
-                  <td className="px-4 py-3">{product.sku}</td>
-                  <td className="px-4 py-3">{product.stockLevel}</td>
-                  <td className="px-4 py-3">{product.unit}</td>
-                  <td className="px-4 py-3">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => navigate(`/product-details/${product.id}`)}
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span className="sr-only">View Details</span>
-                    </Button>
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    No products found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                products.map((product) => (
+                  <tr key={product.id} className="border-b">
+                    <td className="px-4 py-3">{product.name}</td>
+                    <td className="px-4 py-3">{product.sku}</td>
+                    <td className="px-4 py-3">{product.stockLevel}</td>
+                    <td className="px-4 py-3">{product.unit}</td>
+                    <td className="px-4 py-3">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => navigate(`/product-details/${product.id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">View Details</span>
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
