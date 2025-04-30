@@ -11,6 +11,7 @@ import { Check, Weight } from "lucide-react";
 interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
   batchNumber: string;
+  originalQuantity?: number; // Added to track original quantity for highlighting changes
 }
 
 interface ItemsTableProps {
@@ -32,6 +33,24 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onResolveMissingItem,
   onWeightChange
 }) => {
+  // Helper function to determine if an item has changed quantity
+  const hasQuantityChanged = (item: ExtendedOrderItem) => {
+    return item.originalQuantity !== undefined && item.originalQuantity !== item.quantity;
+  };
+
+  // Helper function to get change description for an item
+  const getChangeDescription = (item: ExtendedOrderItem) => {
+    if (!hasQuantityChanged(item)) return null;
+    
+    if (item.originalQuantity === 0) {
+      return `Added ${item.quantity} ${item.product.name}`;
+    } else if (item.quantity === 0) {
+      return `Removed ${item.product.name}`;
+    } else {
+      return `Changed from ${item.originalQuantity} to ${item.quantity}`;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -59,9 +78,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 const missingQuantity = missingItem ? missingItem.quantity : 0;
                 const hasMissingItems = missingQuantity > 0;
                 const requiresWeightInput = item.product.requiresWeightInput;
+                const itemChanged = hasQuantityChanged(item);
                 
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow 
+                    key={item.id}
+                    className={itemChanged ? "bg-red-50" : ""}
+                  >
                     <TableCell>
                       <Checkbox 
                         checked={item.checked} 
@@ -77,6 +100,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         <div className="text-xs text-blue-600 font-medium flex items-center mt-1">
                           <Weight className="h-3 w-3 mr-1" /> 
                           Requires weight input
+                        </div>
+                      )}
+                      {itemChanged && (
+                        <div className="text-red-600 text-xs font-medium mt-1">
+                          {getChangeDescription(item)}
                         </div>
                       )}
                     </TableCell>

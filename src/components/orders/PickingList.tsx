@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -19,6 +18,7 @@ import PrintablePickingList from "./picking/PrintablePickingList";
 interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
   batchNumber: string;
+  originalQuantity?: number; // Added for tracking changes
 }
 
 interface PickingListProps {
@@ -70,6 +70,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
         checked: item.checked || false, // Initialize checked status
         batchNumber: item.batchNumber || "", // Initialize batch number
         pickedWeight: item.pickedWeight || 0, // Initialize picked weight
+        originalQuantity: item.originalQuantity, // Pass through original quantity if it exists
       }));
       setAllItems(items);
       
@@ -403,6 +404,11 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold">
               Order for {selectedOrder.customer.name}
+              {selectedOrder.hasChanges && (
+                <span className="text-sm text-red-600 ml-2 font-medium">
+                  (Modified Order)
+                </span>
+              )}
             </h3>
             <div className="flex space-x-2">
               <Button variant="outline" onClick={handlePrint}>
