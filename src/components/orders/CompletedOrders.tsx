@@ -23,11 +23,33 @@ const CompletedOrders: React.FC = () => {
     return new Date(b.updated || b.orderDate).getTime() - new Date(a.updated || a.orderDate).getTime();
   });
 
-  // Helper function to format batch numbers display
+  // Helper function to format batch numbers display from items
   const formatBatchNumbers = (order) => {
+    // First check for explicit batch numbers array
     if (order.batchNumbers && order.batchNumbers.length > 0) {
       return order.batchNumbers.join(", ");
     }
+    
+    // Then check for individual item batch numbers
+    if (order.items && order.items.length > 0) {
+      const batchSet = new Set<string>();
+      
+      // Collect unique batch numbers from each item
+      order.items.forEach(item => {
+        if (item.batchNumber) {
+          batchSet.add(item.batchNumber);
+        } else if (order.pickingProgress?.batchNumbers && order.pickingProgress.batchNumbers[item.id]) {
+          batchSet.add(order.pickingProgress.batchNumbers[item.id]);
+        }
+      });
+      
+      // If we found batch numbers from items, return them
+      if (batchSet.size > 0) {
+        return Array.from(batchSet).join(", ");
+      }
+    }
+    
+    // Fallback to the order's single batch number
     return order.batchNumber || "N/A";
   };
 

@@ -46,14 +46,6 @@ const ViewCompletedOrder: React.FC = () => {
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
-  // Get batch numbers
-  const formatBatchNumbers = () => {
-    if (order.batchNumbers && order.batchNumbers.length > 0) {
-      return order.batchNumbers.join(", ");
-    }
-    return order.batchNumber || "N/A";
-  };
-  
   // Get batch numbers for each item
   const getItemBatchNumber = (item) => {
     // First check if the item has its own batch number
@@ -145,10 +137,6 @@ const ViewCompletedOrder: React.FC = () => {
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Picker:</dt>
                 <dd className="col-span-2">{order.picker || "N/A"}</dd>
-              </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Batch Number(s):</dt>
-                <dd className="col-span-2">{formatBatchNumbers()}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Blown Pouches:</dt>
