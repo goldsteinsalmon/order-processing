@@ -8,7 +8,8 @@ export interface Customer {
   type: "Private" | "Trade";
   onHold?: boolean;
   holdReason?: string;
-  created?: string; // Added created property
+  created?: string;
+  needsDetailedBoxLabels?: boolean; // Flag to indicate if customer needs detailed box labels
 }
 
 export interface Product {

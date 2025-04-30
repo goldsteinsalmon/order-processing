@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -8,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Save, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 
 const CustomerDetailsPage: React.FC = () => {
   const { customers, updateCustomer, orders, completedOrders } = useData();
@@ -34,7 +34,8 @@ const CustomerDetailsPage: React.FC = () => {
     phone: customer?.phone || "",
     type: customer?.type || "Private" as "Private" | "Trade",
     onHold: customer?.onHold || false,
-    holdReason: customer?.holdReason || ""
+    holdReason: customer?.holdReason || "",
+    needsDetailedBoxLabels: customer?.needsDetailedBoxLabels || false
   });
 
   // Get all orders for this customer
@@ -88,6 +89,7 @@ const CustomerDetailsPage: React.FC = () => {
       type: formData.type as "Private" | "Trade",
       onHold: formData.onHold,
       holdReason: formData.onHold ? formData.holdReason : undefined,
+      needsDetailedBoxLabels: formData.needsDetailedBoxLabels,
       updated: new Date().toISOString()
     };
     
@@ -285,6 +287,21 @@ const CustomerDetailsPage: React.FC = () => {
                     </RadioGroup>
                   </div>
                   
+                  {/* New - Detailed Box Labels setting */}
+                  <div className="col-span-1 md:col-span-2 flex items-center justify-between py-2 border-t">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="detailed-labels">Detailed Box Labels</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Customer requires detailed box labels with exact product distribution and weights
+                      </p>
+                    </div>
+                    <Switch
+                      id="detailed-labels"
+                      checked={formData.needsDetailedBoxLabels}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, needsDetailedBoxLabels: checked }))}
+                    />
+                  </div>
+                  
                   {formData.onHold && (
                     <div className="col-span-1 md:col-span-2 space-y-2">
                       <Label htmlFor="holdReason">Hold Reason</Label>
@@ -335,6 +352,17 @@ const CustomerDetailsPage: React.FC = () => {
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Phone:</span>
                       <span className="col-span-2 font-medium">{customer.phone}</span>
+                    </div>
+                    <div className="grid grid-cols-3 border-b pb-2">
+                      <span className="text-gray-600">Detailed Box Labels:</span>
+                      <span className="col-span-2 font-medium flex items-center">
+                        {customer.needsDetailedBoxLabels ? (
+                          <>
+                            <Package className="h-4 w-4 mr-1 text-green-600" />
+                            <span className="text-green-600">Enabled</span>
+                          </>
+                        ) : 'Not Required'}
+                      </span>
                     </div>
                   </div>
                 </div>
