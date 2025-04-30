@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +9,7 @@ import { getNextWorkingDay, isBusinessDay, isSameDayOrder } from "@/utils/dateUt
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -164,8 +164,30 @@ const CreateOrderForm: React.FC = () => {
   };
   
   const handleSelectCustomer = (customerId: string) => {
-    form.setValue("customerId", customerId);
-    setShowCustomerSearch(false);
+    const customer = customers.find(c => c.id === customerId);
+    
+    // If customer is on hold, show warning dialog
+    if (customer && customer.onHold) {
+      setSelectedCustomer(customer);
+      setShowOnHoldWarning(true);
+    } else {
+      // If not on hold, proceed normally
+      form.setValue("customerId", customerId);
+      setShowCustomerSearch(false);
+    }
+  };
+  
+  const confirmOnHoldCustomer = () => {
+    if (selectedCustomer) {
+      form.setValue("customerId", selectedCustomer.id);
+      setShowOnHoldWarning(false);
+      setShowCustomerSearch(false);
+    }
+  };
+  
+  const cancelOnHoldCustomer = () => {
+    setSelectedCustomer(null);
+    setShowOnHoldWarning(false);
   };
   
   const handleSelectProduct = (id: string, productId: string) => {
@@ -241,6 +263,12 @@ const CreateOrderForm: React.FC = () => {
     return customer ? customer.name : "Select a customer...";
   };
   
+  const isCustomerOnHold = (customerId: string) => {
+    if (!customerId) return false;
+    const customer = customers.find(c => c.id === customerId);
+    return customer?.onHold || false;
+  };
+  
   const getSelectedProductName = (productId: string) => {
     if (!productId) return "Select a product...";
     
@@ -264,7 +292,10 @@ const CreateOrderForm: React.FC = () => {
                     <Button 
                       type="button"
                       variant="outline" 
-                      className="w-full justify-between" 
+                      className={cn(
+                        "w-full justify-between",
+                        isCustomerOnHold(field.value) && "text-red-500 font-medium"
+                      )}
                       onClick={() => setShowCustomerSearch(true)}
                     >
                       {getSelectedCustomerName()}
@@ -285,8 +316,10 @@ const CreateOrderForm: React.FC = () => {
                             key={customer.id} 
                             value={customer.id}
                             onSelect={() => handleSelectCustomer(customer.id)}
+                            className={customer.onHold ? "text-red-500 font-medium" : ""}
                           >
                             {customer.name}
+                            {customer.onHold && " (On Hold)"}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -523,6 +556,36 @@ const CreateOrderForm: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* On Hold Customer Warning Dialog */}
+      <AlertDialog open={showOnHoldWarning} onOpenChange={setShowOnHoldWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Customer On Hold Warning</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedCustomer && (
+                <>
+                  <p className="font-medium text-red-500 mb-2">
+                    {selectedCustomer.name} is currently on hold.
+                  </p>
+                  <p className="mb-4">
+                    Reason: {selectedCustomer.holdReason || "No reason provided"}
+                  </p>
+                  <p>Are you sure you want to proceed with this customer?</p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelOnHoldCustomer}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmOnHoldCustomer}>
+              Yes, Proceed Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -17,7 +17,7 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
+      className={cn("p-3 pointer-events-auto", className)}
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
@@ -56,7 +56,7 @@ function Calendar({
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
-      disabled={(date) => date.getDay() === 0 || date.getDay() === 6} // Disable Saturday and Sunday
+      disabled={(date) => date.getDay() === 0 || date.getDay() === 6} // Disable Saturday (6) and Sunday (0)
       weekStartsOn={1} // Start week on Monday (1) instead of Sunday (0)
       {...props}
     />
