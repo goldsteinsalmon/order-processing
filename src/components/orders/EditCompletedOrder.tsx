@@ -37,10 +37,13 @@ import {
 const EditCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { completedOrders, updateOrder, products } = useData();
+  const { orders, completedOrders, updateOrder, products } = useData();
   const { toast } = useToast();
   
-  const originalOrder = completedOrders.find(order => order.id === id);
+  // Look for the order in both regular orders and completed orders
+  const originalOrder = orders.find(order => order.id === id) || 
+                       completedOrders.find(order => order.id === id);
+                       
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [orderDate, setOrderDate] = useState<string>("");
@@ -64,8 +67,8 @@ const EditCompletedOrder: React.FC = () => {
     return (
       <div className="p-8 text-center">
         <h2 className="text-2xl font-bold mb-4">Order not found</h2>
-        <Button variant="outline" onClick={() => navigate("/completed-orders")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Completed Orders
+        <Button variant="outline" onClick={() => navigate("/")}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders
         </Button>
       </div>
     );
@@ -185,10 +188,14 @@ const EditCompletedOrder: React.FC = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center">
-          <Button variant="ghost" onClick={() => navigate("/completed-orders")} className="mr-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate(originalOrder.status === "Completed" ? "/completed-orders" : "/")} 
+            className="mr-4"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
-          <h2 className="text-2xl font-bold">Edit Completed Order</h2>
+          <h2 className="text-2xl font-bold">Edit Order</h2>
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
