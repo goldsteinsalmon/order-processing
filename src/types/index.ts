@@ -17,6 +17,7 @@ export interface Product {
   sku: string;
   description: string;
   stockLevel: number;
+  weight?: number; // Weight in grams
 }
 
 export interface OrderItem {
@@ -171,4 +172,17 @@ export interface Picker {
   id: string;
   name: string;
   active: boolean;
+}
+
+// New interface for batch tracking
+export interface BatchUsage {
+  id: string;
+  batchNumber: string;
+  productId: string;
+  productName: string;
+  totalWeight: number; // Total weight assigned to this batch (grams)
+  usedWeight: number;  // Weight used from this batch (grams)
+  ordersCount: number; // Number of orders using this batch
+  firstUsed: string;   // First date the batch was used
+  lastUsed: string;    // Last date the batch was used
 }

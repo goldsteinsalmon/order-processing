@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Save, Check, X, FileCheck } from "lucide-react";
@@ -13,7 +14,7 @@ import { OrderItem } from "@/types";
 const PickingList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { orders, updateOrder, completeOrder, addMissingItem, pickers } = useData();
+  const { orders, updateOrder, completeOrder, addMissingItem, pickers, recordBatchUsage } = useData();
   const { toast } = useToast();
 
   const order = orders.find(order => order.id === id);
@@ -24,6 +25,11 @@ const PickingList: React.FC = () => {
   const [unavailableItems, setUnavailableItems] = useState<{ [key: string]: boolean }>({});
   const [unavailableQuantities, setUnavailableQuantities] = useState<{ [key: string]: number | null }>({});
   const [blownPouches, setBlownPouches] = useState<{ [key: string]: number | null }>({});
+
+  // Helper function to calculate total weight for an item
+  const calculateItemWeight = (item: OrderItem): number => {
+    return (item.product.weight || 0) * item.quantity;
+  };
 
   // Helper function to generate change description
   const getChangeDescription = (order) => {
@@ -290,7 +296,7 @@ const PickingList: React.FC = () => {
       batchNumber: Object.values(batchNumbers)[0] || "", // Use first batch number for order reference
     };
 
-    // Process missing items
+    // Process missing items and record batch usage
     updatedItems.forEach(item => {
       if (item.isUnavailable && item.unavailableQuantity && item.unavailableQuantity > 0) {
         // Create a missing item without circular references
@@ -311,6 +317,11 @@ const PickingList: React.FC = () => {
         // Add missing item to the list
         addMissingItem(missingItem);
       }
+      
+      // Record batch usage for picked items
+      if (!item.isUnavailable && item.batchNumber && pickedItems[item.id]) {
+        recordBatchUsage(item.batchNumber, item.productId, item.quantity);
+      }
     });
 
     // Complete the order (move to completedOrders)
@@ -326,6 +337,11 @@ const PickingList: React.FC = () => {
   };
 
   const changeDesc = getChangeDescription(order);
+  
+  // Calculate total weight for the order
+  const totalOrderWeight = order.items.reduce((total, item) => {
+    return total + calculateItemWeight(item);
+  }, 0);
 
   return (
     <div>
@@ -407,6 +423,10 @@ const PickingList: React.FC = () => {
                 <dt className="font-medium">Delivery Method:</dt>
                 <dd className="col-span-2">{order.deliveryMethod}</dd>
               </div>
+              <div className="grid grid-cols-3">
+                <dt className="font-medium">Total Weight:</dt>
+                <dd className="col-span-2">{totalOrderWeight} g</dd>
+              </div>
             </dl>
           </CardContent>
         </Card>
@@ -424,6 +444,8 @@ const PickingList: React.FC = () => {
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
                   <th className="text-center font-medium py-2">Quantity</th>
+                  <th className="text-center font-medium py-2">Weight (g)</th>
+                  <th className="text-center font-medium py-2">Total Weight (g)</th>
                   <th className="text-center font-medium py-2">Batch Number</th>
                   <th className="text-center font-medium py-2">Picked</th>
                   <th className="text-center font-medium py-2">Unavailable</th>
@@ -437,6 +459,10 @@ const PickingList: React.FC = () => {
                   const itemChanges = order.changes?.find(change => 
                     change.productId === item.productId
                   );
+                  
+                  // Calculate item weight and total weight
+                  const itemUnitWeight = item.product.weight || 0;
+                  const itemTotalWeight = itemUnitWeight * item.quantity;
                   
                   return (
                     <tr key={item.id} className={`border-b ${itemChanges ? "bg-red-50" : ""}`}>
@@ -455,6 +481,8 @@ const PickingList: React.FC = () => {
                       </td>
                       <td className="py-3">{item.product.sku}</td>
                       <td className="py-3 text-center">{item.quantity}</td>
+                      <td className="py-3 text-center">{itemUnitWeight}</td>
+                      <td className="py-3 text-center">{itemTotalWeight}</td>
                       <td className="py-3 text-center">
                         <Input
                           value={batchNumbers[item.id] || ""}
@@ -516,7 +544,9 @@ const PickingList: React.FC = () => {
                   );
                 })}
                 <tr className="font-medium">
-                  <td colSpan={7} className="py-3 text-right">Total Blown Pouches:</td>
+                  <td colSpan={4} className="py-3 text-right">Total:</td>
+                  <td className="py-3 text-center">{totalOrderWeight} g</td>
+                  <td colSpan={4} className="py-3 text-right">Total Blown Pouches:</td>
                   <td className="py-3 text-center">
                     {Object.values(blownPouches).reduce((sum, value) => sum + (value || 0), 0)}
                   </td>

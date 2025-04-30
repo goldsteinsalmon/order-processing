@@ -8,7 +8,8 @@ import {
   Complaint, 
   MissingItem, 
   User, 
-  Picker 
+  Picker,
+  BatchUsage
 } from "../types";
 import { 
   customers as initialCustomers,
@@ -20,7 +21,8 @@ import {
   complaints as initialComplaints,
   missingItems as initialMissingItems,
   users as initialUsers,
-  pickers as initialPickers
+  pickers as initialPickers,
+  batchUsages as initialBatchUsages
 } from "../data/mockData";
 import { format, addDays, addWeeks, addMonths, parseISO } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -36,6 +38,7 @@ interface DataContextType {
   missingItems: MissingItem[];
   users: User[];
   pickers: Picker[];
+  batchUsages: BatchUsage[];
   addCustomer: (customer: Customer) => void;
   updateCustomer: (customer: Customer) => void;
   addProduct: (product: Product) => void;
@@ -56,6 +59,9 @@ interface DataContextType {
   updateUser: (user: User) => void;
   addPicker: (picker: Picker) => void;
   updatePicker: (picker: Picker) => void;
+  getBatchUsages: () => BatchUsage[];
+  getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
+  recordBatchUsage: (batchNumber: string, productId: string, quantity: number) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -79,6 +85,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [missingItems, setMissingItems] = useState<MissingItem[]>(initialMissingItems);
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [pickers, setPickers] = useState<Picker[]>(initialPickers);
+  const [batchUsages, setBatchUsages] = useState<BatchUsage[]>(initialBatchUsages);
 
   const addCustomer = (customer: Customer) => {
     setCustomers([...customers, customer]);
@@ -128,6 +135,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         ...updatedOrder,
         batchNumbers: [order.batchNumber]
       };
+    }
+    
+    // Record batch usage for completed orders
+    if (order.items) {
+      order.items.forEach(item => {
+        if (item.batchNumber && item.quantity > 0) {
+          recordBatchUsage(item.batchNumber, item.productId, item.quantity);
+        }
+      });
     }
     
     setOrders(orders.filter(o => o.id !== order.id));
@@ -319,6 +335,56 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setPickers(pickers.map(p => p.id === updatedPicker.id ? updatedPicker : p));
   };
 
+  const getBatchUsages = () => {
+    return batchUsages;
+  };
+
+  const getBatchUsageByBatchNumber = (batchNumber: string) => {
+    return batchUsages.find(bu => bu.batchNumber === batchNumber);
+  };
+
+  const recordBatchUsage = (batchNumber: string, productId: string, quantity: number) => {
+    const currentDate = new Date().toISOString();
+    const product = products.find(p => p.id === productId);
+    
+    if (!product || !product.weight) {
+      console.error(`Cannot record batch usage: Product not found or weight not defined for product ID ${productId}`);
+      return;
+    }
+    
+    const totalWeight = product.weight * quantity;
+    const existingBatchUsage = batchUsages.find(bu => bu.batchNumber === batchNumber && bu.productId === productId);
+    
+    if (existingBatchUsage) {
+      // Update existing batch usage
+      const updatedBatchUsage: BatchUsage = {
+        ...existingBatchUsage,
+        usedWeight: existingBatchUsage.usedWeight + totalWeight,
+        ordersCount: existingBatchUsage.ordersCount + 1,
+        lastUsed: currentDate
+      };
+      
+      setBatchUsages(batchUsages.map(bu => 
+        bu.id === existingBatchUsage.id ? updatedBatchUsage : bu
+      ));
+    } else {
+      // Create new batch usage record
+      const newBatchUsage: BatchUsage = {
+        id: uuidv4(),
+        batchNumber,
+        productId,
+        productName: product.name,
+        totalWeight: totalWeight,
+        usedWeight: totalWeight,
+        ordersCount: 1,
+        firstUsed: currentDate,
+        lastUsed: currentDate
+      };
+      
+      setBatchUsages([...batchUsages, newBatchUsage]);
+    }
+  };
+
   const value = {
     customers,
     products,
@@ -330,6 +396,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     missingItems,
     users,
     pickers,
+    batchUsages,
     addCustomer,
     updateCustomer,
     addProduct,
@@ -350,6 +417,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateUser,
     addPicker,
     updatePicker,
+    getBatchUsages,
+    getBatchUsageByBatchNumber,
+    recordBatchUsage
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

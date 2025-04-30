@@ -164,6 +164,7 @@ const ProductsPage: React.FC = () => {
               <TableRow>
                 <TableHead>SKU</TableHead>
                 <TableHead>Name</TableHead>
+                <TableHead>Weight (g)</TableHead>
                 <TableHead>Stock Level</TableHead>
                 <TableHead>Add Stock</TableHead>
                 <TableHead>Actions</TableHead>
@@ -172,7 +173,7 @@ const ProductsPage: React.FC = () => {
             <TableBody>
               {sortedProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                     No products found
                   </TableCell>
                 </TableRow>
@@ -181,6 +182,7 @@ const ProductsPage: React.FC = () => {
                   <TableRow key={product.id}>
                     <TableCell>{product.sku}</TableCell>
                     <TableCell>{product.name}</TableCell>
+                    <TableCell>{product.weight || "N/A"}</TableCell>
                     <TableCell>{product.stockLevel}</TableCell>
                     <TableCell className="w-40">
                       <div className="flex items-center">
@@ -219,6 +221,7 @@ const ProductsPage: React.FC = () => {
                 <tr className="border-b bg-gray-50">
                   <th className="px-4 py-3 text-left font-medium">SKU</th>
                   <th className="px-4 py-3 text-left font-medium">Product</th>
+                  <th className="px-4 py-3 text-left font-medium">Weight (g)</th>
                   <th className="px-4 py-3 text-left font-medium">Current Stock</th>
                   {next7WorkingDays.map((day) => (
                     <th key={format(day, "yyyy-MM-dd")} className="px-4 py-3 text-center font-medium">
@@ -233,7 +236,7 @@ const ProductsPage: React.FC = () => {
               <tbody>
                 {sortedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={3 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={4 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
                       No products found
                     </td>
                   </tr>
@@ -254,6 +257,7 @@ const ProductsPage: React.FC = () => {
                       <tr key={product.id} className="border-b">
                         <td className="px-4 py-3">{product.sku}</td>
                         <td className="px-4 py-3">{product.name}</td>
+                        <td className="px-4 py-3">{product.weight || "N/A"}</td>
                         <td className="px-4 py-3">{product.stockLevel}</td>
                         {next7WorkingDays.map((day) => {
                           const dateKey = format(day, "yyyy-MM-dd");

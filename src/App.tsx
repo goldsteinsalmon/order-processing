@@ -25,6 +25,7 @@ import AdminPage from "./pages/AdminPage";
 import PickingListPage from "./pages/PickingListPage";
 import EditCompletedOrderPage from "./pages/EditCompletedOrderPage";
 import ViewCompletedOrderPage from "./pages/ViewCompletedOrderPage";
+import BatchTrackingPage from "./pages/BatchTrackingPage";
 
 const App: React.FC = () => {
   return (
@@ -63,6 +64,8 @@ const App: React.FC = () => {
         <Route path="/print-box-label/:id" element={<PrintBoxLabelPage />} />
         
         <Route path="/admin" element={<AdminPage />} />
+        
+        <Route path="/batch-tracking" element={<BatchTrackingPage />} />
       </Routes>
     </DataProvider>
   );

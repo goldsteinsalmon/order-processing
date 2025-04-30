@@ -1,5 +1,4 @@
-
-import { Customer, Product, Order, StandingOrder, Return, Complaint, MissingItem, User, Picker } from "../types";
+import { Customer, Product, Order, StandingOrder, Return, Complaint, MissingItem, User, Picker, BatchUsage } from "../types";
 import { addDays, subDays, format } from "date-fns";
 
 // Mock Customers
@@ -35,28 +34,31 @@ export const customers: Customer[] = [
   },
 ];
 
-// Mock Products
+// Mock Products with weights
 export const products: Product[] = [
   { 
     id: "p1", 
     name: "Fresh Apples", 
     sku: "FR-APL-001", 
     description: "Red apples, 1kg bag", 
-    stockLevel: 150 
+    stockLevel: 150,
+    weight: 1000 // Weight in grams (1kg)
   },
   { 
     id: "p2", 
     name: "Organic Carrots", 
     sku: "ORG-CRT-002", 
     description: "Organic carrots, 500g bag", 
-    stockLevel: 85 
+    stockLevel: 85,
+    weight: 500 // Weight in grams (500g)
   },
   { 
     id: "p3", 
     name: "Free Range Eggs", 
     sku: "EGG-FR-003", 
     description: "Free range eggs, pack of 6", 
-    stockLevel: 120 
+    stockLevel: 120,
+    weight: 360 // Weight in grams (6 eggs at ~60g each)
   },
 ];
 
@@ -286,4 +288,19 @@ export const pickers: Picker[] = [
     name: "Sarah Williams",
     active: false,
   },
+];
+
+// Mock Batch Usage Data
+export const batchUsages: BatchUsage[] = [
+  {
+    id: "bu1",
+    batchNumber: "B12345",
+    productId: "p3",
+    productName: "Free Range Eggs",
+    totalWeight: 720, // 2 units at 360g each
+    usedWeight: 720,  
+    ordersCount: 1,
+    firstUsed: subDays(new Date(), 3).toISOString(),
+    lastUsed: subDays(new Date(), 3).toISOString()
+  }
 ];
