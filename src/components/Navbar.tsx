@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useData } from "../context/DataContext";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { format, parseISO } from "date-fns";
 
 interface NavLinkProps {
@@ -19,7 +19,7 @@ interface NavLinkProps {
 const Navbar: React.FC = () => {
   const { orders, standingOrders, missingItems, returns, complaints } = useData();
   const [isOpen, setIsOpen] = useState(false);
-  const { isMobile } = useMobile();
+  const isMobile = useIsMobile();
   const location = useLocation();
   
   // Count pending orders
