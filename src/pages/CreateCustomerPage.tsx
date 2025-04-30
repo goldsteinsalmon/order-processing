@@ -38,7 +38,8 @@ const CreateCustomerPage: React.FC = () => {
       name,
       email,
       phone,
-      type: "Private" as "Private" | "Trade", // Fix type to be explicitly "Private" | "Trade"
+      address: "", // Add empty address to satisfy the type requirement
+      type: "Private" as "Private" | "Trade",
       onHold: false,
       created: new Date().toISOString()
     };
