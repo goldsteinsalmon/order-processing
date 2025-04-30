@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -87,7 +88,7 @@ const PickingList: React.FC = () => {
   
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
-    contentRef: () => printRef.current,
+    contentRef: printRef,
     onAfterPrint: () => {
       toast({
         title: "Picking list printed",
@@ -162,12 +163,7 @@ const PickingList: React.FC = () => {
     const missingItemId = `${selectedOrderId}-${itemId}`;
     removeMissingItem(missingItemId);
     
-    // Show success message
-    toast({
-      title: "Item resolved",
-      description: `${item.product.name} has been marked as resolved.`,
-      variant: "default"
-    });
+    // Removed the toast notification for item resolution
   };
   
   // Save current progress
