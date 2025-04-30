@@ -99,10 +99,10 @@ const OrdersList: React.FC = () => {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => navigate(`/edit-order/${order.id}`)}
+                              onClick={() => navigate(`/order-details/${order.id}`)}
                             >
                               <Edit className="h-4 w-4 mr-1" />
-                              Edit Order
+                              View Order
                             </Button>
                             <Button 
                               variant="outline" 
