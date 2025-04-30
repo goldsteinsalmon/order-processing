@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -5,6 +6,14 @@ import { ArrowLeft } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell
+} from "@/components/ui/table";
 
 const ViewCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -95,6 +104,50 @@ const ViewCompletedOrder: React.FC = () => {
     }
     return "N/A";
   };
+
+  // Calculate total weight of all items with picked weights
+  const calculateTotalWeight = () => {
+    if (!order.items) return 0;
+    
+    const totalWeight = order.items.reduce((acc, item) => {
+      if (item.pickedWeight) {
+        return acc + Number(item.pickedWeight);
+      }
+      return acc;
+    }, 0);
+    
+    return totalWeight;
+  };
+
+  const totalWeight = calculateTotalWeight();
+  
+  // Group items by box for display
+  const itemsByBox = order.items.reduce((acc, item) => {
+    const boxNumber = item.boxNumber || 0;
+    if (!acc[boxNumber]) {
+      acc[boxNumber] = [];
+    }
+    acc[boxNumber].push(item);
+    return acc;
+  }, {});
+
+  // Calculate items count and weight per box
+  const boxSummaries = Object.entries(itemsByBox).map(([boxNumber, items]) => {
+    const boxItems = items as typeof order.items;
+    const itemCount = boxItems.reduce((sum, item) => sum + item.quantity, 0);
+    const boxWeight = boxItems.reduce((sum, item) => {
+      if (item.pickedWeight) {
+        return sum + Number(item.pickedWeight);
+      }
+      return sum;
+    }, 0);
+    
+    return {
+      boxNumber: Number(boxNumber),
+      itemCount,
+      boxWeight
+    };
+  });
   
   return (
     <div>
@@ -211,17 +264,19 @@ const ViewCompletedOrder: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left font-medium py-2">Product</th>
-                  <th className="text-left font-medium py-2">SKU</th>
-                  <th className="text-right font-medium py-2">Quantity/Weight</th>
-                  <th className="text-right font-medium py-2">Batch Number</th>
-                  <th className="text-right font-medium py-2">Blown Pouches</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead className="text-right">Box</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Weight</TableHead>
+                  <TableHead>Batch Number</TableHead>
+                  <TableHead className="text-right">Blown Pouches</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {order.items.map((item) => {
                   // Check if this specific item has changes
                   const itemChanges = order.changes?.find(change => 
@@ -229,8 +284,8 @@ const ViewCompletedOrder: React.FC = () => {
                   );
                   
                   return (
-                    <tr key={item.id} className={`border-b ${itemChanges ? "bg-red-50" : ""}`}>
-                      <td className="py-3">
+                    <TableRow key={item.id} className={itemChanges ? "bg-red-50" : ""}>
+                      <TableCell>
                         {item.product.name}
                         {itemChanges && (
                           <div className="text-red-600 text-xs mt-1">
@@ -242,28 +297,60 @@ const ViewCompletedOrder: React.FC = () => {
                             }
                           </div>
                         )}
-                      </td>
-                      <td className="py-3">{item.product.sku}</td>
-                      <td className="py-3 text-right">
+                      </TableCell>
+                      <TableCell>{item.product.sku}</TableCell>
+                      <TableCell className="text-right">{item.boxNumber || "N/A"}</TableCell>
+                      <TableCell className="text-right">{item.quantity}</TableCell>
+                      <TableCell className="text-right">
                         {item.product.requiresWeightInput 
                           ? (item.pickedWeight ? formatWeight(item.pickedWeight) : "N/A")
-                          : item.quantity}
-                      </td>
-                      <td className="py-3 text-right">{getItemBatchNumber(item)}</td>
-                      <td className="py-3 text-right">{getItemBlownPouches(item)}</td>
-                    </tr>
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell>{getItemBatchNumber(item)}</TableCell>
+                      <TableCell className="text-right">{getItemBlownPouches(item)}</TableCell>
+                    </TableRow>
                   );
                 })}
-                <tr className="font-medium">
-                  <td colSpan={2} className="py-3">Total Items</td>
-                  <td className="py-3 text-right">{totalItems}</td>
-                  <td colSpan={2}></td>
-                </tr>
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
+
+      {boxSummaries.length > 1 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Box Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Box Number</TableHead>
+                    <TableHead className="text-right">Total Items</TableHead>
+                    <TableHead className="text-right">Box Weight</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {boxSummaries.map((box) => (
+                    <TableRow key={box.boxNumber}>
+                      <TableCell>{box.boxNumber === 0 ? "Unassigned" : `Box ${box.boxNumber}`}</TableCell>
+                      <TableCell className="text-right">{box.itemCount}</TableCell>
+                      <TableCell className="text-right">{formatWeight(box.boxWeight)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="font-medium">
+                    <TableCell>Total</TableCell>
+                    <TableCell className="text-right">{totalItems}</TableCell>
+                    <TableCell className="text-right">{formatWeight(totalWeight)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {order.changes && order.changes.length > 0 && (
         <Card className="mb-6">
@@ -272,28 +359,28 @@ const ViewCompletedOrder: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left font-medium py-2">Product</th>
-                    <th className="text-right font-medium py-2">Original Quantity</th>
-                    <th className="text-right font-medium py-2">Updated Quantity</th>
-                    <th className="text-left font-medium py-2">Date Changed</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Original Quantity</TableHead>
+                    <TableHead className="text-right">Updated Quantity</TableHead>
+                    <TableHead>Date Changed</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {order.changes.map((change, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="py-3">{change.productName}</td>
-                      <td className="py-3 text-right">{change.originalQuantity}</td>
-                      <td className="py-3 text-right">{change.newQuantity}</td>
-                      <td className="py-3">
+                    <TableRow key={index}>
+                      <TableCell>{change.productName}</TableCell>
+                      <TableCell className="text-right">{change.originalQuantity}</TableCell>
+                      <TableCell className="text-right">{change.newQuantity}</TableCell>
+                      <TableCell>
                         {change.date ? format(parseISO(change.date), "dd/MM/yyyy HH:mm") : "N/A"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
