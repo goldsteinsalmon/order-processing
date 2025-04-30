@@ -356,7 +356,6 @@ const PickingList: React.FC = () => {
                           value={unavailableQuantities[item.id] === null ? "" : unavailableQuantities[item.id]}
                           onChange={(e) => handleUnavailableQuantityChange(item.id, e.target.value)}
                           placeholder="Qty"
-                          className="w-20 mx-auto"
                           inputMode="numeric"
                           pattern="[0-9]*"
                           className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
