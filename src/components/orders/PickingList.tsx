@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -88,7 +87,7 @@ const PickingList: React.FC = () => {
   
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
-    content: () => printRef.current,
+    contentRef: () => printRef.current,
     onAfterPrint: () => {
       toast({
         title: "Picking list printed",
