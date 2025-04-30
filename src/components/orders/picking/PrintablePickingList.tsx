@@ -1,7 +1,6 @@
-
 import React, { forwardRef } from "react";
 import { format } from "date-fns";
-import { OrderItem, Order } from "@/types";
+import { OrderItem, Order, Box, BoxItem } from "@/types";
 import { Package } from "lucide-react";
 
 interface ExtendedOrderItem extends OrderItem {
@@ -13,16 +12,24 @@ interface PrintablePickingListProps {
   selectedOrder: Order;
   items: ExtendedOrderItem[];
   groupByBox?: boolean;
+  specificBoxNumber?: number; // Added to allow printing a specific box only
 }
 
 const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProps>(
-  ({ selectedOrder, items, groupByBox = false }, ref) => {
+  ({ selectedOrder, items, groupByBox = false, specificBoxNumber }, ref) => {
     // Check if we have any items requiring weight input
     const hasWeightInputItems = items.some(item => item.product.requiresWeightInput);
     
     // Group items by box if needed
     const groupedItems = React.useMemo(() => {
-      if (!groupByBox) return { noBox: items };
+      // If a specific box number is given, only include those items
+      if (specificBoxNumber !== undefined) {
+        const boxItems = items.filter(item => item.boxNumber === specificBoxNumber);
+        return { [specificBoxNumber]: boxItems };
+      }
+      
+      // Otherwise group all items
+      if (!groupByBox && !selectedOrder.customer.needsDetailedBoxLabels) return { 0: items };
       
       return items.reduce((acc, item) => {
         const boxNumber = item.boxNumber || 0;
@@ -32,13 +39,18 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
         acc[boxNumber].push(item);
         return acc;
       }, {} as Record<number, ExtendedOrderItem[]>);
-    }, [items, groupByBox]);
+    }, [items, groupByBox, selectedOrder.customer.needsDetailedBoxLabels, specificBoxNumber]);
     
     return (
       <div ref={ref} className="p-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold">Picking List</h2>
           <p>{format(new Date(), "MMMM d, yyyy")}</p>
+          {specificBoxNumber !== undefined && (
+            <div className="mt-2 text-xl font-bold">
+              Box #{specificBoxNumber}
+            </div>
+          )}
         </div>
         
         <div className="mb-6">
@@ -54,7 +66,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
         </div>
         
         {/* Render items either grouped by box or all together */}
-        {groupByBox ? (
+        {(groupByBox || selectedOrder.customer.needsDetailedBoxLabels) ? (
           // Grouped by box
           Object.entries(groupedItems).map(([boxNumberStr, boxItems]) => {
             const boxNumber = parseInt(boxNumberStr);
@@ -63,7 +75,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
             return (
               <div key={boxNumberStr} className="mb-8">
                 <h3 className="text-lg font-bold flex items-center mb-2 border-b pb-1">
-                  <span className="mr-2">📦</span>
+                  <Package className="mr-2 h-4 w-4" />
                   {boxTitle}
                 </h3>
                 

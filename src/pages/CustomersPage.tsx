@@ -3,9 +3,10 @@ import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, UserPlus, Search } from "lucide-react";
+import { Eye, UserPlus, Search, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CustomersPage: React.FC = () => {
   const { customers } = useData();
@@ -34,8 +35,6 @@ const CustomersPage: React.FC = () => {
       return accountA.localeCompare(accountB);
     });
   }, [customers, searchTerm]);
-
-  console.log("Current customers:", customers.length); // Debug log to see customer count
 
   return (
     <Layout>
@@ -83,7 +82,23 @@ const CustomersPage: React.FC = () => {
                 filteredCustomers.map((customer) => (
                   <tr key={customer.id} className="border-b">
                     <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
-                    <td className="px-4 py-3">{customer.name}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        {customer.name}
+                        {customer.needsDetailedBoxLabels && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Package className="h-4 w-4 ml-2 text-blue-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Requires detailed box labels</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">{customer.email}</td>
                     <td className="px-4 py-3 w-24">{customer.phone}</td>
                     <td className="px-4 py-3">
