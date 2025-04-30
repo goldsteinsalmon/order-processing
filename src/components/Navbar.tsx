@@ -22,13 +22,13 @@ const Navbar: React.FC = () => {
 
   return (
     <nav className="bg-white shadow-sm">
-      <div className="container mx-auto px-4">
-        <div className="flex overflow-x-auto">
+      <div className="px-4">
+        <div className="flex flex-wrap">
           {navItems.map((item) => (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center px-4 py-4 text-sm font-medium whitespace-nowrap ${isActive(item.path)}`}
+              className={`flex items-center px-4 py-4 text-sm font-medium ${isActive(item.path)}`}
             >
               {item.name}
             </Link>

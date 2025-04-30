@@ -24,8 +24,26 @@ const PickingList: React.FC = () => {
   const [unavailableItems, setUnavailableItems] = useState<{ [key: string]: boolean }>({});
   const [unavailableQuantities, setUnavailableQuantities] = useState<{ [key: string]: number | null }>({});
   const [blownPouches, setBlownPouches] = useState<{ [key: string]: number | null }>({});
+
+  // Helper function to generate change description
+  const getChangeDescription = (order) => {
+    if (!order.changes || order.changes.length === 0) return null;
+    
+    // Get the list of changed products
+    const changedProducts = order.changes.map(change => {
+      if (change.originalQuantity === 0) {
+        return `Added ${change.newQuantity} ${change.productName}`;
+      } else if (change.newQuantity === 0) {
+        return `Removed ${change.productName}`;
+      } else {
+        return `Changed ${change.productName} from ${change.originalQuantity} to ${change.newQuantity}`;
+      }
+    });
+    
+    return changedProducts.join("; ");
+  };
   
-  // Check if order has saved picking progress
+  // Check if order has saved picking progress or is a modified order with previous picker info
   useEffect(() => {
     if (order?.pickingProgress) {
       setSelectedPicker(order.pickingProgress.picker || "");
@@ -34,6 +52,33 @@ const PickingList: React.FC = () => {
       setUnavailableItems(order.pickingProgress.unavailableItems || {});
       setUnavailableQuantities(order.pickingProgress.unavailableQuantities || {});
       setBlownPouches(order.pickingProgress.blownPouches || {});
+    } else if (order?.status === "Modified" && order.picker) {
+      // For modified orders, pre-set the picker that was previously assigned
+      setSelectedPicker(order.picker);
+      
+      // If we have batch numbers from the previous picking, populate them
+      if (order.items) {
+        const initialBatchNumbers = {};
+        order.items.forEach(item => {
+          if (item.batchNumber) {
+            initialBatchNumbers[item.id] = item.batchNumber;
+          }
+        });
+        if (Object.keys(initialBatchNumbers).length > 0) {
+          setBatchNumbers(initialBatchNumbers);
+        }
+        
+        // Set the blown pouches if they exist
+        const initialBlownPouches = {};
+        order.items.forEach(item => {
+          if (item.blownPouches) {
+            initialBlownPouches[item.id] = item.blownPouches;
+          }
+        });
+        if (Object.keys(initialBlownPouches).length > 0) {
+          setBlownPouches(initialBlownPouches);
+        }
+      }
     }
   }, [order]);
 
@@ -280,6 +325,8 @@ const PickingList: React.FC = () => {
     navigate(`/print-box-label/${order.id}`);
   };
 
+  const changeDesc = getChangeDescription(order);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -298,6 +345,16 @@ const PickingList: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {changeDesc && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-600 font-medium">
+              Attention: This order has been modified. Changes: {changeDesc}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
@@ -322,6 +379,11 @@ const PickingList: React.FC = () => {
                       ))}
                   </SelectContent>
                 </Select>
+                {order.status === "Modified" && order.picker && (
+                  <p className="text-xs mt-1 text-gray-600">
+                    Previously picked by: {order.picker}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -370,70 +432,89 @@ const PickingList: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {order.items.map((item) => (
-                  <tr key={item.id} className="border-b">
-                    <td className="py-3">{item.product.name}</td>
-                    <td className="py-3">{item.product.sku}</td>
-                    <td className="py-3 text-center">{item.quantity}</td>
-                    <td className="py-3 text-center">
-                      <Input
-                        value={batchNumbers[item.id] || ""}
-                        onChange={(e) => handleBatchNumberChange(item.id, e.target.value)}
-                        placeholder="Enter batch #"
-                        className="w-28 mx-auto"
-                      />
-                    </td>
-                    <td className="py-3 text-center">
-                      <div className="flex justify-center">
-                        <Checkbox
-                          checked={pickedItems[item.id] || false}
-                          onCheckedChange={(checked) => handlePickedChange(item.id, checked === true)}
-                          disabled={unavailableItems[item.id] || false}
-                          className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                {order.items.map((item) => {
+                  // Check if this specific item has changes
+                  const itemChanges = order.changes?.find(change => 
+                    change.productId === item.productId
+                  );
+                  
+                  return (
+                    <tr key={item.id} className={`border-b ${itemChanges ? "bg-red-50" : ""}`}>
+                      <td className="py-3">
+                        {item.product.name}
+                        {itemChanges && (
+                          <div className="text-red-600 text-xs mt-1">
+                            {itemChanges.originalQuantity === 0 
+                              ? "New item" 
+                              : itemChanges.newQuantity === 0
+                                ? "Item removed"
+                                : `Changed from ${itemChanges.originalQuantity}`
+                            }
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3">{item.product.sku}</td>
+                      <td className="py-3 text-center">{item.quantity}</td>
+                      <td className="py-3 text-center">
+                        <Input
+                          value={batchNumbers[item.id] || ""}
+                          onChange={(e) => handleBatchNumberChange(item.id, e.target.value)}
+                          placeholder="Enter batch #"
+                          className="w-28 mx-auto"
                         />
-                      </div>
-                    </td>
-                    <td className="py-3 text-center">
-                      <div className="flex justify-center">
-                        <Checkbox
-                          checked={unavailableItems[item.id] || false}
-                          onCheckedChange={(checked) => handleUnavailableChange(item.id, checked === true)}
-                          disabled={pickedItems[item.id] || false}
-                          className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
-                        />
-                      </div>
-                    </td>
-                    <td className="py-3 text-center">
-                      {unavailableItems[item.id] ? (
+                      </td>
+                      <td className="py-3 text-center">
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={pickedItems[item.id] || false}
+                            onCheckedChange={(checked) => handlePickedChange(item.id, checked === true)}
+                            disabled={unavailableItems[item.id] || false}
+                            className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                          />
+                        </div>
+                      </td>
+                      <td className="py-3 text-center">
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={unavailableItems[item.id] || false}
+                            onCheckedChange={(checked) => handleUnavailableChange(item.id, checked === true)}
+                            disabled={pickedItems[item.id] || false}
+                            className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+                          />
+                        </div>
+                      </td>
+                      <td className="py-3 text-center">
+                        {unavailableItems[item.id] ? (
+                          <Input
+                            type="number"
+                            min="1"
+                            max={item.quantity}
+                            value={unavailableQuantities[item.id] === null ? "" : unavailableQuantities[item.id]}
+                            onChange={(e) => handleUnavailableQuantityChange(item.id, e.target.value)}
+                            placeholder="Qty"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          />
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="py-3 text-center">
                         <Input
                           type="number"
-                          min="1"
-                          max={item.quantity}
-                          value={unavailableQuantities[item.id] === null ? "" : unavailableQuantities[item.id]}
-                          onChange={(e) => handleUnavailableQuantityChange(item.id, e.target.value)}
-                          placeholder="Qty"
+                          min="0"
+                          value={blownPouches[item.id] === null ? "" : blownPouches[item.id]}
+                          onChange={(e) => handleBlownPouchesChange(item.id, e.target.value)}
+                          placeholder="0"
+                          className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="py-3 text-center">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={blownPouches[item.id] === null ? "" : blownPouches[item.id]}
-                        onChange={(e) => handleBlownPouchesChange(item.id, e.target.value)}
-                        placeholder="0"
-                        className="w-20 mx-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                      />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
                 <tr className="font-medium">
                   <td colSpan={7} className="py-3 text-right">Total Blown Pouches:</td>
                   <td className="py-3 text-center">

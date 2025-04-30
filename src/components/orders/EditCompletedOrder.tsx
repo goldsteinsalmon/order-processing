@@ -33,7 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { v4 as uuidv4 } from "uuid";
 
 const EditCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -119,8 +118,11 @@ const EditCompletedOrder: React.FC = () => {
       return;
     }
     
+    // Generate a unique ID for the new item
+    const newItemId = `new-${Date.now()}`;
+    
     const newItem = {
-      id: uuidv4(),
+      id: newItemId,
       productId: productToAdd.id,
       product: productToAdd,
       quantity: 1,
@@ -152,7 +154,7 @@ const EditCompletedOrder: React.FC = () => {
     // Create list of all items for updated order, removing "originalQuantity" and "hasChanged" properties
     const cleanedItems = orderItems.map(({ hasChanged, originalQuantity, isNew, ...item }) => item);
       
-    // Create the updated order with changes
+    // Create the updated order with changes, preserving picker, batch numbers and blown pouches
     const updatedOrder = {
       ...originalOrder,
       orderDate: orderDate,
@@ -241,6 +243,10 @@ const EditCompletedOrder: React.FC = () => {
                 <dd className="col-span-2">
                   {originalOrder.status} (Will be changed to "Modified")
                 </dd>
+              </div>
+              <div className="grid grid-cols-3">
+                <dt className="font-medium">Picker:</dt>
+                <dd className="col-span-2">{originalOrder.picker || "N/A"}</dd>
               </div>
             </dl>
           </CardContent>

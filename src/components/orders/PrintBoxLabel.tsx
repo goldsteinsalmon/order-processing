@@ -36,7 +36,11 @@ const PrintBoxLabel: React.FC = () => {
   };
 
   const handleBackToOrders = () => {
-    navigate("/");
+    if (order.status === "Completed") {
+      navigate("/completed-orders");
+    } else {
+      navigate("/");
+    }
   };
 
   return (
@@ -45,7 +49,7 @@ const PrintBoxLabel: React.FC = () => {
       <div className="flex justify-between items-center mb-6 print:hidden">
         <div className="flex items-center">
           <Button variant="ghost" onClick={handleBackToOrders} className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
           <h2 className="text-2xl font-bold">Print Box Labels</h2>
         </div>

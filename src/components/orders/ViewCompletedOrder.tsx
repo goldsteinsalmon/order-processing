@@ -25,11 +25,68 @@ const ViewCompletedOrder: React.FC = () => {
     );
   }
 
+  // Helper function to generate change description
+  const getChangeDescription = (order) => {
+    if (!order.changes || order.changes.length === 0) return null;
+    
+    // Get the list of changed products
+    const changedProducts = order.changes.map(change => {
+      if (change.originalQuantity === 0) {
+        return `Added ${change.newQuantity} ${change.productName}`;
+      } else if (change.newQuantity === 0) {
+        return `Removed ${change.productName}`;
+      } else {
+        return `Changed ${change.productName} from ${change.originalQuantity} to ${change.newQuantity}`;
+      }
+    });
+    
+    return changedProducts.join("; ");
+  };
+
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
-  // Get batch numbers map from picking progress
-  const batchNumbersMap = order.pickingProgress?.batchNumbers || {};
+  // Get batch numbers
+  const formatBatchNumbers = () => {
+    if (order.batchNumbers && order.batchNumbers.length > 0) {
+      return order.batchNumbers.join(", ");
+    }
+    return order.batchNumber || "N/A";
+  };
+  
+  // Get batch numbers for each item
+  const getItemBatchNumber = (item) => {
+    // First check if the item has its own batch number
+    if (item.batchNumber) {
+      return item.batchNumber;
+    }
+    
+    // Then check the pickingProgress batchNumbers mapping
+    if (order.pickingProgress?.batchNumbers && order.pickingProgress.batchNumbers[item.id]) {
+      return order.pickingProgress.batchNumbers[item.id];
+    }
+    
+    // Fall back to the order's batch number
+    return order.batchNumber || "N/A";
+  };
+
+  // Get blown pouches for each item
+  const getItemBlownPouches = (item) => {
+    // First check if the item has its own blown pouches
+    if (item.blownPouches !== undefined) {
+      return item.blownPouches;
+    }
+    
+    // Then check the pickingProgress blownPouches mapping
+    if (order.pickingProgress?.blownPouches && order.pickingProgress.blownPouches[item.id]) {
+      return order.pickingProgress.blownPouches[item.id];
+    }
+    
+    // Default to 0
+    return 0;
+  };
+  
+  const changeDesc = getChangeDescription(order);
   
   return (
     <div>
@@ -41,6 +98,16 @@ const ViewCompletedOrder: React.FC = () => {
           <h2 className="text-2xl font-bold">Completed Order Details</h2>
         </div>
       </div>
+
+      {changeDesc && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-red-600 font-medium">
+              This order has been modified. Changes: {changeDesc}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
@@ -81,9 +148,7 @@ const ViewCompletedOrder: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Batch Number(s):</dt>
-                <dd className="col-span-2">
-                  {order.batchNumbers ? order.batchNumbers.join(", ") : (order.batchNumber || "N/A")}
-                </dd>
+                <dd className="col-span-2">{formatBatchNumbers()}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Blown Pouches:</dt>
@@ -153,20 +218,34 @@ const ViewCompletedOrder: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {order.items.map((item) => (
-                  <tr key={item.id} className="border-b">
-                    <td className="py-3">{item.product.name}</td>
-                    <td className="py-3">{item.product.sku}</td>
-                    <td className="py-3 text-right">{item.quantity}</td>
-                    <td className="py-3 text-right">
-                      {batchNumbersMap[item.id] || (order.batchNumber || "N/A")}
-                    </td>
-                    <td className="py-3 text-right">
-                      {item.blownPouches || 
-                       (order.pickingProgress?.blownPouches?.[item.id] || 0)}
-                    </td>
-                  </tr>
-                ))}
+                {order.items.map((item) => {
+                  // Check if this specific item has changes
+                  const itemChanges = order.changes?.find(change => 
+                    change.productId === item.productId
+                  );
+                  
+                  return (
+                    <tr key={item.id} className={`border-b ${itemChanges ? "bg-red-50" : ""}`}>
+                      <td className="py-3">
+                        {item.product.name}
+                        {itemChanges && (
+                          <div className="text-red-600 text-xs mt-1">
+                            {itemChanges.originalQuantity === 0 
+                              ? "New item" 
+                              : itemChanges.newQuantity === 0
+                                ? "Item removed"
+                                : `Changed from ${itemChanges.originalQuantity}`
+                            }
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3">{item.product.sku}</td>
+                      <td className="py-3 text-right">{item.quantity}</td>
+                      <td className="py-3 text-right">{getItemBatchNumber(item)}</td>
+                      <td className="py-3 text-right">{getItemBlownPouches(item)}</td>
+                    </tr>
+                  );
+                })}
                 <tr className="font-medium">
                   <td colSpan={2} className="py-3">Total Items</td>
                   <td className="py-3 text-right">{totalItems}</td>
