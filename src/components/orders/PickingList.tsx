@@ -62,6 +62,7 @@ const PickingList: React.FC = () => {
         ...item,
         checked: item.checked || false, // Initialize checked status
         batchNumber: item.batchNumber || "", // Initialize batch number
+        pickedWeight: item.pickedWeight || 0, // Initialize picked weight
       }));
       setAllItems(items);
       
@@ -109,19 +110,22 @@ const PickingList: React.FC = () => {
   };
   
   const handleBatchNumber = (itemId: string, batchNumber: string) => {
-    // Fix by adding the orderId parameter
-    if (selectedOrderId && batchNumber) {
-      const item = allItems.find((i) => i.id === itemId);
-      if (item) {
-        recordBatchUsage(batchNumber, item.productId, item.quantity, selectedOrderId);
-      }
-    }
-    
     // Update the item in state
     setAllItems(
       allItems.map((item) => {
         if (item.id === itemId) {
           return { ...item, batchNumber };
+        }
+        return item;
+      })
+    );
+  };
+  
+  const handleWeightChange = (itemId: string, weight: number) => {
+    setAllItems(
+      allItems.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, pickedWeight: weight };
         }
         return item;
       })
@@ -162,8 +166,6 @@ const PickingList: React.FC = () => {
     // Remove from the global missing items list
     const missingItemId = `${selectedOrderId}-${itemId}`;
     removeMissingItem(missingItemId);
-    
-    // Removed the toast notification for item resolution
   };
   
   // Save current progress
@@ -185,7 +187,8 @@ const PickingList: React.FC = () => {
           ...item,
           batchNumber: updatedItem.batchNumber || item.batchNumber,
           checked: updatedItem.checked,
-          missingQuantity: missingQuantity
+          missingQuantity: missingQuantity,
+          pickedWeight: updatedItem.pickedWeight || item.pickedWeight
         };
       }),
       pickingInProgress: true,
@@ -261,6 +264,20 @@ const PickingList: React.FC = () => {
       return;
     }
     
+    // Check if all items that require weight input have a weight entered
+    const weightInputMissing = allItems
+      .filter(item => item.product.requiresWeightInput)
+      .some(item => !item.pickedWeight || item.pickedWeight <= 0);
+    
+    if (weightInputMissing) {
+      toast({
+        title: "Missing weight information",
+        description: "Please enter weights for all products that require it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Check if a picker has been selected
     if (!selectedPickerId) {
       toast({
@@ -290,7 +307,8 @@ const PickingList: React.FC = () => {
           ...item,
           batchNumber: item.batchNumber,
           missingQuantity: missingQuantity,
-          pickedQuantity: item.quantity - missingQuantity
+          pickedQuantity: item.quantity - missingQuantity,
+          pickedWeight: item.pickedWeight
         };
       }),
       pickedBy: selectedPickerId,
@@ -301,6 +319,19 @@ const PickingList: React.FC = () => {
     
     // Complete the order
     completeOrder(updatedOrder);
+    
+    // Now record batch usage for each item
+    allItems.forEach(item => {
+      if (item.batchNumber && selectedOrderId) {
+        if (item.product.requiresWeightInput && item.pickedWeight) {
+          // For weight-based products, use the entered weight
+          recordBatchUsage(item.batchNumber, item.productId, 0, selectedOrderId, item.pickedWeight);
+        } else {
+          // For quantity-based products, use the quantity
+          recordBatchUsage(item.batchNumber, item.productId, item.quantity - (item.missingQuantity || 0), selectedOrderId);
+        }
+      }
+    });
     
     // Remove any resolved missing items
     resolvedMissingItems.forEach(resolvedItem => {
@@ -380,6 +411,7 @@ const PickingList: React.FC = () => {
             onBatchNumberChange={handleBatchNumber}
             onMissingItemChange={handleMissingItem}
             onResolveMissingItem={handleResolveMissingItem}
+            onWeightChange={handleWeightChange}
           />
           
           {/* Printable version */}

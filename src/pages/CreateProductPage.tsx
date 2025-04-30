@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const CreateProductPage: React.FC = () => {
   const navigate = useNavigate();
@@ -20,7 +21,8 @@ const CreateProductPage: React.FC = () => {
     sku: "",
     description: "",
     stockLevel: 0,
-    weight: 0 // Default weight in grams
+    weight: 0, // Default weight in grams
+    requiresWeightInput: false // New field for weight input requirement
   });
 
   const [errors, setErrors] = useState({
@@ -44,6 +46,13 @@ const CreateProductPage: React.FC = () => {
         [name]: ""
       });
     }
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData({
+      ...formData,
+      requiresWeightInput: checked
+    });
   };
 
   const validateForm = () => {
@@ -71,7 +80,8 @@ const CreateProductPage: React.FC = () => {
       sku: formData.sku,
       description: formData.description,
       stockLevel: formData.stockLevel,
-      weight: formData.weight
+      weight: formData.weight,
+      requiresWeightInput: formData.requiresWeightInput
     };
 
     addProduct(newProduct);
@@ -168,6 +178,20 @@ const CreateProductPage: React.FC = () => {
                 placeholder="Enter product description"
                 rows={4}
               />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="requiresWeightInput" 
+                checked={formData.requiresWeightInput}
+                onCheckedChange={handleCheckboxChange}
+              />
+              <label 
+                htmlFor="requiresWeightInput" 
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Requires weight input during picking
+              </label>
             </div>
           </div>
 

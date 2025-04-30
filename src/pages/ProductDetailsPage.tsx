@@ -12,6 +12,7 @@ import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-f
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ProductDetailsPage: React.FC = () => {
   const { products, updateProduct, orders, completedOrders } = useData();
@@ -78,6 +79,15 @@ const ProductDetailsPage: React.FC = () => {
     setEditedProduct({
       ...editedProduct,
       [name]: name === "stockLevel" || name === "weight" ? Number(value) : value,
+    });
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    if (!editedProduct) return;
+    
+    setEditedProduct({
+      ...editedProduct,
+      requiresWeightInput: checked
     });
   };
 
@@ -193,6 +203,19 @@ const ProductDetailsPage: React.FC = () => {
                           onChange={handleChange}
                         />
                       </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="requiresWeightInput" 
+                          checked={editedProduct?.requiresWeightInput || false}
+                          onCheckedChange={handleCheckboxChange}
+                        />
+                        <label 
+                          htmlFor="requiresWeightInput" 
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Requires weight input during picking
+                        </label>
+                      </div>
                     </>
                   ) : (
                     <div className="space-y-3">
@@ -211,6 +234,10 @@ const ProductDetailsPage: React.FC = () => {
                       <div className="grid grid-cols-3 border-b pb-2">
                         <span className="text-gray-600">Weight:</span>
                         <span className="col-span-2 font-medium">{product.weight || 'N/A'} grams</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Requires Weight Input:</span>
+                        <span className="col-span-2 font-medium">{product.requiresWeightInput ? 'Yes' : 'No'}</span>
                       </div>
                     </div>
                   )}

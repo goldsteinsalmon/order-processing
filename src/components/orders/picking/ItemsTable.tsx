@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Weight } from "lucide-react";
 
 interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
@@ -20,6 +20,7 @@ interface ItemsTableProps {
   onBatchNumberChange: (itemId: string, batchNumber: string) => void;
   onMissingItemChange: (itemId: string, quantity: number) => void;
   onResolveMissingItem?: (itemId: string) => void;
+  onWeightChange?: (itemId: string, weight: number) => void;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({ 
@@ -28,7 +29,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onCheckItem, 
   onBatchNumberChange, 
   onMissingItemChange,
-  onResolveMissingItem
+  onResolveMissingItem,
+  onWeightChange
 }) => {
   return (
     <Card>
@@ -45,6 +47,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <TableHead className="text-right">Quantity</TableHead>
                 <TableHead>Batch Number</TableHead>
                 <TableHead>Missing</TableHead>
+                {items.some(item => item.product.requiresWeightInput) && (
+                  <TableHead>Weight (g)</TableHead>
+                )}
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -53,6 +58,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 const missingItem = missingItems.find(mi => mi.id === item.id);
                 const missingQuantity = missingItem ? missingItem.quantity : 0;
                 const hasMissingItems = missingQuantity > 0;
+                const requiresWeightInput = item.product.requiresWeightInput;
                 
                 return (
                   <TableRow key={item.id}>
@@ -67,6 +73,12 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     <TableCell>
                       <div className="font-medium">{item.product.name}</div>
                       <div className="text-sm text-gray-500">{item.product.sku}</div>
+                      {requiresWeightInput && (
+                        <div className="text-xs text-blue-600 font-medium flex items-center mt-1">
+                          <Weight className="h-3 w-3 mr-1" /> 
+                          Requires weight input
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {item.quantity}
@@ -91,6 +103,25 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         )}
                       />
                     </TableCell>
+                    {items.some(item => item.product.requiresWeightInput) && (
+                      <TableCell>
+                        {requiresWeightInput ? (
+                          <Input 
+                            type="number"
+                            min="0"
+                            placeholder="Enter weight"
+                            value={item.pickedWeight || ""}
+                            onChange={(e) => onWeightChange && onWeightChange(
+                              item.id, 
+                              parseFloat(e.target.value) || 0
+                            )}
+                            className="bg-blue-50"
+                          />
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {hasMissingItems && onResolveMissingItem && (
                         <Button 

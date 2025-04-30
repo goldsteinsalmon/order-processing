@@ -15,6 +15,9 @@ interface PrintablePickingListProps {
 
 const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProps>(
   ({ selectedOrder, items }, ref) => {
+    // Check if we have any items requiring weight input
+    const hasWeightInputItems = items.some(item => item.product.requiresWeightInput);
+    
     return (
       <div ref={ref} className="p-8">
         <div className="text-center mb-6">
@@ -41,16 +44,27 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
               <th className="text-left py-2">SKU</th>
               <th className="text-right py-2">Quantity</th>
               <th className="text-left py-2">Batch #</th>
+              {hasWeightInputItems && <th className="text-right py-2">Weight (g)</th>}
               <th className="text-center py-2">Picked</th>
             </tr>
           </thead>
           <tbody>
             {items.map(item => (
               <tr key={item.id} className="border-b">
-                <td className="py-2">{item.product.name}</td>
+                <td className="py-2">
+                  {item.product.name}
+                  {item.product.requiresWeightInput && (
+                    <div className="text-xs italic">(Requires weight input)</div>
+                  )}
+                </td>
                 <td className="py-2">{item.product.sku}</td>
                 <td className="py-2 text-right">{item.quantity}</td>
                 <td className="py-2">_________________</td>
+                {hasWeightInputItems && (
+                  <td className="py-2 text-right">
+                    {item.product.requiresWeightInput ? "_________________" : "N/A"}
+                  </td>
+                )}
                 <td className="py-2 text-center">□</td>
               </tr>
             ))}

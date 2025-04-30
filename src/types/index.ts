@@ -19,6 +19,7 @@ export interface Product {
   stockLevel: number;
   weight?: number; // Weight in grams
   created?: string; // Added created property
+  requiresWeightInput?: boolean; // Added flag to indicate if weight input is required during picking
 }
 
 export interface OrderItem {
@@ -33,6 +34,7 @@ export interface OrderItem {
   checked?: boolean;
   missingQuantity?: number;
   pickedQuantity?: number;
+  pickedWeight?: number; // Added picked weight field for weight-based products
 }
 
 export interface PickingProgress {

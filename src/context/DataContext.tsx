@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { 
   Customer, 
@@ -66,7 +65,7 @@ interface DataContextType {
   deletePicker: (pickerId: string) => void;
   getBatchUsages: () => BatchUsage[];
   getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
-  recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string) => void;
+  recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -153,14 +152,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     }
     
-    // Record batch usage for each item with a batch number
-    if (order.items) {
-      order.items.forEach(item => {
-        if (item.batchNumber && item.quantity > 0) {
-          recordBatchUsage(item.batchNumber, item.productId, item.quantity, order.id);
-        }
-      });
-    }
+    // We no longer record batch usage here as it's now handled in the PickingList component
+    // after the order is completed, to properly account for weight-based products
     
     setOrders(orders.filter(o => o.id !== order.id));
     setCompletedOrders([...completedOrders, updatedOrder]);
@@ -371,20 +364,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
   };
 
-  // Completely rewritten recordBatchUsage function to properly track multiple batches
-  const recordBatchUsage = (batchNumber: string, productId: string, quantity: number, orderId: string) => {
+  // Updated recordBatchUsage function to handle manual weight input
+  const recordBatchUsage = (
+    batchNumber: string, 
+    productId: string, 
+    quantity: number, 
+    orderId: string,
+    manualWeight?: number
+  ) => {
     if (!batchNumber || !productId) return;
     
     const currentDate = new Date().toISOString();
     const product = products.find(p => p.id === productId);
     
-    if (!product || !product.weight) {
-      console.error(`Cannot record batch usage: Product not found or weight not defined for product ID ${productId}`);
+    if (!product) {
+      console.error(`Cannot record batch usage: Product not found for product ID ${productId}`);
       return;
     }
     
-    // Calculate weight in grams (assuming product.weight is in grams)
-    const totalWeight = product.weight * quantity;
+    // Calculate weight in grams
+    let totalWeight = 0;
+    
+    if (manualWeight !== undefined && manualWeight > 0) {
+      // Use the manually entered weight for products that require weight input
+      totalWeight = manualWeight;
+      console.log(`Using manually entered weight of ${manualWeight}g for product ${product.name}`);
+    } else if (product.weight) {
+      // Use calculated weight based on quantity and product's weight
+      totalWeight = product.weight * quantity;
+      console.log(`Calculated weight: ${product.weight}g per item × ${quantity} items = ${totalWeight}g for product ${product.name}`);
+    } else {
+      console.warn(`No weight available for product ${product.name}. Using quantity as fallback for batch tracking.`);
+      totalWeight = quantity; // Fallback to using quantity as a measure
+    }
     
     // Check if we've already processed this specific batch-order combination
     if (!processedBatchOrderMap[batchNumber]) {
