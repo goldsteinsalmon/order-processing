@@ -26,7 +26,7 @@ const AdminPage: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userFormData, setUserFormData] = useState({
     name: "",
-    email: "",
+    username: "", // Changed from email to username
     password: "",
     role: "User",
     active: true
@@ -122,7 +122,7 @@ const AdminPage: React.FC = () => {
       if (user) {
         setUserFormData({
           name: user.name,
-          email: user.email,
+          username: user.email, // Use email field as username for existing users
           password: "", // Don't show existing password
           role: user.role,
           active: user.active
@@ -134,7 +134,7 @@ const AdminPage: React.FC = () => {
       // Create new user
       setUserFormData({
         name: "",
-        email: "",
+        username: "",
         password: "",
         role: "User",
         active: true
@@ -146,7 +146,7 @@ const AdminPage: React.FC = () => {
   };
   
   const handleUserFormSubmit = () => {
-    if (!userFormData.name || !userFormData.email || (!isEditMode && !userFormData.password)) {
+    if (!userFormData.name || !userFormData.username || (!isEditMode && !userFormData.password)) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -155,13 +155,16 @@ const AdminPage: React.FC = () => {
       return;
     }
     
+    // Only allow Admin or User roles
+    const role = userFormData.role === "Admin" ? "Admin" : "User";
+    
     if (isEditMode && selectedUserId) {
       // Update existing user
       updateUser({
         id: selectedUserId,
         name: userFormData.name,
-        email: userFormData.email,
-        role: userFormData.role as "Admin" | "User" | "Manager",
+        email: userFormData.username, // Store username in the email field
+        role: role as "Admin" | "User",
         active: userFormData.active,
         ...(userFormData.password ? { password: userFormData.password } : {})
       });
@@ -174,9 +177,9 @@ const AdminPage: React.FC = () => {
       addUser({
         id: uuidv4(),
         name: userFormData.name,
-        email: userFormData.email,
+        email: userFormData.username, // Store username in the email field
         password: userFormData.password,
-        role: userFormData.role as "Admin" | "User" | "Manager",
+        role: role as "Admin" | "User",
         active: userFormData.active
       });
       toast({
@@ -282,7 +285,7 @@ const AdminPage: React.FC = () => {
     // CSV header and example row
     const csvContent = [
       "accountNumber,name,email,phone,address,type",
-      "ACC123,Example Customer,customer@example.com,01234567890,123 Example Street,Private"
+      "ACC123,Example Customer,customer@example.com,01234567890,123 Example Street,Trade"
     ].join("\n");
     
     // Create a blob and download
@@ -371,7 +374,7 @@ const AdminPage: React.FC = () => {
               email: (row as any).email || "",
               phone: (row as any).phone || "",
               address: (row as any).address || "",
-              type: (row as any).type || "Private", // Add default type if missing
+              type: (row as any).type || "Trade", // Changed default from Private to Trade
               onHold: false,
               created: new Date().toISOString(),
             }));
@@ -499,7 +502,7 @@ const AdminPage: React.FC = () => {
                     <thead>
                       <tr className="border-b bg-gray-50">
                         <th className="px-4 py-3 text-left font-medium">Name</th>
-                        <th className="px-4 py-3 text-left font-medium">Email</th>
+                        <th className="px-4 py-3 text-left font-medium">Username</th>
                         <th className="px-4 py-3 text-left font-medium">Role</th>
                         <th className="px-4 py-3 text-left font-medium">Status</th>
                         <th className="px-4 py-3 text-left font-medium">Actions</th>
@@ -747,13 +750,12 @@ const AdminPage: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                value={userFormData.email}
-                onChange={(e) => setUserFormData({...userFormData, email: e.target.value})}
-                placeholder="Enter email address"
+                id="username"
+                value={userFormData.username}
+                onChange={(e) => setUserFormData({...userFormData, username: e.target.value})}
+                placeholder="Enter username"
               />
             </div>
             
@@ -779,7 +781,6 @@ const AdminPage: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Manager">Manager</SelectItem>
                   <SelectItem value="User">User</SelectItem>
                 </SelectContent>
               </Select>
