@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
 import { shouldProcessImmediately, getOrderProcessingDate } from "@/utils/dateUtils";
+import { Order } from "@/types";
 
 const CreateStandingOrderForm: React.FC = () => {
   const navigate = useNavigate();
@@ -165,13 +166,12 @@ const CreateStandingOrderForm: React.FC = () => {
     // Create an immediate order if this first delivery qualifies for immediate processing
     if (shouldProcessImmediately(firstDeliveryDate)) {
       // Create a normal order from the standing order for immediate processing
-      const immediateOrder = {
+      const immediateOrder: Order = {
         id: uuidv4(),
         customerId,
         customer,
         customerOrderNumber: customerOrderNumber || undefined,
         orderDate: firstDeliveryDateString,
-        requiredDate: firstDeliveryDateString,
         deliveryMethod,
         items: fullOrderItems,
         notes: notes ? `${notes} (Generated from Standing Order #${standingOrder.id.substring(0, 8)})` : `Generated from Standing Order #${standingOrder.id.substring(0, 8)}`,

@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   name: string;
@@ -53,6 +52,7 @@ export interface Order {
   customer: Customer;
   customerOrderNumber?: string;
   orderDate: string;
+  requiredDate?: string;
   deliveryMethod: "Delivery" | "Collection";
   items: OrderItem[];
   notes?: string;
@@ -69,6 +69,7 @@ export interface Order {
   batchNumbers?: string[];
   hasChanges?: boolean;
   changes?: OrderChange[];
+  fromStandingOrder?: string;
 }
 
 export interface StandingOrder {
@@ -81,6 +82,7 @@ export interface StandingOrder {
     dayOfWeek?: number; // 0-6, Sunday to Saturday
     dayOfMonth?: number; // 1-31
     deliveryMethod: "Delivery" | "Collection";
+    nextDeliveryDate?: string; // ISO date string for next delivery
     skippedDates?: string[]; // ISO date strings for skipped deliveries
     modifiedDeliveries?: {
       date: string;
@@ -95,6 +97,8 @@ export interface StandingOrder {
   active: boolean;
   created: string;
   updated?: string;
+  nextProcessingDate?: string; // Added this property
+  lastProcessedDate?: string; // Added this for tracking when orders were last processed
 }
 
 export interface Return {
