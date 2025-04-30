@@ -1,16 +1,18 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { StandingOrder, OrderItem } from "@/types";
+import { StandingOrder, OrderItem, Product } from "@/types";
 
 const EditStandingOrderDeliveryPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +30,14 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [notes, setNotes] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [productQuantity, setProductQuantity] = useState<number>(1);
+  
+  // Available products (excluding those already in the order)
+  const availableProducts = products.filter(
+    product => !items.some(item => item.product.id === product.id)
+  );
   
   // Find the standing order
   useEffect(() => {
@@ -79,6 +89,33 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   // Handle notes change
   const handleNotesChange = (value: string) => {
     setNotes(value);
+    setHasChanges(true);
+  };
+  
+  // Handle add product
+  const handleAddProduct = () => {
+    if (!selectedProduct || productQuantity <= 0) return;
+    
+    const product = products.find(p => p.id === selectedProduct);
+    if (!product) return;
+    
+    const newItem: OrderItem = {
+      product,
+      quantity: productQuantity
+    };
+    
+    setItems([...items, newItem]);
+    setSelectedProduct("");
+    setProductQuantity(1);
+    setShowAddProduct(false);
+    setHasChanges(true);
+  };
+  
+  // Handle remove product
+  const handleRemoveProduct = (index: number) => {
+    const newItems = [...items];
+    newItems.splice(index, 1);
+    setItems(newItems);
     setHasChanges(true);
   };
   
@@ -200,10 +237,68 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       </Card>
       
       <Card className="mb-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Order Items</CardTitle>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowAddProduct(!showAddProduct)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
         </CardHeader>
         <CardContent>
+          {showAddProduct && (
+            <div className="mb-4 p-4 border rounded-md bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                <div className="md:col-span-3">
+                  <Label htmlFor="product">Product</Label>
+                  <Select
+                    value={selectedProduct}
+                    onValueChange={setSelectedProduct}
+                  >
+                    <SelectTrigger id="product">
+                      <SelectValue placeholder="Select a product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableProducts.length > 0 ? (
+                        availableProducts.map(product => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} ({product.sku})
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          All products already added
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="quantity">Quantity</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value={productQuantity}
+                    onChange={(e) => setProductQuantity(parseInt(e.target.value) || 1)}
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                <div>
+                  <Button 
+                    onClick={handleAddProduct}
+                    disabled={!selectedProduct || productQuantity <= 0 || availableProducts.length === 0}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -211,24 +306,42 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
                   <th className="text-right font-medium py-2 w-32">Quantity</th>
+                  <th className="text-right font-medium py-2 w-24">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="py-3">{item.product.name}</td>
-                    <td className="py-3">{item.product.sku}</td>
-                    <td className="py-3">
-                      <Input
-                        type="number"
-                        min="0"
-                        value={item.quantity}
-                        onChange={(e) => handleQuantityChange(index, e.target.value)}
-                        className="w-20 text-right ml-auto"
-                      />
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">
+                      No products added to this delivery
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  items.map((item, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-3">{item.product.name}</td>
+                      <td className="py-3">{item.product.sku}</td>
+                      <td className="py-3">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(index, e.target.value)}
+                          className="w-20 text-right ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                      </td>
+                      <td className="py-3 text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleRemoveProduct(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

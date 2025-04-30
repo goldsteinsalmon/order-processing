@@ -63,13 +63,13 @@ const StandingOrderSchedulePage: React.FC = () => {
     // Find the first occurrence based on the schedule
     if (order.schedule.frequency === "Weekly") {
       // Find the next occurrence of the specified day of the week
-      const dayOfWeek = order.schedule.dayOfWeek || 0;
+      const dayOfWeek = order.schedule.dayOfWeek || 1; // Default to Monday (1)
       let daysUntilNext = (dayOfWeek - currentDate.getDay() + 7) % 7;
       if (daysUntilNext === 0) daysUntilNext = 7; // If today is the day, get next week
       currentDate = addDays(currentDate, daysUntilNext);
     } else if (order.schedule.frequency === "Bi-Weekly") {
       // Find the next occurrence of the bi-weekly day
-      const dayOfWeek = order.schedule.dayOfWeek || 0;
+      const dayOfWeek = order.schedule.dayOfWeek || 1; // Default to Monday (1)
       let daysUntilNext = (dayOfWeek - currentDate.getDay() + 7) % 7;
       if (daysUntilNext === 0) daysUntilNext = 7; // If today is the day, get next week
       currentDate = addDays(currentDate, daysUntilNext);
@@ -89,23 +89,27 @@ const StandingOrderSchedulePage: React.FC = () => {
     
     // Now generate the dates
     while (count < (weeks * 2)) { // Generate more than needed and then filter
-      if (!isSkippedDate(currentDate)) {
-        const modifiedDelivery = getModifiedDelivery(currentDate);
-        
-        dates.push({
-          date: new Date(currentDate),
-          isModified: !!modifiedDelivery,
-          modifications: modifiedDelivery?.modifications,
-          isSkipped: false
-        });
-      } else {
-        // Include skipped dates in the list with a flag
-        dates.push({
-          date: new Date(currentDate),
-          isModified: false,
-          modifications: null,
-          isSkipped: true
-        });
+      // Skip weekend days (0 is Sunday, 6 is Saturday)
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        if (!isSkippedDate(currentDate)) {
+          const modifiedDelivery = getModifiedDelivery(currentDate);
+          
+          dates.push({
+            date: new Date(currentDate),
+            isModified: !!modifiedDelivery,
+            modifications: modifiedDelivery?.modifications,
+            isSkipped: false
+          });
+        } else {
+          // Include skipped dates in the list with a flag
+          dates.push({
+            date: new Date(currentDate),
+            isModified: false,
+            modifications: null,
+            isSkipped: true
+          });
+        }
       }
       
       // Move to the next occurrence based on frequency
