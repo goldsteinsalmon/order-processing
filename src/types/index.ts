@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   name: string;
@@ -39,6 +38,14 @@ export interface PickingProgress {
   blownPouches: { [key: string]: number | null };
 }
 
+export interface OrderChange {
+  productId: string;
+  productName: string;
+  originalQuantity: number;
+  newQuantity: number;
+  date: string;
+}
+
 export interface Order {
   id: string;
   customerId: string;
@@ -48,7 +55,7 @@ export interface Order {
   deliveryMethod: "Delivery" | "Collection";
   items: OrderItem[];
   notes?: string;
-  status: "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items";
+  status: "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items" | "Modified";
   picker?: string;
   isPicked?: boolean;
   totalBlownPouches?: number;
@@ -58,6 +65,9 @@ export interface Order {
   created: string;
   updated?: string;
   batchNumber?: string;
+  batchNumbers?: string[];
+  hasChanges?: boolean;
+  changes?: OrderChange[];
 }
 
 export interface StandingOrder {

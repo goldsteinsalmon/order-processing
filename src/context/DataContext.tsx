@@ -112,7 +112,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const completeOrder = (order: Order) => {
     // When completing an order, add support for multiple batch numbers
-    let updatedOrder = { ...order, status: "Completed" as const };
+    let updatedOrder: Order = { ...order, status: "Completed" };
     
     // If there's already a batchNumber, convert it to batchNumbers array
     if (order.batchNumber && !order.batchNumbers) {

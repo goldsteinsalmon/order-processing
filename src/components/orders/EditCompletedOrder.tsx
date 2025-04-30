@@ -7,6 +7,7 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { OrderChange } from "@/types";
 import {
   Card,
   CardContent,
@@ -76,7 +77,7 @@ const EditCompletedOrder: React.FC = () => {
   };
 
   const saveChanges = () => {
-    const changes = orderItems
+    const changes: OrderChange[] = orderItems
       .filter(item => item.hasChanged)
       .map(item => ({
         productId: item.productId,
@@ -93,7 +94,7 @@ const EditCompletedOrder: React.FC = () => {
       changes: [...(originalOrder.changes || []), ...changes],
       hasChanges: true,
       updated: new Date().toISOString(),
-      status: "Modified" as const,
+      status: "Modified" as "Modified",
     };
 
     // Save the updated order back into the system as a regular order (not completed)
