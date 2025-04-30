@@ -59,6 +59,7 @@ const CreateOrderForm: React.FC = () => {
   
   const [showSameDayWarning, setShowSameDayWarning] = useState(false);
   const [showCutOffWarning, setShowCutOffWarning] = useState(false);
+  const [manualDateChange, setManualDateChange] = useState(false);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
@@ -78,14 +79,14 @@ const CreateOrderForm: React.FC = () => {
       setShowSameDayWarning(false);
     }
     
-    // Check if current time is after 12 PM (noon)
+    // Check if current time is after 12 PM (noon) and the date was manually changed
     const currentHour = new Date().getHours();
-    if (currentHour >= 12 && !isSameDayOrder(orderDate)) {
+    if (currentHour >= 12 && manualDateChange && !isSameDayOrder(orderDate)) {
       setShowCutOffWarning(true);
     } else {
       setShowCutOffWarning(false);
     }
-  }, [orderDate]);
+  }, [orderDate, manualDateChange]);
 
   const handleAddItem = () => {
     setOrderItems([...orderItems, { 
@@ -162,6 +163,7 @@ const CreateOrderForm: React.FC = () => {
       notes: "",
     });
     setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
+    setManualDateChange(false);
   };
 
   return (
@@ -220,6 +222,7 @@ const CreateOrderForm: React.FC = () => {
                         selected={field.value}
                         onSelect={(date) => {
                           if (date) {
+                            setManualDateChange(true);
                             field.onChange(date);
                           }
                         }}

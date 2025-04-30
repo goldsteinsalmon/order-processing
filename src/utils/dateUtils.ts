@@ -1,4 +1,5 @@
-import { format, isWeekend, addDays, isToday, isBefore, parseISO, startOfDay } from "date-fns";
+
+import { format, isWeekend, addDays, isToday, isBefore, parseISO, startOfDay, isSaturday, isSunday } from "date-fns";
 
 // Get the next working day
 export const getNextWorkingDay = (date: Date = new Date()): Date => {
@@ -60,6 +61,11 @@ export const getWorkingDayBefore = (date: Date): Date => {
   }
   
   return previousDay;
+};
+
+// Check if a date is a weekend (Saturday or Sunday)
+export const isWeekendDay = (date: Date): boolean => {
+  return isSaturday(date) || isSunday(date);
 };
 
 // Check if a standing order needs to be processed immediately
