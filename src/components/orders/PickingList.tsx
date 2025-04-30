@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { OrderItem, MissingItem as MissingItemType } from "@/types";
+import { OrderItem, MissingItem as MissingItemType, Order } from "@/types";
 
 // Extended OrderItem type to include UI state properties
 interface ExtendedOrderItem extends OrderItem {
@@ -164,7 +164,7 @@ const PickingList: React.FC = () => {
     if (!selectedOrder) return;
     
     // Create a copy of the order with updated items (including batch numbers and checks)
-    const updatedOrder = {
+    const updatedOrder: Order = {
       ...selectedOrder,
       items: selectedOrder.items.map(item => {
         const updatedItem = allItems.find(i => i.id === item.id);
@@ -195,18 +195,24 @@ const PickingList: React.FC = () => {
       if (missingItem.quantity > 0) {
         const item = allItems.find(i => i.id === missingItem.id);
         if (item && selectedOrderId) {
+          // Find the product for the missing item
+          const product = item.product;
+          
           // Add to missing items collection for tracking
-          addMissingItem({
+          const missingItemEntry: MissingItemType = {
             id: `${selectedOrderId}-${item.id}`,
             orderId: selectedOrderId,
             productId: item.productId,
+            product: product,  // Include the product
             quantity: missingItem.quantity,
             date: new Date().toISOString(),
             order: {
               id: selectedOrderId,
               customer: selectedOrder.customer,
             }
-          });
+          };
+          
+          addMissingItem(missingItemEntry);
         }
       }
     });
@@ -263,7 +269,7 @@ const PickingList: React.FC = () => {
     if (!selectedOrder || !selectedPickerId) return;
     
     // Create a copy of the order with updated items (including batch numbers)
-    const updatedOrder = {
+    const updatedOrder: Order = {
       ...selectedOrder,
       items: allItems.map(item => {
         // Check if this item has a missing quantity
@@ -308,11 +314,9 @@ const PickingList: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Picking List</h2>
-        {selectedOrder && (
-          <Button variant="outline" onClick={handleBackToOrders}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
-          </Button>
-        )}
+        <Button variant="outline" onClick={handleBackToOrders}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
+        </Button>
       </div>
       
       {!selectedOrder && (
