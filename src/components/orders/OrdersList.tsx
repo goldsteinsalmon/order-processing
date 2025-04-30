@@ -62,6 +62,50 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     return changedProducts.join("; ");
   };
 
+  // Function to determine the order status display
+  const getOrderStatusDisplay = (order) => {
+    // If the order has explicit status, use that
+    if (order.status === "Modified") {
+      return {
+        label: "Modified",
+        color: "bg-blue-100 text-blue-800"
+      };
+    }
+    
+    // Check for missing items
+    if (order.missingItems && order.missingItems.length > 0) {
+      return {
+        label: "Missing Items",
+        color: "bg-amber-100 text-amber-800"
+      };
+    }
+
+    // Check for partially picked boxes
+    if (order.boxDistributions && order.completedBoxes && 
+        order.boxDistributions.length > 0 && 
+        order.completedBoxes.length > 0 && 
+        order.completedBoxes.length < order.boxDistributions.length) {
+      return {
+        label: "Partially Picked",
+        color: "bg-purple-100 text-purple-800"
+      };
+    }
+
+    // Check for picking in progress
+    if (order.pickingInProgress) {
+      return {
+        label: "Picking In Progress",
+        color: "bg-indigo-100 text-indigo-800"
+      };
+    }
+    
+    // Default to pending
+    return {
+      label: order.status || "Pending",
+      color: "bg-blue-100 text-blue-800"
+    };
+  };
+
   // Handle navigation to picking list
   const handlePickingListClick = (orderId) => {
     // Ensure we navigate directly to the picking list with this order selected
@@ -102,6 +146,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                   const isSameDay = isSameDayOrder(order.orderDate);
                   const isNextDay = isNextWorkingDayOrder(order.orderDate);
                   const changeDesc = getChangeDescription(order);
+                  const statusDisplay = getOrderStatusDisplay(order);
                   
                   return (
                     <tr 
@@ -117,13 +162,25 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                       </td>
                       <td className="px-4 py-3">{order.deliveryMethod}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {order.status}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
+                          {statusDisplay.label}
                         </span>
                         
                         {order.status === "Modified" && order.picker && (
                           <div className="text-xs mt-1">
                             Picked by: {order.picker}
+                          </div>
+                        )}
+                        
+                        {statusDisplay.label === "Missing Items" && order.missingItems && (
+                          <div className="text-xs mt-1">
+                            {order.missingItems.length} item{order.missingItems.length > 1 ? 's' : ''} missing
+                          </div>
+                        )}
+                        
+                        {statusDisplay.label === "Partially Picked" && order.completedBoxes && (
+                          <div className="text-xs mt-1">
+                            {order.completedBoxes.length} of {order.boxDistributions.length} boxes picked
                           </div>
                         )}
                       </td>
