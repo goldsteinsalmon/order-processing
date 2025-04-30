@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Return } from "@/types";
 
 const complaintsSchema = z.object({
   customerType: z.enum(["Private", "Trade"], {
@@ -87,24 +88,28 @@ const ReturnsComplaintsForm: React.FC = () => {
     "Processing",
     "Completed",
     "No Return Required",
-  ];
+  ] as const;
+
+  type ReturnStatusType = typeof returnStatusOptions[number];
 
   const onSubmit = (data: ComplaintsFormValues) => {
     // If returns are required, create a return record
     if (data.returnsRequired === "Yes" && data.productSku) {
       const product = products.find(p => p.id === data.productSku);
       if (product) {
-        // Create return with correct type for returnStatus
-        const returnStatus = data.returnStatus || "Pending";
-        // Ensure returnStatus is one of the allowed values
-        const validReturnStatus = (
-          returnStatus === "Pending" || 
-          returnStatus === "Processing" || 
-          returnStatus === "Completed" || 
-          returnStatus === "No Return Required"
-        ) ? returnStatus : "Pending";
+        // Convert returnStatus string to the correct literal type
+        const inputReturnStatus = data.returnStatus || "Pending";
         
-        const returnItem = {
+        // Type guard to ensure returnStatus is one of the allowed values
+        const validReturnStatus: ReturnStatusType = 
+          (inputReturnStatus === "Pending" || 
+          inputReturnStatus === "Processing" || 
+          inputReturnStatus === "Completed" || 
+          inputReturnStatus === "No Return Required") 
+            ? inputReturnStatus as ReturnStatusType 
+            : "Pending";
+        
+        const returnItem: Return = {
           id: crypto.randomUUID(),
           customerType: data.customerType,
           customerName: data.customerName,
@@ -128,16 +133,17 @@ const ReturnsComplaintsForm: React.FC = () => {
     }
 
     // Create complaint record with proper type checking for returnStatus
-    const returnStatus = data.returnsRequired === "Yes" ? 
+    const inputReturnStatus = data.returnsRequired === "Yes" ? 
       (data.returnStatus || "Pending") : "No Return Required";
     
-    // Validate return status according to the allowed types
-    const validReturnStatus = (
-      returnStatus === "Pending" || 
-      returnStatus === "Processing" || 
-      returnStatus === "Completed" || 
-      returnStatus === "No Return Required"
-    ) ? returnStatus : "Pending";
+    // Type guard for complaint returnStatus
+    const validReturnStatus: ReturnStatusType = 
+      (inputReturnStatus === "Pending" || 
+      inputReturnStatus === "Processing" || 
+      inputReturnStatus === "Completed" || 
+      inputReturnStatus === "No Return Required") 
+        ? inputReturnStatus as ReturnStatusType 
+        : "Pending";
     
     const complaint = {
       id: crypto.randomUUID(),

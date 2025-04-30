@@ -1,4 +1,5 @@
 
+
 export interface Customer {
   id: string;
   name: string;
@@ -112,7 +113,7 @@ export interface Complaint {
   complaintType: string; // e.g., "Foreign Object Found", "Quality Issue", etc.
   complaintDetails: string;
   returnsRequired: "Yes" | "No";
-  returnStatus: string;
+  returnStatus: "Pending" | "Processing" | "Completed" | "No Return Required";
   resolutionStatus: "Open" | "In Progress" | "Resolved";
   resolutionNotes?: string;
   created: string;
