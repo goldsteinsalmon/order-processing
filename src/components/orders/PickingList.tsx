@@ -494,7 +494,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           id: productId, 
           name: productName, 
           weight: 0,
-          unit: item.product.unit || 'g'
+          unit: item.product.unit || 'g' // Default to grams if no unit specified
         };
         currentWeight.weight += item.pickedWeight;
         weightByProduct.set(productId, currentWeight);
@@ -505,7 +505,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           id: productId, 
           name: productName, 
           weight: 0,
-          unit: item.product.unit || 'g'
+          unit: item.product.unit || 'g' // Default to grams if no unit specified
         };
         currentWeight.weight += item.product.weight * item.quantity;
         weightByProduct.set(productId, currentWeight);
