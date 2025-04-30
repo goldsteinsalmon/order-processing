@@ -1,26 +1,50 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { DataProvider } from "@/context/DataContext";
+
+import OrdersPage from "./pages/OrdersPage";
+import CreateOrderPage from "./pages/CreateOrderPage";
+import OrderDetailsPage from "./pages/OrderDetailsPage";
+import PickingListPage from "./pages/PickingListPage";
+import CompletedOrdersPage from "./pages/CompletedOrdersPage";
+import ReturnsPage from "./pages/ReturnsPage";
+import MissingItemsPage from "./pages/MissingItemsPage";
+import CustomersPage from "./pages/CustomersPage";
+import ProductsPage from "./pages/ProductsPage";
+import StandingOrdersPage from "./pages/StandingOrdersPage";
+import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <DataProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<OrdersPage />} />
+            <Route path="/create-order" element={<CreateOrderPage />} />
+            <Route path="/order-details/:id" element={<OrderDetailsPage />} />
+            <Route path="/picking-list/:id" element={<PickingListPage />} />
+            <Route path="/completed-orders" element={<CompletedOrdersPage />} />
+            <Route path="/standing-orders" element={<StandingOrdersPage />} />
+            <Route path="/missing-items" element={<MissingItemsPage />} />
+            <Route path="/returns" element={<ReturnsPage />} />
+            <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </DataProvider>
   </QueryClientProvider>
 );
 
