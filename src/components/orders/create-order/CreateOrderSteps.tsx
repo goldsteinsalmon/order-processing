@@ -1,4 +1,5 @@
-import React from "react";
+
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { OrderFormValues, orderSchema } from "./orderSchema";
@@ -140,6 +141,12 @@ const CreateOrderSteps: React.FC = () => {
       }
     }
   }, [orderItems, products, selectedCustomer, boxDistributions]);
+
+  // Debug effect to log box distributions and unassigned items
+  useEffect(() => {
+    console.log("Box distributions:", boxDistributions);
+    console.log("Unassigned items:", unassignedItems);
+  }, [boxDistributions, unassignedItems]);
   
   const handleCustomerSelect = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
@@ -233,7 +240,8 @@ const CreateOrderSteps: React.FC = () => {
 
       // For customers with box labels, check if all items are assigned
       if (selectedCustomer?.needsDetailedBoxLabels) {
-        if (unassignedItems.length > 0) {
+        if (unassignedItems.length > 0 && unassignedItems.some(item => item.quantity > 0)) {
+          console.log("Remaining unassigned items:", unassignedItems);
           toast({
             title: "Unassigned items",
             description: "Please assign all items to boxes before submitting.",

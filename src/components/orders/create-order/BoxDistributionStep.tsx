@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, X, SplitSquareVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Box, Product } from "@/types";
@@ -57,6 +57,11 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     targetBox: number;
   } | null>(null);
   const [splitQuantity, setSplitQuantity] = useState(1);
+
+  // Effect to log unassigned items for debugging
+  useEffect(() => {
+    console.log("Current unassigned items:", unassignedItems);
+  }, [unassignedItems]);
 
   const handleAddBox = () => {
     const newBoxNumber = boxDistributions.length > 0 
@@ -258,7 +263,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     // Update box distributions with our complete set
     setBoxDistributions(finalBoxDistributions);
     
-    // Remove the item from unassigned items
+    // IMPORTANT: Explicitly remove this item from unassigned items to ensure it's fully assigned
     setUnassignedItems(prevItems => 
       prevItems.filter(item => item.id !== currentItem.id)
     );
