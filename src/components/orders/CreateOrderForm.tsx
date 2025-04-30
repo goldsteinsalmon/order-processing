@@ -233,7 +233,7 @@ const CreateOrderForm: React.FC = () => {
         }]);
       }
     }
-  }, [currentStep, orderItems, products, selectedCustomer]);
+  }, [currentStep, orderItems, products, selectedCustomer, boxDistributions]);
 
   const handleAddItem = () => {
     setOrderItems([...orderItems, { productId: "", quantity: 0, id: crypto.randomUUID() }]);
