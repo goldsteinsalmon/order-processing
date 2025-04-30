@@ -66,6 +66,7 @@ interface DataContextType {
   getBatchUsages: () => BatchUsage[];
   getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
+  recordAllBatchUsagesForOrder: (order: Order) => void; // New function to record all batch usages for an order
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -163,11 +164,106 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
     
-    // We no longer record batch usage here as it's now handled in the PickingList component
-    // after the order is completed, to properly account for weight-based products
+    // Record all batch usages for this order
+    recordAllBatchUsagesForOrder(updatedOrder);
     
     setOrders(orders.filter(o => o.id !== order.id));
     setCompletedOrders([...completedOrders, updatedOrder]);
+  };
+  
+  // New function to collect and process all batch usages for an order
+  const recordAllBatchUsagesForOrder = (order: Order) => {
+    // Create a map of batch numbers to items using those batches
+    const batchItemsMap: Record<string, { productId: string, quantity: number, weight?: number }[]> = {};
+    
+    // Process the order-level batch number if it exists
+    if (order.batchNumber) {
+      order.items.forEach(item => {
+        if (!batchItemsMap[order.batchNumber]) {
+          batchItemsMap[order.batchNumber] = [];
+        }
+        batchItemsMap[order.batchNumber].push({
+          productId: item.productId,
+          quantity: item.quantity,
+          weight: item.pickedWeight
+        });
+      });
+    }
+    
+    // Process order.batchNumbers array if it exists
+    if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
+      order.batchNumbers.forEach(batchNumber => {
+        if (!batchNumber) return;
+        if (!batchItemsMap[batchNumber]) {
+          batchItemsMap[batchNumber] = [];
+        }
+        // If we don't have specific item assignments, assign all items to this batch
+        if (Object.keys(batchItemsMap[batchNumber]).length === 0) {
+          order.items.forEach(item => {
+            batchItemsMap[batchNumber].push({
+              productId: item.productId,
+              quantity: item.quantity,
+              weight: item.pickedWeight
+            });
+          });
+        }
+      });
+    }
+    
+    // Process item-level batch numbers
+    order.items.forEach(item => {
+      if (item.batchNumber) {
+        if (!batchItemsMap[item.batchNumber]) {
+          batchItemsMap[item.batchNumber] = [];
+        }
+        batchItemsMap[item.batchNumber].push({
+          productId: item.productId,
+          quantity: item.quantity,
+          weight: item.pickedWeight
+        });
+      }
+    });
+    
+    // Process batch numbers from pickingProgress
+    if (order.pickingProgress?.batchNumbers) {
+      Object.entries(order.pickingProgress.batchNumbers).forEach(([itemId, batchNumber]) => {
+        if (!batchNumber) return;
+        
+        const item = order.items.find(i => i.id === itemId);
+        if (!item) return;
+        
+        if (!batchItemsMap[batchNumber]) {
+          batchItemsMap[batchNumber] = [];
+        }
+        
+        // Check if this item is already recorded for this batch
+        const existingItemIndex = batchItemsMap[batchNumber].findIndex(
+          entry => entry.productId === item.productId
+        );
+        
+        if (existingItemIndex === -1) {
+          // Item not yet recorded for this batch
+          batchItemsMap[batchNumber].push({
+            productId: item.productId,
+            quantity: item.quantity,
+            weight: item.pickedWeight
+          });
+        }
+      });
+    }
+    
+    // Record each batch usage
+    Object.entries(batchItemsMap).forEach(([batchNumber, items]) => {
+      items.forEach(item => {
+        recordBatchUsage(
+          batchNumber,
+          item.productId,
+          item.quantity,
+          order.id,
+          item.weight
+        );
+      });
+    });
   };
 
   const addStandingOrder = (standingOrder: StandingOrder) => {
@@ -497,7 +593,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     deletePicker,
     getBatchUsages,
     getBatchUsageByBatchNumber,
-    recordBatchUsage
+    recordBatchUsage,
+    recordAllBatchUsagesForOrder
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

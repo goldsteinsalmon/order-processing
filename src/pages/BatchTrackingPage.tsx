@@ -15,9 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages, completedOrders } = useData();
+  const { batchUsages, completedOrders, recordAllBatchUsagesForOrder } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [validBatchUsages, setValidBatchUsages] = useState([...batchUsages]);
@@ -76,11 +78,24 @@ const BatchTrackingPage: React.FC = () => {
     // Navigate to completed orders with this batch number as a query param
     navigate(`/completed-orders?batch=${batchNumber}`);
   };
+  
+  // Function to reprocess all orders to fix any missing batch usage records
+  const handleReprocessBatchUsages = () => {
+    // Process each completed order to ensure all batch usages are recorded
+    completedOrders.forEach(order => {
+      recordAllBatchUsagesForOrder(order);
+    });
+    
+    toast.success("Batch usage records have been reprocessed.");
+  };
 
   return (
     <Layout>
       <div className="flex justify-between mb-6">
         <h2 className="text-2xl font-bold">Batch Tracking</h2>
+        <Button onClick={handleReprocessBatchUsages} variant="outline">
+          Reprocess Batch Records
+        </Button>
       </div>
       
       <div className="space-y-4">
