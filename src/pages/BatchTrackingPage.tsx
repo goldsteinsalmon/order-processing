@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { format, parseISO } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { 
   Table, 
   TableHeader, 
@@ -13,18 +13,41 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Search, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { BatchUsage } from "@/types";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages, completedOrders } = useData();
+  const { batchUsages, completedOrders, products } = useData();
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [validBatchUsages, setValidBatchUsages] = useState([...batchUsages]);
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("batch") || "");
+  const [validBatchUsages, setValidBatchUsages] = useState<BatchUsage[]>([]);
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof BatchUsage | 'productId' | null;
+    direction: 'ascending' | 'descending';
+  }>({
+    key: 'firstUsed',
+    direction: 'descending'
+  });
   
   // Validate batch usages against completed orders to fix any potential issues
   useEffect(() => {
+    // If the URL has a batch parameter, set it as the search term
+    const batchParam = searchParams.get("batch");
+    if (batchParam && searchTerm !== batchParam) {
+      setSearchTerm(batchParam);
+    }
+    
     // Collect all batch numbers from completed orders
     const validBatchNumbers = new Set();
     
@@ -61,21 +84,142 @@ const BatchTrackingPage: React.FC = () => {
       validBatchNumbers.has(usage.batchNumber)
     );
     
-    setValidBatchUsages(filteredBatchUsages);
-  }, [batchUsages, completedOrders]);
-  
-  // Filter batch usages based on search term
-  const filteredBatchUsages = validBatchUsages
-    .filter(batch => searchTerm === "" || batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => {
-      // Sort by first used date (oldest first)
-      return new Date(a.firstUsed).getTime() - new Date(b.firstUsed).getTime();
+    // Group batch usages by batch number to consolidate duplicate entries
+    const batchUsageMap = new Map<string, BatchUsage>();
+    
+    filteredBatchUsages.forEach(usage => {
+      const key = usage.batchNumber;
+      
+      if (batchUsageMap.has(key)) {
+        // Update existing entry by combining data
+        const existingUsage = batchUsageMap.get(key)!;
+        
+        // Use the earliest first used date
+        const firstUsedDate = new Date(usage.firstUsed) < new Date(existingUsage.firstUsed)
+          ? usage.firstUsed : existingUsage.firstUsed;
+        
+        // Use the latest last used date
+        const lastUsedDate = new Date(usage.lastUsed) > new Date(existingUsage.lastUsed)
+          ? usage.lastUsed : existingUsage.lastUsed;
+          
+        // Update batch usage record
+        batchUsageMap.set(key, {
+          ...existingUsage,
+          usedWeight: existingUsage.usedWeight + usage.usedWeight,
+          firstUsed: firstUsedDate,
+          lastUsed: lastUsedDate,
+        });
+      } else {
+        // Add new entry
+        batchUsageMap.set(key, usage);
+      }
     });
+    
+    // Convert map back to array
+    const consolidatedBatchUsages = Array.from(batchUsageMap.values());
+    setValidBatchUsages(consolidatedBatchUsages);
+  }, [batchUsages, completedOrders, searchParams]);
+  
+  // Get products used for each batch
+  const getBatchProducts = (batchNumber: string) => {
+    // Find all products used with this batch number
+    const productsWithBatch = new Map<string, {name: string, weight: number}>();
+    
+    completedOrders.forEach(order => {
+      // Check if order uses this batch
+      const usesBatch = (order.batchNumber === batchNumber) || 
+                        (order.batchNumbers && order.batchNumbers.includes(batchNumber));
+      
+      // If the order uses this batch or we need to check individual items
+      if (usesBatch || order.pickingProgress?.batchNumbers) {
+        order.items.forEach(item => {
+          // Check if this specific item uses the batch number
+          const itemUsesBatch = 
+            item.batchNumber === batchNumber ||
+            (order.pickingProgress?.batchNumbers && 
+             order.pickingProgress.batchNumbers[item.id] === batchNumber) ||
+            usesBatch;
+          
+          if (itemUsesBatch) {
+            // Get product info
+            const productId = item.productId;
+            const product = products.find(p => p.id === productId);
+            
+            if (product) {
+              const currentWeight = productsWithBatch.get(productId)?.weight || 0;
+              const additionalWeight = item.pickedWeight || (product.weight ? product.weight * item.quantity : item.quantity);
+              
+              productsWithBatch.set(productId, {
+                name: product.name,
+                weight: currentWeight + additionalWeight
+              });
+            }
+          }
+        });
+      }
+    });
+    
+    return Array.from(productsWithBatch.entries()).map(([id, data]) => ({
+      id,
+      name: data.name,
+      weight: data.weight
+    }));
+  };
+  
+  // Handle sorting
+  const requestSort = (key: keyof BatchUsage | 'productId') => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  // Apply sorting function
+  const sortedBatchUsages = [...validBatchUsages].sort((a, b) => {
+    if (sortConfig.key === null) {
+      return 0;
+    }
+    
+    if (sortConfig.key === 'firstUsed' || sortConfig.key === 'lastUsed') {
+      const aDate = new Date(a[sortConfig.key]).getTime();
+      const bDate = new Date(b[sortConfig.key]).getTime();
+      return sortConfig.direction === 'ascending' ? aDate - bDate : bDate - aDate;
+    }
+    
+    if (sortConfig.key === 'usedWeight' || sortConfig.key === 'ordersCount') {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
+    }
+    
+    const aValue = String(a[sortConfig.key as keyof BatchUsage]);
+    const bValue = String(b[sortConfig.key as keyof BatchUsage]);
+    return sortConfig.direction === 'ascending'
+      ? aValue.localeCompare(bValue)
+      : bValue.localeCompare(aValue);
+  });
+    
+  // Filter batch usages based on search term
+  const filteredBatchUsages = sortedBatchUsages
+    .filter(batch => searchTerm === "" || batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
   // Handle clicking on orders count - navigate to completed orders with batch filter
   const handleOrdersClick = (batchNumber: string) => {
     // Navigate to completed orders with this batch number as a query param
     navigate(`/completed-orders?batch=${batchNumber}`);
+  };
+  
+  // Render sort indicator
+  const renderSortIndicator = (key: keyof BatchUsage | 'productId') => {
+    if (sortConfig.key !== key) {
+      return null;
+    }
+    return sortConfig.direction === 'ascending' ? (
+      <ChevronUp className="ml-1 h-4 w-4 inline" />
+    ) : (
+      <ChevronDown className="ml-1 h-4 w-4 inline" />
+    );
   };
 
   return (
@@ -108,36 +252,94 @@ const BatchTrackingPage: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Batch Number</TableHead>
-                    <TableHead className="text-right">Total Weight (kg)</TableHead>
-                    <TableHead className="text-right">Orders</TableHead>
-                    <TableHead>First Used</TableHead>
-                    <TableHead>Last Used</TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('batchNumber')}
+                    >
+                      Batch Number {renderSortIndicator('batchNumber')}
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer"
+                      onClick={() => requestSort('usedWeight')}
+                    >
+                      Total Weight (kg) {renderSortIndicator('usedWeight')}
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer"
+                      onClick={() => requestSort('ordersCount')}
+                    >
+                      Orders {renderSortIndicator('ordersCount')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer"
+                      onClick={() => requestSort('firstUsed')}
+                    >
+                      First Used {renderSortIndicator('firstUsed')}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer"
+                      onClick={() => requestSort('lastUsed')}
+                    >
+                      Last Used {renderSortIndicator('lastUsed')}
+                    </TableHead>
+                    <TableHead>
+                      Products
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredBatchUsages.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                      <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                         No batch usage records found
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredBatchUsages.map((batch) => {
+                      const productsUsed = getBatchProducts(batch.batchNumber);
                       return (
                         <TableRow key={batch.id}>
                           <TableCell className="font-medium">{batch.batchNumber}</TableCell>
                           <TableCell className="text-right">{(batch.usedWeight / 1000).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
-                            <button
-                              className="text-blue-600 hover:underline cursor-pointer"
+                            <Button 
+                              variant="link" 
+                              className="p-0 h-auto text-blue-600 hover:text-blue-800"
                               onClick={() => handleOrdersClick(batch.batchNumber)}
                             >
                               {batch.ordersCount}
-                            </button>
+                            </Button>
                           </TableCell>
                           <TableCell>{format(parseISO(batch.firstUsed), 'dd/MM/yyyy')}</TableCell>
                           <TableCell>{format(parseISO(batch.lastUsed), 'dd/MM/yyyy')}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {productsUsed.length > 0 ? (
+                                productsUsed.map(product => (
+                                  <TooltipProvider key={product.id}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge 
+                                          variant="outline" 
+                                          className="bg-blue-50"
+                                        >
+                                          {product.name.length > 15 
+                                            ? `${product.name.substring(0, 15)}...` 
+                                            : product.name}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>{product.name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {(product.weight / 1000).toFixed(2)} kg
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ))
+                              ) : (
+                                <span className="text-gray-400 text-sm">No products found</span>
+                              )}
+                            </div>
+                          </TableCell>
                         </TableRow>
                       );
                     })

@@ -94,7 +94,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Use a more specific tracking structure that includes product ID
   // This will track unique batch-order-product combinations
-  const [processedBatchOrderProductMap] = useState<Record<string, Set<string>>>({});
+  const [processedBatchOrderProductMap, setProcessedBatchOrderProductMap] = useState<Record<string, Set<string>>>({});
 
   const addCustomer = (customer: Customer) => {
     setCustomers(prevCustomers => [...prevCustomers, customer]);
@@ -476,7 +476,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
   };
 
-  // Updated recordBatchUsage function to track batch-order-product combinations
+  // Updated recordBatchUsage function to better track batch-order-product combinations
   const recordBatchUsage = (
     batchNumber: string, 
     productId: string, 
@@ -515,22 +515,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Initialize tracking for this batch if needed
     if (!processedBatchOrderProductMap[batchNumber]) {
-      processedBatchOrderProductMap[batchNumber] = new Set<string>();
+      setProcessedBatchOrderProductMap(prev => ({
+        ...prev, 
+        [batchNumber]: new Set<string>()
+      }));
     }
     
+    // Create a copy of the current processed items for this batch
+    const processedItems = processedBatchOrderProductMap[batchNumber] 
+      ? new Set(processedBatchOrderProductMap[batchNumber]) 
+      : new Set<string>();
+    
     // Check if we've already processed this specific batch-order-product combination
-    const alreadyProcessed = processedBatchOrderProductMap[batchNumber].has(batchOrderProductKey);
+    const alreadyProcessed = processedItems.has(batchOrderProductKey);
+    
+    if (alreadyProcessed) {
+      console.log(`Already recorded batch usage for ${batchNumber}, order ${orderId}, product ${productId}`);
+      return;
+    }
+    
+    // Mark this combination as processed
+    processedItems.add(batchOrderProductKey);
+    setProcessedBatchOrderProductMap(prev => ({
+      ...prev,
+      [batchNumber]: processedItems
+    }));
     
     // Check if batch exists
-    const existingBatchUsage = batchUsages.find(bu => bu.batchNumber === batchNumber);
+    const existingBatchUsage = batchUsages.find(bu => 
+      bu.batchNumber === batchNumber
+    );
     
     if (existingBatchUsage) {
-      // Skip if we've already processed this exact combination
-      if (alreadyProcessed) {
-        console.log(`Already recorded batch usage for ${batchNumber}, order ${orderId}, product ${productId}`);
-        return;
-      }
-      
       // Get a copy to update
       const updatedBatchUsage = { ...existingBatchUsage };
       
@@ -538,8 +554,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
       
       // Check if this is the first time this order is using this batch
-      // by looking for any entries with this order ID
-      const orderAlreadyUsedBatch = Array.from(processedBatchOrderProductMap[batchNumber])
+      const orderAlreadyUsedBatch = Array.from(processedItems)
         .some(key => key.includes(`-${orderId}-`));
       
       // Only increase order count if this is the first time this order is using this batch
@@ -547,16 +562,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updatedBatchUsage.ordersCount = existingBatchUsage.ordersCount + 1;
       }
       
-      // Mark this combination as processed
-      processedBatchOrderProductMap[batchNumber].add(batchOrderProductKey);
-      
       // Update last used date
       updatedBatchUsage.lastUsed = currentDate;
       
       // Update in the array
-      setBatchUsages(batchUsages.map(bu => 
-        bu.id === existingBatchUsage.id ? updatedBatchUsage : bu
-      ));
+      setBatchUsages(prevBatchUsages => 
+        prevBatchUsages.map(bu => 
+          bu.id === existingBatchUsage.id ? updatedBatchUsage : bu
+        )
+      );
       
       console.log(`Updated batch usage for ${batchNumber}, product ${product.name}, weight ${totalWeight}g`);
       
@@ -574,10 +588,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastUsed: currentDate
       };
       
-      // Mark this combination as processed
-      processedBatchOrderProductMap[batchNumber].add(batchOrderProductKey);
-      
-      setBatchUsages([...batchUsages, newBatchUsage]);
+      setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
       console.log(`Created new batch usage for ${batchNumber}, product ${product.name}, weight ${totalWeight}g`);
     }
   };
