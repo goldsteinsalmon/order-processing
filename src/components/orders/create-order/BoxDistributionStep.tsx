@@ -1,9 +1,12 @@
 
-import React from "react";
-import { Plus, X } from "lucide-react";
+import React, { useState } from "react";
+import { Plus, X, SplitSquareVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Box, Product } from "@/types";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface BoxDistributionStepProps {
   boxDistributions: Box[];
@@ -33,6 +36,17 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
 }) => {
   // Check if all items have been assigned to boxes
   const areAllItemsAssigned = unassignedItems.length === 0;
+  
+  // State for the split quantity dialog
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState<{
+    id: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+    targetBox: number;
+  } | null>(null);
+  const [splitQuantity, setSplitQuantity] = useState(1);
 
   const handleAddBox = () => {
     const newBoxNumber = boxDistributions.length > 0 
@@ -123,6 +137,31 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       return i;
     }).filter(i => i.quantity > 0));
   };
+
+  // New function to open split dialog
+  const handleOpenSplitDialog = (item: typeof unassignedItems[0], boxNumber: number) => {
+    setCurrentItem({
+      ...item,
+      targetBox: boxNumber
+    });
+    setSplitQuantity(Math.min(5, item.quantity)); // Default to 5 or max available
+    setSplitDialogOpen(true);
+  };
+
+  // Handle the split item confirmation
+  const handleSplitConfirm = () => {
+    if (!currentItem) return;
+    
+    // Validate split quantity
+    const quantity = Math.min(currentItem.quantity, Math.max(1, splitQuantity));
+    
+    // Add the specified quantity to the box
+    handleAddItemToBox(currentItem.targetBox, currentItem, quantity);
+    
+    // Close the dialog
+    setSplitDialogOpen(false);
+    setCurrentItem(null);
+  };
   
   const handleRemoveItemFromBox = (boxNumber: number, productId: string, quantity?: number) => {
     // Find the box and item
@@ -198,21 +237,42 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                     <div className="font-medium">{item.productName}</div>
                     <div className="text-sm text-gray-500">Quantity: {item.quantity}</div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">Add to Box</Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {boxDistributions.map(box => (
-                        <DropdownMenuItem 
-                          key={box.boxNumber}
-                          onClick={() => handleAddItemToBox(box.boxNumber, item, item.quantity)}
-                        >
-                          Add to Box {box.boxNumber}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">Add to Box</Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {boxDistributions.map(box => (
+                          <DropdownMenuItem 
+                            key={box.boxNumber}
+                            onClick={() => handleAddItemToBox(box.boxNumber, item, item.quantity)}
+                          >
+                            Add all to Box {box.boxNumber}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="sm">
+                          <SplitSquareVertical className="h-4 w-4 mr-1" />
+                          Split
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {boxDistributions.map(box => (
+                          <DropdownMenuItem 
+                            key={box.boxNumber}
+                            onClick={() => handleOpenSplitDialog(item, box.boxNumber)}
+                          >
+                            Split into Box {box.boxNumber}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               ))}
             </div>
@@ -291,6 +351,43 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
           Create Order
         </Button>
       </div>
+      
+      {/* Split Quantity Dialog */}
+      <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Split Item Quantity</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {currentItem && (
+              <>
+                <div className="mb-4">
+                  <div className="font-medium">{currentItem.productName}</div>
+                  <div className="text-sm text-gray-500">Available: {currentItem.quantity}</div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="splitQuantity">Quantity to add to Box {currentItem.targetBox}:</Label>
+                  <Input 
+                    id="splitQuantity"
+                    type="number" 
+                    min={1} 
+                    max={currentItem.quantity}
+                    value={splitQuantity}
+                    onChange={(e) => setSplitQuantity(parseInt(e.target.value) || 1)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSplitDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSplitConfirm}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
