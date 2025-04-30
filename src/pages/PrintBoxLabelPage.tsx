@@ -1,13 +1,12 @@
 
 import React from "react";
-import Layout from "@/components/Layout";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
 
 const PrintBoxLabelPage: React.FC = () => {
   return (
-    <Layout>
+    <div className="print-page">
       <PrintBoxLabel />
-    </Layout>
+    </div>
   );
 };
 

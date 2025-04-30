@@ -1,10 +1,9 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { ArrowLeft, Printer } from "lucide-react";
 
 const PrintBoxLabel: React.FC = () => {
@@ -15,6 +14,11 @@ const PrintBoxLabel: React.FC = () => {
   
   // Check in both orders and completedOrders since the order might have just been moved
   const order = [...orders, ...completedOrders].find(order => order.id === id);
+
+  // Hide navbar on print page load
+  useEffect(() => {
+    document.title = `Box Label - ${order?.customer.name || "Order"}`;
+  }, [order]);
 
   if (!order) {
     return (
@@ -37,6 +41,7 @@ const PrintBoxLabel: React.FC = () => {
 
   return (
     <div>
+      {/* Controls - hidden during printing */}
       <div className="flex justify-between items-center mb-6 print:hidden">
         <div className="flex items-center">
           <Button variant="ghost" onClick={handleBackToOrders} className="mr-4">
@@ -63,16 +68,17 @@ const PrintBoxLabel: React.FC = () => {
         </div>
       </div>
 
+      {/* Labels for printing */}
       <div>
         {Array.from({ length: labelCount }).map((_, index) => (
-          <Card key={index} className="mb-4 page-break">
-            <CardContent className="p-6">
+          <div key={index} className="box-label border rounded-lg mb-4">
+            <div className="box-label-content p-6">
               <div className="flex flex-col items-center">
                 {/* Customer name in large font */}
                 <h1 className="text-4xl font-bold text-center mb-2">{order.customer.name}</h1>
                 
                 {/* Order ID in smaller font */}
-                <p className="text-sm mb-4">Order: {order.id.substring(0, 8)}</p>
+                <p className="text-sm mb-4">Order: {order.id}</p>
                 
                 {/* Products and quantities */}
                 <div className="w-full">
@@ -84,8 +90,8 @@ const PrintBoxLabel: React.FC = () => {
                   ))}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
     </div>

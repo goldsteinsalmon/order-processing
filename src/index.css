@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -83,23 +82,44 @@
     display: none !important;
   }
   
-  body {
-    margin: 0;
-    padding: 0;
+  nav, .navbar, header, footer, button {
+    display: none !important;
   }
   
-  .page-break {
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  /* Zebra printer specific dimensions (in mm) */
+  .box-label {
+    width: 155.5mm !important;
+    height: 101mm !important;
     page-break-after: always;
-    margin: 0;
-    padding: 1cm;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+    position: relative;
   }
   
-  /* Make the card full size with no margins */
-  .card {
-    border: none;
-    box-shadow: none;
-    margin: 0;
+  .box-label-content {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10mm;
+    box-sizing: border-box;
+  }
+  
+  /* Remove any margins or padding that could cause blank pages */
+  @page {
+    size: 155.5mm 101mm;
+    margin: 0;
   }
 }
