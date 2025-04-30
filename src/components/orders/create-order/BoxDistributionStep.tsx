@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Plus, X, SplitSquareVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -166,13 +167,14 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     
     // Make sure we have enough boxes
     const existingBoxCount = boxDistributions.length;
+    const newBoxes: Box[] = [];
+    
     if (existingBoxCount < boxCount) {
       // Create additional boxes as needed
       let highestBoxNumber = existingBoxCount > 0 
         ? Math.max(...boxDistributions.map(box => box.boxNumber))
         : 0;
         
-      const newBoxes = [];
       for (let i = existingBoxCount; i < boxCount; i++) {
         highestBoxNumber++;
         newBoxes.push({
@@ -187,71 +189,83 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       setBoxDistributions(prevBoxes => [...prevBoxes, ...newBoxes]);
     }
     
-    // Wait for state update to complete before continuing
-    setTimeout(() => {
-      // Calculate quantities per box
-      const totalQuantity = currentItem.quantity;
-      const baseQuantity = Math.floor(totalQuantity / boxCount);
-      const remainder = totalQuantity % boxCount;
+    // Calculate quantities per box
+    const totalQuantity = currentItem.quantity;
+    const baseQuantity = Math.floor(totalQuantity / boxCount);
+    const remainder = totalQuantity % boxCount;
+    
+    console.log("Total quantity:", totalQuantity);
+    console.log("Base quantity per box:", baseQuantity);
+    console.log("Remainder:", remainder);
+    
+    // Create a new array of all boxes (existing + new)
+    const allBoxes = [...boxDistributions, ...newBoxes];
+    
+    // Sort boxes by box number to ensure consistent order
+    allBoxes.sort((a, b) => a.boxNumber - b.boxNumber);
+    
+    // Get the target boxes we'll distribute to
+    const targetBoxes = allBoxes.slice(0, boxCount);
+    
+    console.log("Target box numbers:", targetBoxes.map(box => box.boxNumber));
+    
+    // Create a deep copy of the box distributions to modify
+    const updatedBoxes = targetBoxes.map((box, index) => {
+      // Calculate quantity for this box (add extra for remainder distribution)
+      const adjustedQuantity = index < remainder ? baseQuantity + 1 : baseQuantity;
       
-      console.log("Total quantity:", totalQuantity);
-      console.log("Base quantity per box:", baseQuantity);
-      console.log("Remainder:", remainder);
+      if (adjustedQuantity <= 0) return box;
       
-      // Get the boxes we'll distribute to
-      const targetBoxNumbers = boxDistributions
-        .sort((a, b) => a.boxNumber - b.boxNumber)
-        .slice(0, boxCount)
-        .map(box => box.boxNumber);
+      console.log(`Adding ${adjustedQuantity} items to box ${box.boxNumber}`);
       
-      console.log("Target box numbers:", targetBoxNumbers);
+      // Check if item already exists in box
+      const existingItemIndex = box.items.findIndex(item => item.productId === currentItem.productId);
       
-      // Create a copy of the current boxDistributions for mutation
-      const updatedBoxDistributions = [...boxDistributions];
-      
-      // Distribute items to each box
-      targetBoxNumbers.forEach((boxNumber, index) => {
-        const adjustedQuantity = index < remainder ? baseQuantity + 1 : baseQuantity;
-        
-        if (adjustedQuantity > 0) {
-          console.log(`Adding ${adjustedQuantity} items to box ${boxNumber}`);
-          
-          // Find the box in our updated array
-          const boxIndex = updatedBoxDistributions.findIndex(box => box.boxNumber === boxNumber);
-          if (boxIndex === -1) return;
-          
-          // Check if item already exists in this box
-          const existingItemIndex = updatedBoxDistributions[boxIndex].items.findIndex(
-            item => item.productId === currentItem.productId
-          );
-          
-          if (existingItemIndex !== -1) {
-            // Update existing item quantity
-            updatedBoxDistributions[boxIndex].items[existingItemIndex].quantity += adjustedQuantity;
-          } else {
-            // Add as new item
-            updatedBoxDistributions[boxIndex].items.push({
-              productId: currentItem.productId,
-              productName: currentItem.productName,
-              quantity: adjustedQuantity,
-              weight: 0
-            });
+      let updatedItems;
+      if (existingItemIndex !== -1) {
+        // Update existing item quantity
+        updatedItems = box.items.map((item, i) => {
+          if (i === existingItemIndex) {
+            return { ...item, quantity: item.quantity + adjustedQuantity };
           }
-        }
-      });
+          return item;
+        });
+      } else {
+        // Add as new item
+        updatedItems = [
+          ...box.items,
+          {
+            productId: currentItem.productId,
+            productName: currentItem.productName,
+            quantity: adjustedQuantity,
+            weight: 0
+          }
+        ];
+      }
       
-      // Update state with our modified box distributions
-      setBoxDistributions(updatedBoxDistributions);
-      
-      // Remove the item from unassigned items
-      setUnassignedItems(prevItems => 
-        prevItems.filter(item => item.id !== currentItem.id)
-      );
-      
-      // Close the dialog
-      setAutoSplitDialogOpen(false);
-      setCurrentItem(null);
-    }, 100);
+      return {
+        ...box,
+        items: updatedItems
+      };
+    });
+    
+    // Merge updated boxes with any boxes that weren't targeted
+    const finalBoxDistributions = allBoxes.map(box => {
+      const updatedBox = updatedBoxes.find(updatedBox => updatedBox.boxNumber === box.boxNumber);
+      return updatedBox || box;
+    });
+    
+    // Update box distributions with our complete set
+    setBoxDistributions(finalBoxDistributions);
+    
+    // Remove the item from unassigned items
+    setUnassignedItems(prevItems => 
+      prevItems.filter(item => item.id !== currentItem.id)
+    );
+    
+    // Close the dialog
+    setAutoSplitDialogOpen(false);
+    setCurrentItem(null);
   };
 
   // Manual split functions
