@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -105,7 +106,7 @@ export interface StandingOrder {
 
 export interface Return {
   id: string;
-  customerId?: string; // Added this property to fix the error
+  customerId?: string;
   customerType: "Private" | "Trade";
   customerName: string;
   contactEmail?: string;
@@ -129,7 +130,7 @@ export interface Complaint {
   id: string;
   customerType: "Private" | "Trade";
   customerName: string;
-  customerId?: string; // Added this property for consistency
+  customerId?: string;
   contactEmail?: string;
   contactPhone?: string;
   dateSubmitted: string;
@@ -174,12 +175,12 @@ export interface Picker {
   active: boolean;
 }
 
-// New interface for batch tracking
+// Updated interface for batch tracking with product removed from display
 export interface BatchUsage {
   id: string;
   batchNumber: string;
-  productId: string;
-  productName: string;
+  productId: string; // Keep for backend reference but don't display
+  productName: string; // Keep for backend reference but don't display
   totalWeight: number; // Total weight assigned to this batch (grams)
   usedWeight: number;  // Weight used from this batch (grams)
   ordersCount: number; // Number of orders using this batch

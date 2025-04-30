@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { 
   Customer, 
@@ -10,7 +9,8 @@ import {
   MissingItem, 
   User, 
   Picker,
-  BatchUsage
+  BatchUsage,
+  OrderItem
 } from "../types";
 import { 
   customers as initialCustomers,
@@ -25,7 +25,7 @@ import {
   pickers as initialPickers,
   batchUsages as initialBatchUsages
 } from "../data/mockData";
-import { format, addDays, addWeeks, addMonths, parseISO } from "date-fns";
+import { format, addDays, addWeeks, addMonths, parseISO, isAfter } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 
 interface DataContextType {
@@ -356,7 +356,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     const totalWeight = product.weight * quantity;
-    const existingBatchUsage = batchUsages.find(bu => bu.batchNumber === batchNumber && bu.productId === productId);
+    const existingBatchUsage = batchUsages.find(bu => bu.batchNumber === batchNumber);
     
     if (existingBatchUsage) {
       // Update existing batch usage

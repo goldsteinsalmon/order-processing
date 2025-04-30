@@ -97,7 +97,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         date: new Date().toISOString()
       }));
     
-    // Create the new order
+    // Create the new order with the specific delivery date from the parameter
     const newOrder = {
       id: uuidv4(),
       customerId: standingOrder.customerId,
@@ -153,7 +153,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         <Button variant="ghost" onClick={() => navigate(`/standing-order-schedule/${standingOrder.id}`)} className="mr-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
-        <h2 className="text-2xl font-bold">Process Standing Order Delivery</h2>
+        <h2 className="text-2xl font-bold">Edit Standing Order Delivery</h2>
       </div>
       
       <Card className="mb-6">

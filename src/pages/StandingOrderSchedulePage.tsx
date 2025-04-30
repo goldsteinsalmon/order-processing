@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, addDays, addWeeks, addMonths, isBefore, isSameDay, startOfDay } from "date-fns";
-import { ArrowLeft, Calendar, Edit } from "lucide-react";
+import { ArrowLeft, Calendar, Edit, X } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +15,6 @@ const StandingOrderSchedulePage: React.FC = () => {
   const navigate = useNavigate();
   const { standingOrders, updateStandingOrder } = useData();
   const { toast } = useToast();
-  
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   const order = standingOrders.find(order => order.id === id);
   
@@ -189,20 +187,6 @@ const StandingOrderSchedulePage: React.FC = () => {
   };
   
   const handleEditDelivery = (date: Date) => {
-    // Mark the date as processed
-    const updatedOrder = { ...order };
-    
-    // Initialize processedDates if it doesn't exist
-    if (!updatedOrder.schedule.processedDates) {
-      updatedOrder.schedule.processedDates = [];
-    }
-    
-    // Add the date to processedDates if not already there
-    if (!updatedOrder.schedule.processedDates.some(d => isSameDay(new Date(d), date))) {
-      updatedOrder.schedule.processedDates.push(date.toISOString());
-      updateStandingOrder(updatedOrder);
-    }
-    
     // Navigate to a special edit page for this specific delivery date with the date preserved as ISO string
     navigate(`/edit-standing-order-delivery/${order.id}?date=${date.toISOString()}`);
   };
@@ -311,14 +295,24 @@ const StandingOrderSchedulePage: React.FC = () => {
                               Already processed
                             </span>
                           ) : (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleEditDelivery(delivery.date)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Process Order
-                            </Button>
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditDelivery(delivery.date)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit Order
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleSkipDelivery(delivery.date)}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Skip
+                              </Button>
+                            </>
                           )}
                         </div>
                       </td>

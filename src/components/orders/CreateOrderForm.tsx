@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, isToday, isBefore, startOfDay } from "date-fns";
+import { format, isToday, isBefore, startOfDay, addBusinessDays } from "date-fns";
 import { Plus, Minus } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { getNextWorkingDay, isBusinessDay, isSameDayOrder } from "@/utils/dateUtils";
@@ -62,12 +62,23 @@ const CreateOrderForm: React.FC = () => {
   const [showSameDayWarning, setShowSameDayWarning] = useState(false);
   const [showCutOffWarning, setShowCutOffWarning] = useState(false);
   const [manualDateChange, setManualDateChange] = useState(false);
+  
+  // Get the default order date based on current time
+  const getDefaultOrderDate = () => {
+    const currentHour = new Date().getHours();
+    // If it's after 12 PM, set the default to 2 working days from now
+    if (currentHour >= 12) {
+      return addBusinessDays(new Date(), 2);
+    } else {
+      return getNextWorkingDay();
+    }
+  };
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
       deliveryMethod: "Delivery",
-      orderDate: getNextWorkingDay(),
+      orderDate: getDefaultOrderDate(),
     },
   });
 
@@ -87,10 +98,6 @@ const CreateOrderForm: React.FC = () => {
     
     // Format both dates to compare just the date part (ignoring time)
     const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDay, "yyyy-MM-dd");
-    
-    console.log("Current hour:", currentHour);
-    console.log("Is next day:", isNextDay);
-    console.log("Manual date change:", manualDateChange);
     
     setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
   }, [orderDate, manualDateChange]);
@@ -165,7 +172,7 @@ const CreateOrderForm: React.FC = () => {
     form.reset({
       customerId: "",
       customerOrderNumber: "",
-      orderDate: getNextWorkingDay(),
+      orderDate: getDefaultOrderDate(),
       deliveryMethod: "Delivery",
       notes: "",
     });

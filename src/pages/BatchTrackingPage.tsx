@@ -14,21 +14,15 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages, products, completedOrders } = useData();
+  const { batchUsages } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [productFilter, setProductFilter] = useState<string>("all");
   
-  // Filter batch usages based on search term and product filter
+  // Filter batch usages based on search term
   const filteredBatchUsages = batchUsages
-    .filter(batch => 
-      (searchTerm === "" || 
-       batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (productFilter === "all" || batch.productId === productFilter)
-    )
+    .filter(batch => searchTerm === "" || batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => {
       // Sort by first used date (oldest first)
       return new Date(a.firstUsed).getTime() - new Date(b.firstUsed).getTime();
@@ -55,21 +49,6 @@ const BatchTrackingPage: React.FC = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="w-full sm:w-64">
-            <Select value={productFilter} onValueChange={setProductFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by product" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Products</SelectItem>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
         
         <Card>
@@ -82,7 +61,6 @@ const BatchTrackingPage: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Batch Number</TableHead>
-                    <TableHead>Product</TableHead>
                     <TableHead className="text-right">Total Weight (kg)</TableHead>
                     <TableHead className="text-right">Orders</TableHead>
                     <TableHead>First Used</TableHead>
@@ -92,7 +70,7 @@ const BatchTrackingPage: React.FC = () => {
                 <TableBody>
                   {filteredBatchUsages.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                      <TableCell colSpan={5} className="text-center text-gray-500 py-8">
                         No batch usage records found
                       </TableCell>
                     </TableRow>
@@ -101,7 +79,6 @@ const BatchTrackingPage: React.FC = () => {
                       return (
                         <TableRow key={batch.id}>
                           <TableCell className="font-medium">{batch.batchNumber}</TableCell>
-                          <TableCell>{batch.productName}</TableCell>
                           <TableCell className="text-right">{(batch.usedWeight / 1000).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
                             <button
