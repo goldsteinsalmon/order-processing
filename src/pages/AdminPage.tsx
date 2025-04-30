@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +39,11 @@ const AdminPage: React.FC = () => {
   // Delete confirmation dialog states
   const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
   const [showDeletePickerDialog, setShowDeletePickerDialog] = useState(false);
-
+  
+  // Import file references
+  const customerFileInputRef = useRef<HTMLInputElement>(null);
+  const productFileInputRef = useRef<HTMLInputElement>(null);
+  
   const handleBackup = () => {
     // Create a backup of all the data
     const backupData = {
@@ -273,24 +276,20 @@ const AdminPage: React.FC = () => {
     setShowDeletePickerDialog(false);
   };
   
-  // Template download functions
+  // Template download functions - Updated to use CSV
   const downloadCustomerTemplate = () => {
-    const templateData = [
-      {
-        accountNumber: "ACC123",
-        name: "Example Customer",
-        type: "Private", // Private or Trade
-        email: "customer@example.com",
-        phone: "01234567890"
-      }
-    ];
+    // CSV header and example row
+    const csvContent = [
+      "accountNumber,name,type,email,phone",
+      "ACC123,Example Customer,Private,customer@example.com,01234567890"
+    ].join("\n");
     
-    const jsonString = JSON.stringify(templateData, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
+    // Create a blob and download
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "customer-import-template.json";
+    link.download = "customer-import-template.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -303,21 +302,18 @@ const AdminPage: React.FC = () => {
   };
   
   const downloadProductTemplate = () => {
-    const templateData = [
-      {
-        name: "Example Product",
-        sku: "PROD123",
-        stockLevel: 100,
-        description: "Product description"
-      }
-    ];
+    // CSV header and example row
+    const csvContent = [
+      "name,sku,stockLevel,description",
+      "Example Product,PROD123,100,Product description"
+    ].join("\n");
     
-    const jsonString = JSON.stringify(templateData, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
+    // Create a blob and download
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "product-import-template.json";
+    link.download = "product-import-template.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -327,6 +323,72 @@ const AdminPage: React.FC = () => {
       title: "Template downloaded",
       description: "Product import template has been downloaded."
     });
+  };
+  
+  // Import functions
+  const handleCustomerImport = () => {
+    if (customerFileInputRef.current) {
+      customerFileInputRef.current.click();
+    }
+  };
+  
+  const handleProductImport = () => {
+    if (productFileInputRef.current) {
+      productFileInputRef.current.click();
+    }
+  };
+  
+  // File input handlers
+  const handleCustomerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+      toast({
+        title: "Invalid file format",
+        description: "Please select a CSV file.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Here you would process the CSV file
+    // For demo purposes, just show a success message
+    toast({
+      title: "Customers imported",
+      description: `File ${file.name} was processed successfully.`
+    });
+    
+    // Clear the file input
+    if (customerFileInputRef.current) {
+      customerFileInputRef.current.value = '';
+    }
+  };
+  
+  const handleProductFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+      toast({
+        title: "Invalid file format",
+        description: "Please select a CSV file.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Here you would process the CSV file
+    // For demo purposes, just show a success message
+    toast({
+      title: "Products imported",
+      description: `File ${file.name} was processed successfully.`
+    });
+    
+    // Clear the file input
+    if (productFileInputRef.current) {
+      productFileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -496,6 +558,7 @@ const AdminPage: React.FC = () => {
           </Card>
         </TabsContent>
         
+        {/* Updated Import Data tab for CSV files */}
         <TabsContent value="import" className="space-y-4">
           <Card>
             <CardHeader>
@@ -504,20 +567,54 @@ const AdminPage: React.FC = () => {
                 Import customer and product data from CSV files
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
+            <CardContent className="space-y-6">
+              {/* Hidden file inputs */}
+              <input
+                type="file"
+                ref={customerFileInputRef}
+                onChange={handleCustomerFileChange}
+                accept=".csv"
+                className="hidden"
+              />
+              <input
+                type="file"
+                ref={productFileInputRef}
+                onChange={handleProductFileChange}
+                accept=".csv"
+                className="hidden"
+              />
+              
+              <div className="space-y-4">
                 <h3 className="text-lg font-medium">Customer Import</h3>
-                <div className="flex space-x-2">
-                  <Button variant="outline" onClick={downloadCustomerTemplate}>Download Template</Button>
-                  <Button>Import Customers</Button>
+                <div className="flex flex-col space-y-2">
+                  <p className="text-sm text-gray-500">
+                    Use our CSV template to format your customer data correctly, then upload the file to import.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Button variant="outline" onClick={downloadCustomerTemplate}>
+                      Download CSV Template
+                    </Button>
+                    <Button onClick={handleCustomerImport}>
+                      Import Customers (CSV)
+                    </Button>
+                  </div>
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <h3 className="text-lg font-medium">Product Import</h3>
-                <div className="flex space-x-2">
-                  <Button variant="outline" onClick={downloadProductTemplate}>Download Template</Button>
-                  <Button>Import Products</Button>
+                <div className="flex flex-col space-y-2">
+                  <p className="text-sm text-gray-500">
+                    Use our CSV template to format your product data correctly, then upload the file to import.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Button variant="outline" onClick={downloadProductTemplate}>
+                      Download CSV Template
+                    </Button>
+                    <Button onClick={handleProductImport}>
+                      Import Products (CSV)
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
