@@ -114,8 +114,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
   
   // Determine if an order should be highlighted for changes
   const shouldHighlightChanges = (order) => {
-    // Only highlight changes if picking has begun
-    if (order.hasChanges && order.pickingInProgress) {
+    // Highlight orders with changes regardless of picking status
+    if (order.hasChanges) {
       return true;
     }
     return false;
@@ -217,8 +217,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                             </Button>
                           </div>
                           
-                          {/* Only show change description if picking has begun */}
-                          {changeDesc && order.pickingInProgress && (
+                          {/* Show change description for all modified orders */}
+                          {changeDesc && (
                             <div className="text-red-600 text-xs font-medium">
                               Changes: {changeDesc}
                             </div>

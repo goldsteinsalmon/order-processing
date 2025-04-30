@@ -87,12 +87,15 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) =>
     }
   }, [completedOrders, batchFilter, searchTerm]);
   
-  // Sort completed orders by date (newest first)
+  // Sort completed orders by completion date (newest first)
+  // First try "updated" field, then fall back to "orderDate"
   const sortedOrders = [...filteredOrders].sort((a, b) => {
-    // Use updated if available, fall back to orderDate
-    const dateA = a.updated || a.orderDate;
-    const dateB = b.updated || b.orderDate;
-    return new Date(dateB).getTime() - new Date(dateA).getTime();
+    // Use updated timestamp if available (which indicates when the order was completed)
+    const dateA = a.updated ? new Date(a.updated).getTime() : new Date(a.orderDate).getTime();
+    const dateB = b.updated ? new Date(b.updated).getTime() : new Date(b.orderDate).getTime();
+    
+    // Sort descending (newest first)
+    return dateB - dateA;
   });
 
   // Helper function to generate change description
