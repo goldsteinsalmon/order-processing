@@ -1,16 +1,6 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { 
-  FileText, 
-  CheckCircle, 
-  Calendar, 
-  AlertTriangle, 
-  MessageSquare,
-  Users, 
-  Package, 
-  Settings 
-} from "lucide-react";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -20,14 +10,14 @@ const Navbar: React.FC = () => {
   };
 
   const navItems = [
-    { name: "Orders", path: "/", icon: <FileText className="mr-2" /> },
-    { name: "Completed Orders", path: "/completed-orders", icon: <CheckCircle className="mr-2" /> },
-    { name: "Standing Orders", path: "/standing-orders", icon: <Calendar className="mr-2" /> },
-    { name: "Missing Items", path: "/missing-items", icon: <AlertTriangle className="mr-2" /> },
-    { name: "Returns & Complaints", path: "/returns", icon: <MessageSquare className="mr-2" /> },
-    { name: "Customers", path: "/customers", icon: <Users className="mr-2" /> },
-    { name: "Products", path: "/products", icon: <Package className="mr-2" /> },
-    { name: "Admin", path: "/admin", icon: <Settings className="mr-2" /> },
+    { name: "Orders", path: "/" },
+    { name: "Completed Orders", path: "/completed-orders" },
+    { name: "Standing Orders", path: "/standing-orders" },
+    { name: "Missing Items", path: "/missing-items" },
+    { name: "Returns & Complaints", path: "/returns" },
+    { name: "Customers", path: "/customers" },
+    { name: "Products", path: "/products" },
+    { name: "Admin", path: "/admin" },
   ];
 
   return (
@@ -40,7 +30,6 @@ const Navbar: React.FC = () => {
               to={item.path}
               className={`flex items-center px-4 py-4 text-sm font-medium whitespace-nowrap ${isActive(item.path)}`}
             >
-              {item.icon}
               {item.name}
             </Link>
           ))}

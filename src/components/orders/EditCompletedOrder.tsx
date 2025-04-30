@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Plus } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { OrderChange } from "@/types";
+import { OrderChange, Product } from "@/types";
 import {
   Card,
   CardContent,
@@ -26,16 +26,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { v4 as uuidv4 } from "uuid";
 
 const EditCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { completedOrders, updateOrder } = useData();
+  const { completedOrders, updateOrder, products } = useData();
   const { toast } = useToast();
   
   const originalOrder = completedOrders.find(order => order.id === id);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [orderDate, setOrderDate] = useState<string>("");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
 
   useEffect(() => {
     if (originalOrder) {
@@ -45,6 +55,9 @@ const EditCompletedOrder: React.FC = () => {
         originalQuantity: item.quantity,
         hasChanged: false
       })));
+      
+      // Set the order date
+      setOrderDate(originalOrder.orderDate);
     }
   }, [originalOrder]);
 
@@ -73,24 +86,77 @@ const EditCompletedOrder: React.FC = () => {
     });
     
     setOrderItems(updatedItems);
-    setHasChanges(updatedItems.some(item => item.hasChanged));
+    checkForChanges(updatedItems, orderDate);
+  };
+
+  const checkForChanges = (items: any[], date: string) => {
+    const itemsChanged = items.some(item => item.hasChanged);
+    const dateChanged = date !== originalOrder.orderDate;
+    setHasChanges(itemsChanged || dateChanged);
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setOrderDate(newDate);
+    checkForChanges(orderItems, newDate);
+  };
+
+  const handleAddProduct = () => {
+    if (!selectedProductId) return;
+    
+    const productToAdd = products.find(p => p.id === selectedProductId);
+    if (!productToAdd) return;
+    
+    // Check if this product is already in the order
+    const existingItem = orderItems.find(item => item.productId === selectedProductId);
+    
+    if (existingItem) {
+      toast({
+        title: "Product already in order",
+        description: "This product is already in the order. Adjust its quantity instead.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const newItem = {
+      id: uuidv4(),
+      productId: productToAdd.id,
+      product: productToAdd,
+      quantity: 1,
+      originalQuantity: 0,
+      hasChanged: true,
+      isNew: true
+    };
+    
+    const updatedItems = [...orderItems, newItem];
+    setOrderItems(updatedItems);
+    setSelectedProductId("");
+    checkForChanges(updatedItems, orderDate);
   };
 
   const saveChanges = () => {
+    // Track which items were originally in the order vs newly added
+    const originalItemIds = originalOrder.items.map(item => item.productId);
+    
     const changes: OrderChange[] = orderItems
       .filter(item => item.hasChanged)
       .map(item => ({
         productId: item.productId,
         productName: item.product.name,
-        originalQuantity: item.originalQuantity,
+        originalQuantity: item.isNew ? 0 : item.originalQuantity,
         newQuantity: item.quantity,
         date: new Date().toISOString()
       }));
+    
+    // Create list of all items for updated order, removing "originalQuantity" and "hasChanged" properties
+    const cleanedItems = orderItems.map(({ hasChanged, originalQuantity, isNew, ...item }) => item);
       
     // Create the updated order with changes
     const updatedOrder = {
       ...originalOrder,
-      items: orderItems.map(({ hasChanged, originalQuantity, ...item }) => item),
+      orderDate: orderDate,
+      items: cleanedItems,
       changes: [...(originalOrder.changes || []), ...changes],
       hasChanges: true,
       updated: new Date().toISOString(),
@@ -108,6 +174,10 @@ const EditCompletedOrder: React.FC = () => {
     // Navigate back to the orders page
     navigate("/");
   };
+
+  const availableProducts = products.filter(
+    product => !orderItems.some(item => item.productId === product.id)
+  );
 
   return (
     <div>
@@ -154,7 +224,12 @@ const EditCompletedOrder: React.FC = () => {
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>
                 <dd className="col-span-2">
-                  {format(parseISO(originalOrder.orderDate), "MMMM d, yyyy")}
+                  <Input 
+                    type="date" 
+                    value={orderDate}
+                    onChange={handleDateChange}
+                    className="mt-[-4px]"
+                  />
                 </dd>
               </div>
               <div className="grid grid-cols-3">
@@ -173,13 +248,39 @@ const EditCompletedOrder: React.FC = () => {
       </div>
 
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Edit Order Items</CardTitle>
-          <p className="text-sm text-gray-500">
-            You can edit the quantities below. Setting a quantity to zero is allowed, but you cannot remove products.
-          </p>
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div>
+            <CardTitle>Edit Order Items</CardTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              You can edit quantities, set to zero, or add new products.
+            </p>
+          </div>
         </CardHeader>
+
         <CardContent>
+          <div className="flex space-x-2 mb-6">
+            <div className="flex-1">
+              <Select 
+                value={selectedProductId} 
+                onValueChange={setSelectedProductId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product to add" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableProducts.map(product => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.sku})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleAddProduct}>
+              <Plus className="h-4 w-4 mr-2" /> Add Product
+            </Button>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -198,14 +299,14 @@ const EditCompletedOrder: React.FC = () => {
                   >
                     <td className="py-3">{item.product.name}</td>
                     <td className="py-3">{item.product.sku}</td>
-                    <td className="py-3 text-right">{item.originalQuantity}</td>
+                    <td className="py-3 text-right">{item.isNew ? "New" : item.originalQuantity}</td>
                     <td className="py-3 text-right">
                       <Input
                         type="number"
                         min="0"
                         value={item.quantity}
                         onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
-                        className="w-20 text-right inline-block ml-auto"
+                        className="w-20 text-right inline-block ml-auto [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </td>
                   </tr>

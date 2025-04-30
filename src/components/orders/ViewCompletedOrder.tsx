@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -26,6 +27,9 @@ const ViewCompletedOrder: React.FC = () => {
 
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
+  
+  // Get batch numbers map from picking progress
+  const batchNumbersMap = order.pickingProgress?.batchNumbers || {};
   
   return (
     <div>
@@ -144,6 +148,8 @@ const ViewCompletedOrder: React.FC = () => {
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
                   <th className="text-right font-medium py-2">Quantity</th>
+                  <th className="text-right font-medium py-2">Batch Number</th>
+                  <th className="text-right font-medium py-2">Blown Pouches</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,11 +158,19 @@ const ViewCompletedOrder: React.FC = () => {
                     <td className="py-3">{item.product.name}</td>
                     <td className="py-3">{item.product.sku}</td>
                     <td className="py-3 text-right">{item.quantity}</td>
+                    <td className="py-3 text-right">
+                      {batchNumbersMap[item.id] || (order.batchNumber || "N/A")}
+                    </td>
+                    <td className="py-3 text-right">
+                      {item.blownPouches || 
+                       (order.pickingProgress?.blownPouches?.[item.id] || 0)}
+                    </td>
                   </tr>
                 ))}
                 <tr className="font-medium">
                   <td colSpan={2} className="py-3">Total Items</td>
                   <td className="py-3 text-right">{totalItems}</td>
+                  <td colSpan={2}></td>
                 </tr>
               </tbody>
             </table>

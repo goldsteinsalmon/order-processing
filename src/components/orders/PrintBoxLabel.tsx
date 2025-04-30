@@ -15,7 +15,7 @@ const PrintBoxLabel: React.FC = () => {
   // Check in both orders and completedOrders since the order might have just been moved
   const order = [...orders, ...completedOrders].find(order => order.id === id);
 
-  // Hide navbar on print page load
+  // Set document title
   useEffect(() => {
     document.title = `Box Label - ${order?.customer.name || "Order"}`;
   }, [order]);
