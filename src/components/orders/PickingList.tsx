@@ -558,6 +558,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   
   const totalWeightByProduct = calculateTotalWeightByProduct();
   
+  // Determine if we should display the modified order indicator
+  const shouldShowModifiedIndicator = selectedOrder?.hasChanges && selectedOrder?.pickingInProgress;
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -588,7 +591,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold">
               Order for {selectedOrder.customer.name}
-              {selectedOrder.hasChanges && (
+              {shouldShowModifiedIndicator && (
                 <span className="text-sm text-red-600 ml-2 font-medium">
                   (Modified Order)
                 </span>
