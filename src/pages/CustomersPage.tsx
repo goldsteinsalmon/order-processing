@@ -12,17 +12,27 @@ const CustomersPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Filter customers based on search term
+  // Filter and sort customers based on search term and account number
   const filteredCustomers = useMemo(() => {
-    if (!searchTerm.trim()) return customers;
+    let filtered = customers;
     
-    const lowerSearch = searchTerm.toLowerCase();
-    return customers.filter(customer => 
-      customer.name.toLowerCase().includes(lowerSearch) ||
-      (customer.email && customer.email.toLowerCase().includes(lowerSearch)) ||
-      (customer.phone && customer.phone.includes(searchTerm)) ||
-      (customer.accountNumber && customer.accountNumber.toLowerCase().includes(lowerSearch))
-    );
+    // Filter by search term if one exists
+    if (searchTerm.trim()) {
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = customers.filter(customer => 
+        customer.name.toLowerCase().includes(lowerSearch) ||
+        (customer.email && customer.email.toLowerCase().includes(lowerSearch)) ||
+        (customer.phone && customer.phone.includes(searchTerm)) ||
+        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(lowerSearch))
+      );
+    }
+    
+    // Sort by account number alphabetically
+    return [...filtered].sort((a, b) => {
+      const accountA = a.accountNumber || '';
+      const accountB = b.accountNumber || '';
+      return accountA.localeCompare(accountB);
+    });
   }, [customers, searchTerm]);
 
   console.log("Current customers:", customers.length); // Debug log to see customer count
@@ -58,7 +68,6 @@ const CustomersPage: React.FC = () => {
                 <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">Email</th>
                 <th className="px-4 py-3 text-left font-medium">Phone</th>
-                <th className="px-4 py-3 text-left font-medium">Type</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
@@ -66,7 +75,7 @@ const CustomersPage: React.FC = () => {
             <tbody>
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                     {searchTerm ? "No matching customers found" : "No customers found"}
                   </td>
                 </tr>
@@ -77,7 +86,6 @@ const CustomersPage: React.FC = () => {
                     <td className="px-4 py-3">{customer.name}</td>
                     <td className="px-4 py-3">{customer.email}</td>
                     <td className="px-4 py-3">{customer.phone}</td>
-                    <td className="px-4 py-3">{customer.type}</td>
                     <td className="px-4 py-3">
                       {customer.onHold ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
