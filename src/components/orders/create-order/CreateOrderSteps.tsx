@@ -140,7 +140,7 @@ const CreateOrderSteps: React.FC = () => {
         }]);
       }
     }
-  }, [orderItems, products, selectedCustomer, boxDistributions]);
+  }, [orderItems, products, selectedCustomer]);
 
   // Debug effect to log box distributions and unassigned items
   useEffect(() => {
@@ -240,8 +240,11 @@ const CreateOrderSteps: React.FC = () => {
 
       // For customers with box labels, check if all items are assigned
       if (selectedCustomer?.needsDetailedBoxLabels) {
-        if (unassignedItems.length > 0 && unassignedItems.some(item => item.quantity > 0)) {
-          console.log("Remaining unassigned items:", unassignedItems);
+        // Clean up any empty unassigned items first
+        const cleanedUnassignedItems = unassignedItems.filter(item => item.quantity > 0);
+        
+        if (cleanedUnassignedItems.length > 0) {
+          console.log("Remaining unassigned items:", cleanedUnassignedItems);
           toast({
             title: "Unassigned items",
             description: "Please assign all items to boxes before submitting.",

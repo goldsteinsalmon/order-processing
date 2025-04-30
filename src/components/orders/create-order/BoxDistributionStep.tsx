@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Plus, X, SplitSquareVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -264,9 +263,11 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     setBoxDistributions(finalBoxDistributions);
     
     // IMPORTANT: Explicitly remove this item from unassigned items to ensure it's fully assigned
-    setUnassignedItems(prevItems => 
-      prevItems.filter(item => item.id !== currentItem.id)
-    );
+    // Use a direct setState instead of a function to ensure it actually updates
+    const filteredItems = unassignedItems.filter(item => item.id !== currentItem.id);
+    setUnassignedItems(filteredItems);
+    
+    console.log("Items after removal:", filteredItems);
     
     // Close the dialog
     setAutoSplitDialogOpen(false);
