@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -114,6 +115,7 @@ export interface Order {
   missingItems?: {id: string, quantity: number}[];
   pickingInProgress?: boolean;
   boxDistributions?: Box[]; // Added for box distribution information
+  completedBoxes?: number[]; // Added to track which box labels have been printed
 }
 
 export interface StandingOrder {
