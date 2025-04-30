@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { 
   Customer, 
@@ -133,27 +132,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addMissingItem = (missingItem: MissingItem) => {
-    // Find the full order based on orderId to make sure we have all required data
-    const orderForMissingItem = orders.find(o => o.id === missingItem.orderId);
+    // Check if the missing item already exists to prevent duplicates
+    const existingItem = missingItems.find(
+      item => 
+        item.orderId === missingItem.orderId && 
+        item.productId === missingItem.productId &&
+        new Date(item.date).toDateString() === new Date(missingItem.date).toDateString()
+    );
     
-    // If we can't find the order, still add the missing item as provided
-    if (!orderForMissingItem) {
-      setMissingItems([...missingItems, missingItem]);
-      return;
-    }
-    
-    // Create a new missing item with complete order info but avoid circular references
-    const completeItem = {
-      ...missingItem,
-      order: {
-        id: orderForMissingItem.id,
-        customer: orderForMissingItem.customer,
-        // Add any other order fields needed for display in the missing items page
-        // but avoid including the entire order object
+    if (!existingItem) {
+      // Find the full order based on orderId to make sure we have all required data
+      const orderForMissingItem = orders.find(o => o.id === missingItem.orderId);
+      
+      // If we can't find the order, still add the missing item as provided
+      if (!orderForMissingItem) {
+        setMissingItems(prev => [...prev, missingItem]);
+        return;
       }
-    };
-    
-    setMissingItems([...missingItems, completeItem]);
+      
+      // Create a new missing item with complete order info but avoid circular references
+      const completeItem = {
+        ...missingItem,
+        order: {
+          id: orderForMissingItem.id,
+          customer: orderForMissingItem.customer,
+        }
+      };
+      
+      setMissingItems(prev => [...prev, completeItem]);
+    }
   };
 
   const addUser = (user: User) => {

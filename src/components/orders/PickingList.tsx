@@ -110,6 +110,7 @@ const PickingList: React.FC = () => {
   };
 
   const handleSaveProgress = () => {
+    // Create picking progress object
     const pickingProgress = {
       picker: selectedPicker,
       batchNumbers,
@@ -119,12 +120,44 @@ const PickingList: React.FC = () => {
       blownPouches,
     };
 
+    // Check if any items are unavailable
+    const hasUnavailableItems = Object.values(unavailableItems).some(isUnavailable => isUnavailable);
+    
+    // Update order with progress and appropriate status
     const updatedOrder = {
       ...order,
       pickingProgress,
-      status: "Picking" as const,
+      status: hasUnavailableItems ? "Missing Items" as const : "Picking" as const,
       updated: new Date().toISOString(),
     };
+
+    // Process and add missing items if any items are unavailable
+    if (hasUnavailableItems) {
+      order.items.forEach(item => {
+        if (unavailableItems[item.id] && 
+            unavailableQuantities[item.id] !== null && 
+            unavailableQuantities[item.id] !== undefined && 
+            unavailableQuantities[item.id]! > 0) {
+          
+          // Create a missing item entry
+          const missingItem = {
+            id: crypto.randomUUID(),
+            orderId: order.id,
+            order: {
+              id: order.id,
+              customer: order.customer,
+            },
+            productId: item.productId,
+            product: item.product,
+            quantity: unavailableQuantities[item.id]!,
+            date: new Date().toISOString(),
+          };
+          
+          // Add missing item to the list
+          addMissingItem(missingItem);
+        }
+      });
+    }
 
     updateOrder(updatedOrder);
 
