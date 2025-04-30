@@ -56,6 +56,7 @@ export interface Order {
   pickingProgress?: PickingProgress | null;
   created: string;
   updated?: string;
+  batchNumber?: string; // Adding this field to fix the CompletedOrders.tsx error
 }
 
 export interface StandingOrder {

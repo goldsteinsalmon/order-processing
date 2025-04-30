@@ -1,4 +1,3 @@
-
 import { Customer, Product, Order, StandingOrder, Return, Complaint, MissingItem, User, Picker } from "../types";
 import { addDays, subDays, format } from "date-fns";
 
@@ -39,7 +38,6 @@ export const products: Product[] = [
     name: "Fresh Apples", 
     sku: "FR-APL-001", 
     description: "Red apples, 1kg bag", 
-    price: 2.50, 
     stockLevel: 150, 
     unit: "bag" 
   },
@@ -48,7 +46,6 @@ export const products: Product[] = [
     name: "Organic Carrots", 
     sku: "ORG-CRT-002", 
     description: "Organic carrots, 500g bag", 
-    price: 1.75, 
     stockLevel: 85, 
     unit: "bag" 
   },
@@ -57,7 +54,6 @@ export const products: Product[] = [
     name: "Free Range Eggs", 
     sku: "EGG-FR-003", 
     description: "Free range eggs, pack of 6", 
-    price: 2.25, 
     stockLevel: 120, 
     unit: "pack" 
   },

@@ -21,7 +21,6 @@ const ProductsPage: React.FC = () => {
               <tr className="border-b bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium">Name</th>
                 <th className="px-4 py-3 text-left font-medium">SKU</th>
-                <th className="px-4 py-3 text-left font-medium">Price</th>
                 <th className="px-4 py-3 text-left font-medium">Stock Level</th>
                 <th className="px-4 py-3 text-left font-medium">Unit</th>
                 <th className="px-4 py-3 text-left font-medium">Actions</th>
@@ -32,7 +31,6 @@ const ProductsPage: React.FC = () => {
                 <tr key={product.id} className="border-b">
                   <td className="px-4 py-3">{product.name}</td>
                   <td className="px-4 py-3">{product.sku}</td>
-                  <td className="px-4 py-3">£{product.price.toFixed(2)}</td>
                   <td className="px-4 py-3">{product.stockLevel}</td>
                   <td className="px-4 py-3">{product.unit}</td>
                   <td className="px-4 py-3">
