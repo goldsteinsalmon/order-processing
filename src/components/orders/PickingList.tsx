@@ -3,38 +3,17 @@ import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Printer, Check, Save, ArrowLeft } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Check, Save, ArrowLeft, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useNavigate, useParams } from "react-router-dom";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { OrderItem, MissingItem as MissingItemType, Order } from "@/types";
+import { OrderItem, Order } from "@/types";
+import OrderSelection from "./picking/OrderSelection";
+import OrderDetailsCard from "./picking/OrderDetailsCard";
+import ItemsTable from "./picking/ItemsTable";
+import CompletionDialog from "./picking/CompletionDialog";
+import PrintablePickingList from "./picking/PrintablePickingList";
 
 // Extended OrderItem type to include UI state properties
 interface ExtendedOrderItem extends OrderItem {
@@ -104,7 +83,8 @@ const PickingList: React.FC = () => {
   
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
-    content: () => printRef.current,
+    // Fix: use the property 'content' instead of invalid property name
+    onBeforeGetContent: () => printRef.current,
     onAfterPrint: () => {
       toast({
         title: "Picking list printed",
@@ -199,7 +179,7 @@ const PickingList: React.FC = () => {
           const product = item.product;
           
           // Add to missing items collection for tracking
-          const missingItemEntry: MissingItemType = {
+          const missingItemEntry = {
             id: `${selectedOrderId}-${item.id}`,
             orderId: selectedOrderId,
             productId: item.productId,
@@ -320,114 +300,29 @@ const PickingList: React.FC = () => {
       </div>
       
       {!selectedOrder && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Order to Pick</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pendingOrders.length === 0 ? (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  No pending orders to pick
-                </div>
-              ) : (
-                pendingOrders.map(order => (
-                  <Card 
-                    key={order.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedOrderId === order.id ? 'ring-2 ring-primary' : ''
-                    }`}
-                    onClick={() => setSelectedOrderId(order.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="font-medium">{order.customer.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {format(new Date(order.orderDate), "MMMM d, yyyy")}
-                      </div>
-                      <div className="text-sm mt-2">
-                        {order.items.length} items
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <OrderSelection 
+          pendingOrders={pendingOrders}
+          selectedOrderId={selectedOrderId}
+          onSelectOrder={setSelectedOrderId}
+        />
       )}
       
       {selectedOrder && (
         <>
-          {/* Order Details Card in a compact layout */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Order Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Column 1 - Customer Info */}
-                <div className="space-y-2">
-                  <div>
-                    <Label>Customer</Label>
-                    <div className="font-medium">{selectedOrder.customer.name}</div>
-                  </div>
-                  
-                  <div>
-                    <Label>Order Date</Label>
-                    <div>{format(new Date(selectedOrder.orderDate), "MMM d, yyyy")}</div>
-                  </div>
-                  
-                  <div>
-                    <Label>Delivery Method</Label>
-                    <div>{selectedOrder.deliveryMethod}</div>
-                  </div>
-                </div>
-                
-                {/* Column 2 - Notes */}
-                <div className="space-y-2">
-                  {selectedOrder.notes && (
-                    <div>
-                      <Label>Notes</Label>
-                      <div className="text-sm bg-gray-50 p-2 rounded border">
-                        {selectedOrder.notes}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Column 3 - Picker Selection (prominently styled) */}
-                <div className="space-y-2">
-                  <div className="bg-blue-50 p-3 rounded-md border-2 border-blue-200">
-                    <Label htmlFor="picker" className="text-lg font-bold text-blue-700 block mb-2">
-                      Picked By
-                    </Label>
-                    <Select 
-                      value={selectedPickerId} 
-                      onValueChange={setSelectedPickerId}
-                    >
-                      <SelectTrigger id="picker" className="border-2 border-blue-300 bg-white">
-                        <SelectValue placeholder="Select picker" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pickers.map(picker => (
-                          <SelectItem key={picker.id} value={picker.id}>
-                            {picker.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Order Details Card */}
+          <OrderDetailsCard 
+            selectedOrder={selectedOrder}
+            selectedPickerId={selectedPickerId}
+            onPickerChange={setSelectedPickerId}
+            pickers={pickers}
+          />
           
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-semibold">
               Order for {selectedOrder.customer.name}
             </h3>
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => handlePrint()}>
+              <Button variant="outline" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" /> Print
               </Button>
               <Button variant="secondary" onClick={handleSaveProgress}>
@@ -439,167 +334,34 @@ const PickingList: React.FC = () => {
             </div>
           </div>
           
-          {/* Items to Pick Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Items to Pick</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">Picked</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead>Batch Number</TableHead>
-                      <TableHead>Missing</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allItems.map(item => {
-                      const missingItem = missingItems.find(mi => mi.id === item.id);
-                      const missingQuantity = missingItem ? missingItem.quantity : 0;
-                      
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <Checkbox 
-                              checked={item.checked} 
-                              onCheckedChange={(checked) => 
-                                handleCheckItem(item.id, checked === true)
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{item.product.name}</div>
-                            <div className="text-sm text-gray-500">{item.product.sku}</div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {item.quantity}
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              placeholder="Enter batch #"
-                              value={item.batchNumber}
-                              onChange={(e) => handleBatchNumber(item.id, e.target.value)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                              type="number"
-                              min="0"
-                              max={item.quantity}
-                              placeholder="0"
-                              value={missingQuantity || ""}
-                              onChange={(e) => handleMissingItem(
-                                item.id, 
-                                Math.min(parseInt(e.target.value) || 0, item.quantity)
-                              )}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Items Table */}
+          <ItemsTable 
+            items={allItems}
+            missingItems={missingItems}
+            onCheckItem={handleCheckItem}
+            onBatchNumberChange={handleBatchNumber}
+            onMissingItemChange={handleMissingItem}
+          />
           
           {/* Printable version */}
           <div className="hidden">
-            <div ref={printRef} className="p-8">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">Picking List</h2>
-                <p>{format(new Date(), "MMMM d, yyyy")}</p>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="font-bold">Customer: {selectedOrder.customer.name}</h3>
-                <p>Order Date: {format(new Date(selectedOrder.orderDate), "MMMM d, yyyy")}</p>
-                <p>Delivery Method: {selectedOrder.deliveryMethod}</p>
-                {selectedOrder.notes && (
-                  <div className="mt-2">
-                    <p className="font-bold">Notes:</p>
-                    <p>{selectedOrder.notes}</p>
-                  </div>
-                )}
-              </div>
-              
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-black">
-                    <th className="text-left py-2">Product</th>
-                    <th className="text-left py-2">SKU</th>
-                    <th className="text-right py-2">Quantity</th>
-                    <th className="text-left py-2">Batch #</th>
-                    <th className="text-center py-2">Picked</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allItems.map(item => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-2">{item.product.name}</td>
-                      <td className="py-2">{item.product.sku}</td>
-                      <td className="py-2 text-right">{item.quantity}</td>
-                      <td className="py-2">_________________</td>
-                      <td className="py-2 text-center">□</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              <div className="mt-8">
-                <p>Picked by: ________________________</p>
-                <p className="mt-4">Signature: ________________________</p>
-              </div>
-            </div>
+            <PrintablePickingList 
+              ref={printRef}
+              selectedOrder={selectedOrder}
+              items={allItems}
+            />
           </div>
         </>
       )}
       
       {/* Completion Dialog */}
-      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Complete Order</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to mark this order as complete?
-              {missingItems.length > 0 && (
-                <div className="mt-2 text-red-500">
-                  Warning: This order has missing items.
-                </div>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {missingItems.length > 0 && (
-            <div className="my-4">
-              <h4 className="font-medium mb-2">Missing Items:</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {missingItems.map(mi => {
-                  const item = allItems.find(i => i.id === mi.id);
-                  return item ? (
-                    <li key={mi.id}>
-                      {item.product.name}: {mi.quantity} of {item.quantity}
-                    </li>
-                  ) : null;
-                })}
-              </ul>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCompletionDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={confirmCompleteOrder}>
-              Complete Order
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CompletionDialog
+        open={showCompletionDialog}
+        onOpenChange={setShowCompletionDialog}
+        missingItems={missingItems}
+        allItems={allItems}
+        onConfirm={confirmCompleteOrder}
+      />
     </div>
   );
 };
