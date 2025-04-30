@@ -1,5 +1,4 @@
-
-import { format, isWeekend, addDays, isToday, isBefore, parseISO } from "date-fns";
+import { format, isWeekend, addDays, isToday, isBefore, parseISO, startOfDay } from "date-fns";
 
 // Get the next working day
 export const getNextWorkingDay = (date: Date = new Date()): Date => {
@@ -49,4 +48,53 @@ export const isNextWorkingDayOrder = (orderDate: Date | string): boolean => {
 // Order date validator (for disabling weekends in date picker)
 export const orderDateValidator = (date: Date): boolean => {
   return !isWeekend(date);
+};
+
+// Get working day before a specific date
+export const getWorkingDayBefore = (date: Date): Date => {
+  let previousDay = addDays(date, -1);
+  
+  // If it's a weekend, move to Friday
+  while (isWeekend(previousDay)) {
+    previousDay = addDays(previousDay, -1);
+  }
+  
+  return previousDay;
+};
+
+// Check if a standing order needs to be processed immediately
+export const shouldProcessImmediately = (deliveryDate: Date | string): boolean => {
+  const parsedDate = typeof deliveryDate === "string" ? parseISO(deliveryDate) : deliveryDate;
+  
+  // Format date to yyyy-MM-dd for comparison
+  const dateFormatted = format(parsedDate, "yyyy-MM-dd");
+  const todayFormatted = format(new Date(), "yyyy-MM-dd");
+  const nextWorkingDayFormatted = format(getNextWorkingDay(), "yyyy-MM-dd");
+  
+  // Process immediately if it's same day or next working day
+  return dateFormatted === todayFormatted || dateFormatted === nextWorkingDayFormatted;
+};
+
+// Check if an order should be scheduled for processing
+export const shouldScheduleProcessing = (deliveryDate: Date | string): boolean => {
+  const parsedDate = typeof deliveryDate === "string" ? parseISO(deliveryDate) : deliveryDate;
+  const today = startOfDay(new Date());
+  
+  // If deliveryDate is in the future (more than next working day)
+  return isBefore(today, parsedDate) && !shouldProcessImmediately(parsedDate);
+};
+
+// Get the date when an order should be processed (midnight of working day before delivery)
+export const getOrderProcessingDate = (deliveryDate: Date | string): Date => {
+  const parsedDate = typeof deliveryDate === "string" ? parseISO(deliveryDate) : deliveryDate;
+  
+  if (shouldProcessImmediately(parsedDate)) {
+    // If it should be processed immediately, return current date
+    return new Date();
+  } else {
+    // Otherwise, return the working day before the delivery at midnight
+    const processingDay = getWorkingDayBefore(parsedDate);
+    processingDay.setHours(0, 0, 0, 0); // Set to midnight
+    return processingDay;
+  }
 };

@@ -137,7 +137,7 @@ const StandingOrderSchedulePage: React.FC = () => {
             <div className="flex space-x-2">
               <dt className="font-medium">Status:</dt>
               <dd>
-                <Badge variant={order.active ? "success" : "secondary"}>
+                <Badge variant={order.active ? "secondary" : "outline"}>
                   {order.active ? "Active" : "Inactive"}
                 </Badge>
               </dd>
@@ -175,7 +175,7 @@ const StandingOrderSchedulePage: React.FC = () => {
                       </td>
                       <td className="py-3">
                         {delivery.isModified ? (
-                          <Badge variant="warning">Modified</Badge>
+                          <Badge variant="secondary">Modified</Badge>
                         ) : (
                           <Badge variant="default">Scheduled</Badge>
                         )}

@@ -22,6 +22,8 @@ import {
   users as initialUsers,
   pickers as initialPickers
 } from "../data/mockData";
+import { format, addDays, addWeeks, addMonths, parseISO } from "date-fns";
+import { v4 as uuidv4 } from "uuid";
 
 interface DataContextType {
   customers: Customer[];
@@ -43,6 +45,7 @@ interface DataContextType {
   completeOrder: (order: Order) => void;
   addStandingOrder: (standingOrder: StandingOrder) => void;
   updateStandingOrder: (standingOrder: StandingOrder) => void;
+  processStandingOrders: () => void;
   addReturn: (returnItem: Return) => void;
   updateReturn: (returnItem: Return) => void;
   addComplaint: (complaint: Complaint) => void;
@@ -135,6 +138,117 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       so.id === updatedStandingOrder.id ? updatedStandingOrder : so
     ));
   };
+  
+  const processStandingOrders = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Midnight
+    
+    const updatedStandingOrders: StandingOrder[] = [];
+    const newOrders: Order[] = [];
+    
+    standingOrders.forEach(standingOrder => {
+      if (!standingOrder.active) {
+        updatedStandingOrders.push(standingOrder);
+        return;
+      }
+      
+      // Check if this standing order needs to be processed today
+      const nextProcessingDate = standingOrder.nextProcessingDate ? 
+        new Date(standingOrder.nextProcessingDate) : new Date();
+      nextProcessingDate.setHours(0, 0, 0, 0); // Midnight
+      
+      const isProcessingDay = nextProcessingDate.getTime() === today.getTime();
+      
+      if (isProcessingDay) {
+        // Create a new order from the standing order
+        const newOrder: Order = {
+          id: uuidv4(),
+          customerId: standingOrder.customerId,
+          customer: standingOrder.customer,
+          customerOrderNumber: standingOrder.customerOrderNumber,
+          orderDate: standingOrder.schedule.nextDeliveryDate || new Date().toISOString(),
+          requiredDate: standingOrder.schedule.nextDeliveryDate || new Date().toISOString(),
+          deliveryMethod: standingOrder.schedule.deliveryMethod,
+          items: standingOrder.items,
+          notes: standingOrder.notes ? 
+            `${standingOrder.notes} (Generated from Standing Order #${standingOrder.id.substring(0, 8)})` : 
+            `Generated from Standing Order #${standingOrder.id.substring(0, 8)}`,
+          status: "Pending",
+          created: new Date().toISOString(),
+          fromStandingOrder: standingOrder.id
+        };
+        
+        newOrders.push(newOrder);
+        
+        // Calculate next delivery date
+        let nextDeliveryDate = new Date(standingOrder.schedule.nextDeliveryDate || new Date());
+        
+        if (standingOrder.schedule.frequency === "Weekly") {
+          nextDeliveryDate = addDays(nextDeliveryDate, 7);
+        } else if (standingOrder.schedule.frequency === "Bi-Weekly") {
+          nextDeliveryDate = addDays(nextDeliveryDate, 14);
+        } else if (standingOrder.schedule.frequency === "Monthly") {
+          nextDeliveryDate = addMonths(nextDeliveryDate, 1);
+        }
+        
+        // Check if nextDeliveryDate is in the skipped dates
+        if (standingOrder.schedule.skippedDates && 
+            standingOrder.schedule.skippedDates.some(date => 
+              format(parseISO(date), "yyyy-MM-dd") === format(nextDeliveryDate, "yyyy-MM-dd"))) {
+          
+          // Skip to the next delivery after skipped date
+          if (standingOrder.schedule.frequency === "Weekly") {
+            nextDeliveryDate = addDays(nextDeliveryDate, 7);
+          } else if (standingOrder.schedule.frequency === "Bi-Weekly") {
+            nextDeliveryDate = addDays(nextDeliveryDate, 14);
+          } else if (standingOrder.schedule.frequency === "Monthly") {
+            nextDeliveryDate = addMonths(nextDeliveryDate, 1);
+          }
+        }
+        
+        // Calculate the next processing date (midnight of the working day before delivery)
+        const nextWorkingDayBefore = new Date(nextDeliveryDate);
+        nextWorkingDayBefore.setDate(nextWorkingDayBefore.getDate() - 1);
+        
+        // If it falls on weekend, adjust to Friday
+        const dayOfWeek = nextWorkingDayBefore.getDay();
+        if (dayOfWeek === 0) { // Sunday
+          nextWorkingDayBefore.setDate(nextWorkingDayBefore.getDate() - 2);
+        } else if (dayOfWeek === 6) { // Saturday
+          nextWorkingDayBefore.setDate(nextWorkingDayBefore.getDate() - 1);
+        }
+        
+        nextWorkingDayBefore.setHours(0, 0, 0, 0); // Set to midnight
+        
+        // Update the standing order with new dates
+        const updatedStandingOrder: StandingOrder = {
+          ...standingOrder,
+          schedule: {
+            ...standingOrder.schedule,
+            nextDeliveryDate: nextDeliveryDate.toISOString()
+          },
+          nextProcessingDate: nextWorkingDayBefore.toISOString(),
+          lastProcessedDate: new Date().toISOString()
+        };
+        
+        updatedStandingOrders.push(updatedStandingOrder);
+      } else {
+        // No processing needed today, keep as is
+        updatedStandingOrders.push(standingOrder);
+      }
+    });
+    
+    // Update standing orders
+    setStandingOrders(updatedStandingOrders);
+    
+    // Add new orders
+    if (newOrders.length > 0) {
+      setOrders([...orders, ...newOrders]);
+      
+      // Could add notifications or other processing logic here
+      console.log(`Processed ${newOrders.length} standing orders`);
+    }
+  };
 
   const addReturn = (returnItem: Return) => {
     setReturns([...returns, returnItem]);
@@ -220,6 +334,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     completeOrder,
     addStandingOrder,
     updateStandingOrder,
+    processStandingOrders,
     addReturn,
     updateReturn,
     addComplaint,
