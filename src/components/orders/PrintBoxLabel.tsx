@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -494,7 +495,9 @@ const PrintBoxLabel: React.FC = () => {
                           <tr className="text-sm text-gray-600 border-b">
                             <th className="text-left py-1">Product</th>
                             <th className="text-center py-1">Quantity</th>
-                            <th className="text-right py-1">Weight</th>
+                            {box.items.some(item => item.weight > 0) && (
+                              <th className="text-right py-1">Weight</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody>
@@ -502,21 +505,23 @@ const PrintBoxLabel: React.FC = () => {
                             <tr key={idx} className="border-b border-gray-100">
                               <td className="py-2">{item.productName}</td>
                               <td className="py-2 text-center font-medium">{item.quantity}</td>
-                              <td className="py-2 text-right">
-                                {item.weight > 0 ? (
-                                  <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
-                                    <Weight className="h-3 w-3 mr-1" />
-                                    {(item.weight/1000).toFixed(2)} kg
-                                  </span>
-                                ) : '—'}
-                              </td>
+                              {box.items.some(item => item.weight > 0) && (
+                                <td className="py-2 text-right">
+                                  {item.weight > 0 ? (
+                                    <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
+                                      <Weight className="h-3 w-3 mr-1" />
+                                      {(item.weight/1000).toFixed(2)} kg
+                                    </span>
+                                  ) : '—'}
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
                     
-                    {/* Box weight */}
+                    {/* Box weight - only show if there's weight data */}
                     {box.totalBoxWeight > 0 && (
                       <div className="flex justify-between items-center text-right mt-2">
                         <span className="font-bold">Total Box Weight:</span>
@@ -547,7 +552,9 @@ const PrintBoxLabel: React.FC = () => {
                         <tr className="text-sm text-gray-600 border-b">
                           <th className="text-left py-1">Product</th>
                           <th className="text-center py-1">Quantity</th>
-                          <th className="text-right py-1">Weight</th>
+                          {order.items.some(item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0) && (
+                            <th className="text-right py-1">Weight</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -555,22 +562,24 @@ const PrintBoxLabel: React.FC = () => {
                           <tr key={item.id} className="border-b border-gray-100">
                             <td className="py-2">{item.product.name}</td>
                             <td className="py-2 text-center font-medium">{item.quantity}</td>
-                            <td className="py-2 text-right">
-                              {item.product.requiresWeightInput && item.pickedWeight ? (
-                                <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
-                                  <Weight className="h-3 w-3 mr-1" />
-                                  {(item.pickedWeight/1000).toFixed(2)} kg
-                                </span>
-                              ) : '—'}
-                            </td>
+                            {order.items.some(i => i.product.requiresWeightInput && i.pickedWeight && i.pickedWeight > 0) && (
+                              <td className="py-2 text-right">
+                                {item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0 ? (
+                                  <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
+                                    <Weight className="h-3 w-3 mr-1" />
+                                    {(item.pickedWeight/1000).toFixed(2)} kg
+                                  </span>
+                                ) : '—'}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                   
-                  {/* Add total weight if available */}
-                  {order.items.some(item => item.product.requiresWeightInput && item.pickedWeight) && (
+                  {/* Add total weight if available and at least one item has weight */}
+                  {order.items.some(item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0) && (
                     <div className="flex justify-between items-center text-right mt-2">
                       <span className="font-bold">Total Weight:</span>
                       <span className="font-bold text-lg">
