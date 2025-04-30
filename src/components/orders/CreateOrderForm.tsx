@@ -45,6 +45,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { OrderItem, Customer } from "@/types";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const orderSchema = z.object({
   customerId: z.string({ required_error: "Customer is required" }),
@@ -96,13 +97,20 @@ const CreateOrderForm: React.FC = () => {
       )
     : sortedProducts;
   
-  // Filtered customers based on search - Fixed to properly search by name
-  const filteredCustomers = customerSearch.trim() !== ""
-    ? customers.filter(customer =>
-        customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(customerSearch.toLowerCase()))
-      )
-    : customers;
+  // Fixed customer search to properly search by name and ensure it works with lowercase comparison
+  const filteredCustomers = customerSearch.trim() === ""
+    ? customers
+    : customers.filter(customer => {
+        const searchTerm = customerSearch.toLowerCase();
+        const nameMatch = customer.name.toLowerCase().includes(searchTerm);
+        const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(searchTerm) : false;
+        
+        return nameMatch || accountMatch;
+      });
+  
+  console.log("Customer search term:", customerSearch);
+  console.log("Total customers:", customers.length);
+  console.log("Filtered customers:", filteredCustomers.length);
     
   // Get the default order date based on current time
   const getDefaultOrderDate = () => {
