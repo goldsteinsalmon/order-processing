@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -17,7 +18,7 @@ import OrderDetailsStep from "./OrderDetailsStep";
 import ProductSelectionStep from "./ProductSelectionStep";
 import BoxDistributionStep from "./BoxDistributionStep";
 import { format } from "date-fns";
-import { Tabs, TabsContent, Tabslist, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -394,7 +395,6 @@ const CreateOrderSteps: React.FC = () => {
                 products={products}
                 onBack={() => {}}
                 onSubmit={() => {}}
-                hideNavigationButtons={true}
               />
             </Card>
           )}

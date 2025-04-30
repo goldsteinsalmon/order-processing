@@ -37,9 +37,19 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   // Check if all items have been assigned to boxes
   const areAllItemsAssigned = unassignedItems.length === 0;
   
-  // State for the split quantity dialog
-  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  // State for the auto split dialog
+  const [autoSplitDialogOpen, setAutoSplitDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<{
+    id: string;
+    productId: string;
+    productName: string;
+    quantity: number;
+  } | null>(null);
+  const [boxCount, setBoxCount] = useState(2); // Default to 2 boxes
+  
+  // State for the manual split dialog
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [splitTarget, setSplitTarget] = useState<{
     id: string;
     productId: string;
     productName: string;
@@ -138,29 +148,94 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     }).filter(i => i.quantity > 0));
   };
 
-  // New function to open split dialog
+  // New function to handle auto-splitting items
+  const handleOpenAutoSplitDialog = (item: typeof unassignedItems[0]) => {
+    setCurrentItem(item);
+    setBoxCount(Math.min(item.quantity, 5)); // Default to min of 5 boxes or item quantity
+    setAutoSplitDialogOpen(true);
+  };
+
+  // Handle auto-split confirmation
+  const handleAutoSplitConfirm = () => {
+    if (!currentItem) return;
+    
+    // Create boxes if needed
+    const existingBoxCount = boxDistributions.length;
+    if (existingBoxCount < boxCount) {
+      let highestBoxNumber = existingBoxCount > 0 
+        ? Math.max(...boxDistributions.map(box => box.boxNumber))
+        : 0;
+        
+      const newBoxes = [];
+      for (let i = existingBoxCount; i < boxCount; i++) {
+        highestBoxNumber++;
+        newBoxes.push({
+          boxNumber: highestBoxNumber,
+          items: [],
+          completed: false,
+          printed: false
+        });
+      }
+      
+      setBoxDistributions([...boxDistributions, ...newBoxes]);
+    }
+    
+    // Calculate quantities per box
+    const totalQuantity = currentItem.quantity;
+    const boxesToUse = boxCount;
+    
+    const baseQuantity = Math.floor(totalQuantity / boxesToUse);
+    const remainder = totalQuantity % boxesToUse;
+    
+    // Sort boxes by number for consistent distribution
+    const sortedBoxes = [...boxDistributions]
+      .sort((a, b) => a.boxNumber - b.boxNumber)
+      .slice(0, boxesToUse);
+    
+    // Distribute items evenly
+    sortedBoxes.forEach((box, index) => {
+      // Add extra item for remainder distribution
+      const quantityToAdd = index < remainder ? baseQuantity + 1 : baseQuantity;
+      
+      if (quantityToAdd > 0) {
+        const itemForBox = {
+          id: currentItem.id,
+          productId: currentItem.productId,
+          productName: currentItem.productName,
+          quantity: quantityToAdd
+        };
+        
+        handleAddItemToBox(box.boxNumber, itemForBox, quantityToAdd);
+      }
+    });
+    
+    // Close dialog
+    setAutoSplitDialogOpen(false);
+    setCurrentItem(null);
+  };
+
+  // Manual split functions
   const handleOpenSplitDialog = (item: typeof unassignedItems[0], boxNumber: number) => {
-    setCurrentItem({
+    setSplitTarget({
       ...item,
       targetBox: boxNumber
     });
-    setSplitQuantity(Math.min(5, item.quantity)); // Default to 5 or max available
+    setSplitQuantity(Math.min(5, item.quantity));
     setSplitDialogOpen(true);
   };
 
-  // Handle the split item confirmation
   const handleSplitConfirm = () => {
-    if (!currentItem) return;
+    if (!splitTarget) return;
     
     // Validate split quantity
-    const quantity = Math.min(currentItem.quantity, Math.max(1, splitQuantity));
+    const quantity = Math.min(splitTarget.quantity, Math.max(1, splitQuantity));
     
     // Add the specified quantity to the box
-    handleAddItemToBox(currentItem.targetBox, currentItem, quantity);
+    handleAddItemToBox(splitTarget.targetBox, splitTarget, quantity);
     
     // Close the dialog
     setSplitDialogOpen(false);
-    setCurrentItem(null);
+    setSplitTarget(null);
   };
   
   const handleRemoveItemFromBox = (boxNumber: number, productId: string, quantity?: number) => {
@@ -254,11 +329,19 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                       </DropdownMenuContent>
                     </DropdownMenu>
                     
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      onClick={() => handleOpenAutoSplitDialog(item)}
+                    >
+                      <SplitSquareVertical className="h-4 w-4 mr-1" />
+                      Auto Split
+                    </Button>
+                    
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="sm">
-                          <SplitSquareVertical className="h-4 w-4 mr-1" />
-                          Split
+                        <Button variant="outline" size="sm">
+                          Split Manually
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -339,24 +422,11 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
         </div>
       </div>
       
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onBack}>
-          Back to Items
-        </Button>
-        <Button 
-          type="button" 
-          onClick={onSubmit}
-          disabled={!areAllItemsAssigned}
-        >
-          Create Order
-        </Button>
-      </div>
-      
-      {/* Split Quantity Dialog */}
-      <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
+      {/* Auto Split Dialog */}
+      <Dialog open={autoSplitDialogOpen} onOpenChange={setAutoSplitDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Split Item Quantity</DialogTitle>
+            <DialogTitle>Auto Split Item</DialogTitle>
           </DialogHeader>
           
           <div className="py-4">
@@ -364,16 +434,57 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
               <>
                 <div className="mb-4">
                   <div className="font-medium">{currentItem.productName}</div>
-                  <div className="text-sm text-gray-500">Available: {currentItem.quantity}</div>
+                  <div className="text-sm text-gray-500">Total quantity: {currentItem.quantity}</div>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="splitQuantity">Quantity to add to Box {currentItem.targetBox}:</Label>
+                  <Label htmlFor="boxCount">Number of boxes to distribute across:</Label>
+                  <Input 
+                    id="boxCount"
+                    type="number" 
+                    min={2} 
+                    max={Math.min(10, currentItem.quantity)}
+                    value={boxCount}
+                    onChange={(e) => setBoxCount(parseInt(e.target.value) || 2)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Each box will receive approximately {Math.floor(currentItem.quantity / boxCount)} items
+                    {currentItem.quantity % boxCount > 0 && `, with ${currentItem.quantity % boxCount} boxes receiving one extra item`}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAutoSplitDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAutoSplitConfirm}>Auto Split</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Manual Split Quantity Dialog */}
+      <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Split Item Quantity</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {splitTarget && (
+              <>
+                <div className="mb-4">
+                  <div className="font-medium">{splitTarget.productName}</div>
+                  <div className="text-sm text-gray-500">Available: {splitTarget.quantity}</div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="splitQuantity">Quantity to add to Box {splitTarget.targetBox}:</Label>
                   <Input 
                     id="splitQuantity"
                     type="number" 
                     min={1} 
-                    max={currentItem.quantity}
+                    max={splitTarget.quantity}
                     value={splitQuantity}
                     onChange={(e) => setSplitQuantity(parseInt(e.target.value) || 1)}
                   />
