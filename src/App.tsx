@@ -22,6 +22,8 @@ import EditStandingOrderDeliveryPage from "./pages/EditStandingOrderDeliveryPage
 import PrintBoxLabelPage from "./pages/PrintBoxLabelPage";
 import CustomersPage from "./pages/CustomersPage";
 import AdminPage from "./pages/AdminPage"; // Add import for AdminPage
+import PickingListPage from "./pages/PickingListPage";
+import EditCompletedOrderPage from "./pages/EditCompletedOrderPage";
 
 const App: React.FC = () => {
   return (
@@ -41,6 +43,8 @@ const App: React.FC = () => {
         <Route path="/order-details/:id" element={<OrderDetailsPage />} />
         <Route path="/create-order" element={<CreateOrderPage />} />
         <Route path="/completed-orders" element={<CompletedOrdersPage />} />
+        <Route path="/edit-order/:id" element={<EditCompletedOrderPage />} />
+        <Route path="/picking-list/:id" element={<PickingListPage />} />
         
         <Route path="/standing-orders" element={<StandingOrdersPage />} />
         <Route path="/standing-order-details/:id" element={<StandingOrderDetailsPage />} />
