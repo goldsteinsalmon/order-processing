@@ -113,6 +113,17 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) =>
     return changedProducts.join("; ");
   };
 
+  // Get the picker name from either picker field or pickedBy field
+  const getPickerName = (order) => {
+    if (order.picker) {
+      return order.picker;
+    } else if (order.pickedBy) {
+      // This is a fallback in case picker name isn't saved but ID is
+      return order.pickedBy;
+    }
+    return "N/A";
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">
@@ -165,7 +176,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) =>
                     <TableCell>
                       {format(parseISO(order.orderDate), "dd/MM/yyyy")}
                     </TableCell>
-                    <TableCell>{order.picker || "N/A"}</TableCell>
+                    <TableCell>{getPickerName(order)}</TableCell>
                     <TableCell>{order.totalBlownPouches || 0}</TableCell>
                     <TableCell>
                       <div className="flex flex-col space-y-2">

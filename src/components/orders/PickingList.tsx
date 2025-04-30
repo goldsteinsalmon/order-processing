@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -82,6 +83,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       // If the order has a picker assigned, set it
       if (selectedOrder.pickedBy) {
         setSelectedPickerId(selectedOrder.pickedBy);
+      } else {
+        setSelectedPickerId("");
       }
       
       // Reset resolved missing items
@@ -200,6 +203,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       pickingInProgress: true,
       status: missingItems.length > 0 ? "Partially Picked" : "Pending",
       pickedBy: selectedPickerId || undefined,
+      picker: selectedPickerId ? pickers.find(p => p.id === selectedPickerId)?.name : undefined, // Save the picker name
       missingItems: missingItems
     };
     
@@ -301,6 +305,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   const confirmCompleteOrder = () => {
     if (!selectedOrder || !selectedPickerId) return;
     
+    // Find the picker name
+    const pickerName = pickers.find(p => p.id === selectedPickerId)?.name;
+    
     // Create a copy of the order with updated items (including batch numbers)
     const updatedOrder: Order = {
       ...selectedOrder,
@@ -318,6 +325,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
         };
       }),
       pickedBy: selectedPickerId,
+      picker: pickerName, // Save the picker name
       pickedAt: new Date().toISOString(),
       batchNumbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
       status: "Completed" as const

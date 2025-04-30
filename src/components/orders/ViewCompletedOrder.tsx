@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -86,6 +85,17 @@ const ViewCompletedOrder: React.FC = () => {
     return `${(weightInGrams / 1000).toFixed(3)} kg`;
   };
   
+  // Get the picker name from either picker field or pickedBy field
+  const getPickerName = () => {
+    if (order.picker) {
+      return order.picker;
+    } else if (order.pickedBy) {
+      // This is a fallback in case picker name isn't saved but ID is
+      return order.pickedBy;
+    }
+    return "N/A";
+  };
+  
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -142,7 +152,7 @@ const ViewCompletedOrder: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Picker:</dt>
-                <dd className="col-span-2">{order.picker || "N/A"}</dd>
+                <dd className="col-span-2">{getPickerName()}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Blown Pouches:</dt>

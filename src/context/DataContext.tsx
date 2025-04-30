@@ -152,6 +152,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
     }
     
+    // If pickedBy is set but picker name isn't, set it
+    if (order.pickedBy && !order.picker) {
+      const picker = pickers.find(p => p.id === order.pickedBy);
+      if (picker) {
+        updatedOrder = {
+          ...updatedOrder,
+          picker: picker.name
+        };
+      }
+    }
+    
     // We no longer record batch usage here as it's now handled in the PickingList component
     // after the order is completed, to properly account for weight-based products
     
