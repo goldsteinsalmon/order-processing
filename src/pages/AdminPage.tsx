@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from "react";
 import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -430,8 +431,8 @@ const AdminPage: React.FC = () => {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          if (results.data && Array.isArray(results.data)) {
-            // Process the imported products
+          if (results.data && Array.isArray(results.data) && results.data.length > 0) {
+            // Process the imported products - FIXED: Map all rows and add each product
             const importedProducts = results.data.map(row => ({
               id: uuidv4(),
               name: (row as any).name || "Unknown Product",
@@ -450,6 +451,12 @@ const AdminPage: React.FC = () => {
             toast({
               title: "Products imported",
               description: `Successfully imported ${importedProducts.length} products.`
+            });
+          } else {
+            toast({
+              title: "Import error",
+              description: "No valid products found in the CSV file.",
+              variant: "destructive"
             });
           }
         },
