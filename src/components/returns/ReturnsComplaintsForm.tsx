@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,6 +37,7 @@ const complaintsSchema = z.object({
     required_error: "Customer type is required",
   }),
   customerName: z.string().min(1, "Customer name is required"),
+  customerId: z.string().optional(),
   contactEmail: z.string().email("Invalid email").optional().or(z.literal('')),
   contactPhone: z.string().optional(),
   dateReturned: z.date({ required_error: "Date returned is required" }),
@@ -57,7 +57,7 @@ const complaintsSchema = z.object({
 type ComplaintsFormValues = z.infer<typeof complaintsSchema>;
 
 const ReturnsComplaintsForm: React.FC = () => {
-  const { products, addComplaint, addReturn } = useData();
+  const { products, customers, addComplaint, addReturn } = useData();
   const { toast } = useToast();
 
   const form = useForm<ComplaintsFormValues>({
@@ -70,7 +70,21 @@ const ReturnsComplaintsForm: React.FC = () => {
     },
   });
 
+  const customerType = form.watch("customerType");
   const returnsRequired = form.watch("returnsRequired");
+  const customerId = form.watch("customerId");
+  
+  // Update customer details when a trade customer is selected
+  useEffect(() => {
+    if (customerType === "Trade" && customerId) {
+      const selectedCustomer = customers.find(c => c.id === customerId);
+      if (selectedCustomer) {
+        form.setValue("customerName", selectedCustomer.name);
+        form.setValue("contactEmail", selectedCustomer.email || "");
+        form.setValue("contactPhone", selectedCustomer.phone || "");
+      }
+    }
+  }, [customerId, customerType, customers, form]);
   
   const complaintTypes = [
     "Foreign Object Found",
@@ -113,6 +127,7 @@ const ReturnsComplaintsForm: React.FC = () => {
           id: crypto.randomUUID(),
           customerType: data.customerType,
           customerName: data.customerName,
+          customerId: data.customerId,
           contactEmail: data.contactEmail,
           contactPhone: data.contactPhone,
           dateReturned: format(data.dateReturned, "yyyy-MM-dd"),
@@ -149,6 +164,7 @@ const ReturnsComplaintsForm: React.FC = () => {
       id: crypto.randomUUID(),
       customerType: data.customerType,
       customerName: data.customerName,
+      customerId: data.customerId,
       contactEmail: data.contactEmail,
       contactPhone: data.contactPhone,
       dateSubmitted: format(data.dateReturned, "yyyy-MM-dd"),
@@ -176,6 +192,7 @@ const ReturnsComplaintsForm: React.FC = () => {
     form.reset({
       customerType: "Private",
       customerName: "",
+      customerId: "",
       contactEmail: "",
       contactPhone: "",
       dateReturned: new Date(),
@@ -209,7 +226,13 @@ const ReturnsComplaintsForm: React.FC = () => {
                     <FormLabel>Customer Type *</FormLabel>
                     <FormControl>
                       <RadioGroup 
-                        onValueChange={field.onChange} 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Reset customer-specific fields when changing type
+                          if (value === "Private") {
+                            form.setValue("customerId", "");
+                          }
+                        }} 
                         defaultValue={field.value}
                         className="flex space-x-6"
                       >
@@ -228,19 +251,47 @@ const ReturnsComplaintsForm: React.FC = () => {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="customerName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter customer name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {customerType === "Trade" ? (
+                <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Select Customer *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a customer..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} 
+                              {customer.accountNumber && ` - ${customer.accountNumber}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter customer name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}

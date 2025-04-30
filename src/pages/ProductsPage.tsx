@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -21,6 +20,13 @@ const ProductsPage: React.FC = () => {
   const navigate = useNavigate();
   const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Sort products by SKU
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      return (a.sku || '').localeCompare(b.sku || '');
+    });
+  }, [products]);
 
   // Initialize stock adjustments
   useEffect(() => {
@@ -147,25 +153,25 @@ const ProductsPage: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
                 <TableHead>SKU</TableHead>
+                <TableHead>Name</TableHead>
                 <TableHead>Stock Level</TableHead>
                 <TableHead>Add Stock</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.length === 0 ? (
+              {sortedProducts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-gray-500 py-8">
                     No products found
                   </TableCell>
                 </TableRow>
               ) : (
-                products.map((product) => (
+                sortedProducts.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell>{product.name}</TableCell>
                     <TableCell>{product.sku}</TableCell>
+                    <TableCell>{product.name}</TableCell>
                     <TableCell>{product.stockLevel}</TableCell>
                     <TableCell className="w-40">
                       <div className="flex items-center">
@@ -202,6 +208,7 @@ const ProductsPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50">
+                  <th className="px-4 py-3 text-left font-medium">SKU</th>
                   <th className="px-4 py-3 text-left font-medium">Product</th>
                   <th className="px-4 py-3 text-left font-medium">Current Stock</th>
                   {next7WorkingDays.map((day) => (
@@ -215,14 +222,14 @@ const ProductsPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {products.length === 0 ? (
+                {sortedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={2 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={3 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
                       No products found
                     </td>
                   </tr>
                 ) : (
-                  products.map((product) => {
+                  sortedProducts.map((product) => {
                     // Calculate running stock level
                     let runningStock = product.stockLevel;
                     const dailyStocks: Record<string, number> = {};
@@ -236,6 +243,7 @@ const ProductsPage: React.FC = () => {
                     
                     return (
                       <tr key={product.id} className="border-b">
+                        <td className="px-4 py-3">{product.sku}</td>
                         <td className="px-4 py-3">{product.name}</td>
                         <td className="px-4 py-3">{product.stockLevel}</td>
                         {next7WorkingDays.map((day) => {
