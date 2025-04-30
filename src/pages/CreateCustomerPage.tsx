@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from "uuid";
+import { Switch } from "@/components/ui/switch";
 
 const CreateCustomerPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const CreateCustomerPage: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [needsDetailedBoxLabels, setNeedsDetailedBoxLabels] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +43,8 @@ const CreateCustomerPage: React.FC = () => {
       address: "", // Add empty address to satisfy the type requirement
       type: "Private" as "Private" | "Trade",
       onHold: false,
-      created: new Date().toISOString()
+      created: new Date().toISOString(),
+      needsDetailedBoxLabels // Add the new field
     };
     
     addCustomer(newCustomer);
@@ -105,6 +108,16 @@ const CreateCustomerPage: React.FC = () => {
                   onChange={(e) => setPhone(e.target.value)} 
                 />
               </div>
+            </div>
+            
+            {/* Box Labels Option */}
+            <div className="flex items-center space-x-2 pt-4">
+              <Switch 
+                id="needsDetailedBoxLabels" 
+                checked={needsDetailedBoxLabels}
+                onCheckedChange={setNeedsDetailedBoxLabels}
+              />
+              <Label htmlFor="needsDetailedBoxLabels">Requires Detailed Box Labels</Label>
             </div>
           </CardContent>
           <CardFooter className="flex justify-end space-x-2">
