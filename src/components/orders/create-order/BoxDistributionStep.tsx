@@ -149,7 +149,11 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   };
 
   // New function to handle auto-splitting items
-  const handleOpenAutoSplitDialog = (item: typeof unassignedItems[0]) => {
+  const handleOpenAutoSplitDialog = (e: React.MouseEvent, item: typeof unassignedItems[0]) => {
+    // Prevent the default form submission
+    e.preventDefault();
+    e.stopPropagation();
+    
     setCurrentItem(item);
     setBoxCount(Math.min(item.quantity, 5)); // Default to min of 5 boxes or item quantity
     setAutoSplitDialogOpen(true);
@@ -215,7 +219,10 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   };
 
   // Manual split functions
-  const handleOpenSplitDialog = (item: typeof unassignedItems[0], boxNumber: number) => {
+  const handleOpenSplitDialog = (e: React.MouseEvent, item: typeof unassignedItems[0], boxNumber: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     setSplitTarget({
       ...item,
       targetBox: boxNumber
@@ -332,7 +339,8 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                     <Button 
                       variant="secondary" 
                       size="sm" 
-                      onClick={() => handleOpenAutoSplitDialog(item)}
+                      onClick={(e) => handleOpenAutoSplitDialog(e, item)}
+                      type="button"
                     >
                       <SplitSquareVertical className="h-4 w-4 mr-1" />
                       Auto Split
@@ -340,7 +348,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" type="button">
                           Split Manually
                         </Button>
                       </DropdownMenuTrigger>
@@ -348,7 +356,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                         {boxDistributions.map(box => (
                           <DropdownMenuItem 
                             key={box.boxNumber}
-                            onClick={() => handleOpenSplitDialog(item, box.boxNumber)}
+                            onClick={(e) => handleOpenSplitDialog(e, item, box.boxNumber)}
                           >
                             Split into Box {box.boxNumber}
                           </DropdownMenuItem>

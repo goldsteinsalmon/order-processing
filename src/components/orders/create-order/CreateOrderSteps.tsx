@@ -8,7 +8,7 @@ import { addBusinessDays } from "date-fns";
 import { getNextWorkingDay } from "@/utils/dateUtils";
 import { useNavigate } from "react-router-dom";
 import { Customer, Box, OrderItem } from "@/types";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useData } from "@/context/DataContext";
