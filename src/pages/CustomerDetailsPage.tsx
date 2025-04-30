@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -26,8 +25,7 @@ const CustomerDetailsPage: React.FC = () => {
     accountNumber: customer?.accountNumber || "",
     email: customer?.email || "",
     phone: customer?.phone || "",
-    address: customer?.address || "",
-    type: customer?.type || "Business",
+    type: customer?.type || "Private" as "Private" | "Trade",
     onHold: customer?.onHold || false,
     holdReason: customer?.holdReason || ""
   });
@@ -38,7 +36,7 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const handleTypeChange = (value: string) => {
-    setFormData(prev => ({ ...prev, type: value }));
+    setFormData(prev => ({ ...prev, type: value as "Private" | "Trade" }));
   };
   
   const handleHoldStatusChange = (value: string) => {
@@ -64,8 +62,7 @@ const CustomerDetailsPage: React.FC = () => {
       accountNumber: formData.accountNumber,
       email: formData.email,
       phone: formData.phone,
-      address: formData.address,
-      type: formData.type,
+      type: formData.type as "Private" | "Trade",
       onHold: formData.onHold,
       holdReason: formData.onHold ? formData.holdReason : undefined,
       updated: new Date().toISOString()
@@ -164,16 +161,6 @@ const CustomerDetailsPage: React.FC = () => {
                   onChange={handleInputChange} 
                 />
               </div>
-              <div className="col-span-1 md:col-span-2 space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Textarea 
-                  id="address" 
-                  name="address"
-                  value={formData.address} 
-                  onChange={handleInputChange} 
-                  rows={3}
-                />
-              </div>
               
               <div className="space-y-2">
                 <Label>Customer Type</Label>
@@ -183,12 +170,12 @@ const CustomerDetailsPage: React.FC = () => {
                   className="flex space-x-4"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Business" id="business" />
-                    <Label htmlFor="business">Business</Label>
+                    <RadioGroupItem value="Private" id="private" />
+                    <Label htmlFor="private">Private</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Individual" id="individual" />
-                    <Label htmlFor="individual">Individual</Label>
+                    <RadioGroupItem value="Trade" id="trade" />
+                    <Label htmlFor="trade">Trade</Label>
                   </div>
                 </RadioGroup>
               </div>

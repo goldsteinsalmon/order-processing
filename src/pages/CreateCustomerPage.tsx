@@ -19,7 +19,6 @@ const CreateCustomerPage: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,8 +38,7 @@ const CreateCustomerPage: React.FC = () => {
       name,
       email,
       phone,
-      address,
-      type: "Business", // Default value
+      type: "Private" as "Private" | "Trade", // Fix type to be explicitly "Private" | "Trade"
       onHold: false,
       created: new Date().toISOString()
     };
@@ -104,14 +102,6 @@ const CreateCustomerPage: React.FC = () => {
                   id="phone" 
                   value={phone} 
                   onChange={(e) => setPhone(e.target.value)} 
-                />
-              </div>
-              <div className="col-span-1 md:col-span-2 space-y-2">
-                <Label htmlFor="address">Address (Optional)</Label>
-                <Input 
-                  id="address" 
-                  value={address} 
-                  onChange={(e) => setAddress(e.target.value)} 
                 />
               </div>
             </div>

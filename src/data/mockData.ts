@@ -1,3 +1,4 @@
+
 import { Customer, Product, Order, StandingOrder, Return, Complaint, MissingItem, User, Picker } from "../types";
 import { addDays, subDays, format } from "date-fns";
 
@@ -5,6 +6,7 @@ import { addDays, subDays, format } from "date-fns";
 export const customers: Customer[] = [
   { 
     id: "c1", 
+    accountNumber: "ACC001",
     name: "John Smith", 
     email: "john@example.com", 
     phone: "01234567890", 
@@ -13,6 +15,7 @@ export const customers: Customer[] = [
   },
   { 
     id: "c2", 
+    accountNumber: "ACC002",
     name: "ABC Groceries", 
     email: "orders@abcgroceries.com", 
     phone: "02087654321", 
@@ -21,6 +24,7 @@ export const customers: Customer[] = [
   },
   { 
     id: "c3", 
+    accountNumber: "ACC003",
     name: "Sarah Jones", 
     email: "sarah@example.com", 
     phone: "07700900123", 

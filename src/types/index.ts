@@ -1,6 +1,7 @@
 
 export interface Customer {
   id: string;
+  accountNumber?: string; // Add accountNumber property
   name: string;
   email: string;
   phone: string;
