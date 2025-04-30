@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ProductsPage from "./pages/ProductsPage";
@@ -62,6 +61,7 @@ const App: React.FC = () => {
         
         <Route path="/missing-items" element={<MissingItemsPage />} />
         
+        <Route path="/print-box-label" element={<PrintBoxLabelPage />} />
         <Route path="/print-box-label/:id" element={<PrintBoxLabelPage />} />
         
         <Route path="/admin" element={<AdminPage />} />
