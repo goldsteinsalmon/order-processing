@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -65,13 +66,27 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   useEffect(() => {
     if (selectedOrder) {
       // Create a flat list of all items from the order
-      const items = selectedOrder.items.map(item => ({
-        ...item,
-        checked: item.checked || false, // Initialize checked status
-        batchNumber: item.batchNumber || "", // Initialize batch number
-        pickedWeight: item.pickedWeight || 0, // Initialize picked weight
-        originalQuantity: item.originalQuantity, // Pass through original quantity if it exists
-      }));
+      const items = selectedOrder.items.map(item => {
+        // Check if this item has changes by looking at the order's changes array
+        let originalQty = item.originalQuantity;
+        
+        // If no originalQuantity exists but the order has changes, try to find it in the changes array
+        if (originalQty === undefined && selectedOrder.changes && selectedOrder.changes.length > 0) {
+          const itemChange = selectedOrder.changes.find(change => change.productId === item.productId);
+          if (itemChange) {
+            originalQty = itemChange.originalQuantity;
+          }
+        }
+        
+        return {
+          ...item,
+          checked: item.checked || false, // Initialize checked status
+          batchNumber: item.batchNumber || "", // Initialize batch number
+          pickedWeight: item.pickedWeight || 0, // Initialize picked weight
+          originalQuantity: originalQty, // Use the found original quantity or pass through existing one
+        };
+      });
+      
       setAllItems(items);
       
       // If the order has previously recorded missing items, set them
@@ -423,7 +438,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
             </div>
           </div>
           
-          {/* Items Table */}
+          {/* Items Table with changes tracking */}
           <ItemsTable 
             items={allItems}
             missingItems={missingItems}
