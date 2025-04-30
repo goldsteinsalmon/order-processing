@@ -163,7 +163,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       }));
     } else {
       // Add as new unassigned item
-      const product = products.find(p => p.id === item.productId);
+      const product = products.find(p => p.id === productId);
       setUnassignedItems([
         ...unassignedItems,
         {

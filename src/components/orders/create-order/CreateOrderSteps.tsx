@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { addBusinessDays } from "date-fns";
 import { getNextWorkingDay } from "@/utils/dateUtils";
 import { useNavigate } from "react-router-dom";
-import { Customer, Box } from "@/types";
+import { Customer, Box, OrderItem } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -228,8 +228,8 @@ const CreateOrderSteps: React.FC = () => {
       }
     }
 
-    // Create new order with or without box distribution
-    const orderItems: OrderItem[] = selectedCustomer?.needsDetailedBoxLabels 
+    // Prepare order items array
+    const finalOrderItems: OrderItem[] = selectedCustomer?.needsDetailedBoxLabels 
       ? boxDistributions.flatMap(box => 
           box.items.map(item => ({
             id: crypto.randomUUID(),
@@ -253,7 +253,7 @@ const CreateOrderSteps: React.FC = () => {
       customerOrderNumber: data.customerOrderNumber,
       orderDate: format(data.orderDate, "yyyy-MM-dd"),
       deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
-      items: orderItems,
+      items: finalOrderItems,
       notes: data.notes,
       status: "Pending" as const,
       created: new Date().toISOString(),
