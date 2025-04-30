@@ -11,6 +11,8 @@ import CreateOrderPage from "./pages/CreateOrderPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
 import PickingListPage from "./pages/PickingListPage";
 import CompletedOrdersPage from "./pages/CompletedOrdersPage";
+import ViewCompletedOrderPage from "./pages/ViewCompletedOrderPage";
+import EditCompletedOrderPage from "./pages/EditCompletedOrderPage";
 import PrintBoxLabelPage from "./pages/PrintBoxLabelPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import MissingItemsPage from "./pages/MissingItemsPage";
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/picking-list/:id" element={<PickingListPage />} />
             <Route path="/print-box-label/:id" element={<PrintBoxLabelPage />} />
             <Route path="/completed-orders" element={<CompletedOrdersPage />} />
+            <Route path="/view-completed-order/:id" element={<ViewCompletedOrderPage />} />
+            <Route path="/edit-completed-order/:id" element={<EditCompletedOrderPage />} />
             <Route path="/standing-orders" element={<StandingOrdersPage />} />
             <Route path="/create-standing-order" element={<CreateStandingOrderPage />} />
             <Route path="/missing-items" element={<MissingItemsPage />} />

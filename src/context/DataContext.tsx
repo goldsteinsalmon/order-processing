@@ -97,12 +97,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateOrder = (updatedOrder: Order) => {
-    setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    // Check if the order is in orders list or completedOrders
+    const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
+    
+    if (isCompletedOrder) {
+      // If it's a completed order being modified, remove it from completedOrders and add to orders
+      setCompletedOrders(completedOrders.filter(o => o.id !== updatedOrder.id));
+      setOrders([...orders, updatedOrder]);
+    } else {
+      // Normal update in orders list
+      setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+    }
   };
 
   const completeOrder = (order: Order) => {
+    // When completing an order, add support for multiple batch numbers
+    let updatedOrder = { ...order, status: "Completed" as const };
+    
+    // If there's already a batchNumber, convert it to batchNumbers array
+    if (order.batchNumber && !order.batchNumbers) {
+      updatedOrder = {
+        ...updatedOrder,
+        batchNumbers: [order.batchNumber]
+      };
+    }
+    
     setOrders(orders.filter(o => o.id !== order.id));
-    setCompletedOrders([...completedOrders, { ...order, status: "Completed" }]);
+    setCompletedOrders([...completedOrders, updatedOrder]);
   };
 
   const addStandingOrder = (standingOrder: StandingOrder) => {

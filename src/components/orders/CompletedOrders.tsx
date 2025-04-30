@@ -1,10 +1,18 @@
 
 import React from "react";
 import { format, parseISO } from "date-fns";
-import { Eye, Printer } from "lucide-react";
+import { Eye, Edit, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const CompletedOrders: React.FC = () => {
   const { completedOrders } = useData();
@@ -20,61 +28,74 @@ const CompletedOrders: React.FC = () => {
       <h2 className="text-2xl font-bold mb-6">Completed Orders</h2>
 
       <div className="rounded-md border">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium">Order ID</th>
-                <th className="px-4 py-3 text-left font-medium">Customer</th>
-                <th className="px-4 py-3 text-left font-medium">Order Date</th>
-                <th className="px-4 py-3 text-left font-medium">Picker</th>
-                <th className="px-4 py-3 text-left font-medium">Batch Number</th>
-                <th className="px-4 py-3 text-left font-medium">Blown Pouches</th>
-                <th className="px-4 py-3 text-left font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No completed orders found
-                  </td>
-                </tr>
-              ) : (
-                sortedOrders.map((order) => (
-                  <tr key={order.id} className="border-b">
-                    <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
-                    <td className="px-4 py-3">{order.customer.name}</td>
-                    <td className="px-4 py-3">
-                      {format(parseISO(order.orderDate), "dd/MM/yyyy")}
-                    </td>
-                    <td className="px-4 py-3">{order.picker || "N/A"}</td>
-                    <td className="px-4 py-3">{order.batchNumber || "N/A"}</td>
-                    <td className="px-4 py-3">{order.totalBlownPouches || 0}</td>
-                    <td className="px-4 py-3 flex space-x-2">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Order ID</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Order Date</TableHead>
+              <TableHead>Picker</TableHead>
+              <TableHead>Batch Number(s)</TableHead>
+              <TableHead>Blown Pouches</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedOrders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-gray-500">
+                  No completed orders found
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedOrders.map((order) => (
+                <TableRow 
+                  key={order.id} 
+                  className={order.hasChanges ? "bg-red-50" : ""}
+                >
+                  <TableCell>{order.id.substring(0, 8)}</TableCell>
+                  <TableCell>{order.customer.name}</TableCell>
+                  <TableCell>
+                    {format(parseISO(order.orderDate), "dd/MM/yyyy")}
+                  </TableCell>
+                  <TableCell>{order.picker || "N/A"}</TableCell>
+                  <TableCell>
+                    {order.batchNumbers ? order.batchNumbers.join(", ") : (order.batchNumber || "N/A")}
+                  </TableCell>
+                  <TableCell>{order.totalBlownPouches || 0}</TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        onClick={() => navigate(`/order-details/${order.id}`)}
+                        onClick={() => navigate(`/view-completed-order/${order.id}`)}
                       >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View Details</span>
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => navigate(`/edit-completed-order/${order.id}`)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm" 
                         onClick={() => navigate(`/print-box-label/${order.id}`)}
                       >
-                        <Printer className="h-4 w-4" />
-                        <span className="sr-only">Print Label</span>
+                        <Printer className="h-4 w-4 mr-1" />
+                        Print
                       </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
