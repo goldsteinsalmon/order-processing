@@ -1,7 +1,7 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Check, X } from "lucide-react";
+import { ArrowLeft, Save, Check, X, FileCheck } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,23 @@ const PickingList: React.FC = () => {
   const order = orders.find(order => order.id === id);
 
   const [selectedPicker, setSelectedPicker] = useState<string>("");
-  const [batchNumber, setBatchNumber] = useState<string>("");
+  const [batchNumbers, setBatchNumbers] = useState<{ [key: string]: string }>({});
   const [pickedItems, setPickedItems] = useState<{ [key: string]: boolean }>({});
   const [unavailableItems, setUnavailableItems] = useState<{ [key: string]: boolean }>({});
-  const [unavailableQuantities, setUnavailableQuantities] = useState<{ [key: string]: number }>({});
-  const [blownPouches, setBlownPouches] = useState<{ [key: string]: number }>({});
+  const [unavailableQuantities, setUnavailableQuantities] = useState<{ [key: string]: number | null }>({});
+  const [blownPouches, setBlownPouches] = useState<{ [key: string]: number | null }>({});
+  
+  // Check if order has saved picking progress
+  useEffect(() => {
+    if (order?.pickingProgress) {
+      setSelectedPicker(order.pickingProgress.picker || "");
+      setBatchNumbers(order.pickingProgress.batchNumbers || {});
+      setPickedItems(order.pickingProgress.pickedItems || {});
+      setUnavailableItems(order.pickingProgress.unavailableItems || {});
+      setUnavailableQuantities(order.pickingProgress.unavailableQuantities || {});
+      setBlownPouches(order.pickingProgress.blownPouches || {});
+    }
+  }, [order]);
 
   if (!order) {
     return (
@@ -39,6 +51,13 @@ const PickingList: React.FC = () => {
 
   const handlePickerChange = (value: string) => {
     setSelectedPicker(value);
+  };
+
+  const handleBatchNumberChange = (itemId: string, value: string) => {
+    setBatchNumbers({
+      ...batchNumbers,
+      [itemId]: value,
+    });
   };
 
   const handlePickedChange = (itemId: string, checked: boolean) => {
@@ -59,17 +78,8 @@ const PickingList: React.FC = () => {
       [itemId]: checked,
     });
 
-    // If item is marked as unavailable, update the unavailable quantity if needed
+    // If item is marked as unavailable, it can't be picked
     if (checked) {
-      const item = order.items.find(item => item.id === itemId);
-      if (item && !unavailableQuantities[itemId]) {
-        setUnavailableQuantities({
-          ...unavailableQuantities,
-          [itemId]: item.quantity,
-        });
-      }
-
-      // Also, it can't be picked
       setPickedItems({
         ...pickedItems,
         [itemId]: false,
@@ -81,28 +91,51 @@ const PickingList: React.FC = () => {
     }
   };
 
-  const handleUnavailableQuantityChange = (itemId: string, quantity: number) => {
-    const item = order.items.find(item => item.id === itemId);
-    if (item) {
-      const maxQuantity = item.quantity;
-      const validQuantity = Math.min(Math.max(1, quantity), maxQuantity);
-      
-      setUnavailableQuantities({
-        ...unavailableQuantities,
-        [itemId]: validQuantity,
-      });
-    }
-  };
-
-  const handleBlownPouchesChange = (itemId: string, value: number) => {
-    const validValue = Math.max(0, value);
-    setBlownPouches({
-      ...blownPouches,
-      [itemId]: validValue,
+  const handleUnavailableQuantityChange = (itemId: string, value: string) => {
+    const numValue = value === "" ? null : parseInt(value);
+    
+    setUnavailableQuantities({
+      ...unavailableQuantities,
+      [itemId]: numValue,
     });
   };
 
-  const handleSave = () => {
+  const handleBlownPouchesChange = (itemId: string, value: string) => {
+    const numValue = value === "" ? null : parseInt(value);
+    
+    setBlownPouches({
+      ...blownPouches,
+      [itemId]: numValue,
+    });
+  };
+
+  const handleSaveProgress = () => {
+    const pickingProgress = {
+      picker: selectedPicker,
+      batchNumbers,
+      pickedItems,
+      unavailableItems,
+      unavailableQuantities,
+      blownPouches,
+    };
+
+    const updatedOrder = {
+      ...order,
+      pickingProgress,
+      status: "Picking" as const,
+      updated: new Date().toISOString(),
+    };
+
+    updateOrder(updatedOrder);
+
+    toast({
+      title: "Progress saved",
+      description: "Your picking progress has been saved.",
+    });
+  };
+
+  const handleCompletePicking = () => {
+    // Validate requirements
     if (!selectedPicker) {
       toast({
         title: "Error",
@@ -112,17 +145,30 @@ const PickingList: React.FC = () => {
       return;
     }
 
-    if (!batchNumber) {
+    // Check if all items have batch numbers
+    const missingBatchNumbers = order.items.some(item => !batchNumbers[item.id]);
+    if (missingBatchNumbers) {
       toast({
         title: "Error",
-        description: "Please enter a batch number.",
+        description: "Please enter batch numbers for all items.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if all items are either picked or unavailable
+    const unprocessedItems = order.items.some(item => !pickedItems[item.id] && !unavailableItems[item.id]);
+    if (unprocessedItems) {
+      toast({
+        title: "Error",
+        description: "Please mark all items as either picked or unavailable.",
         variant: "destructive",
       });
       return;
     }
 
     // Calculate total blown pouches
-    const totalBlownPouches = Object.values(blownPouches).reduce((sum, value) => sum + value, 0);
+    const totalBlownPouches = Object.values(blownPouches).reduce((sum, value) => sum + (value || 0), 0);
 
     // Create updated order items
     const updatedItems = order.items.map(item => ({
@@ -130,6 +176,7 @@ const PickingList: React.FC = () => {
       isUnavailable: unavailableItems[item.id] || false,
       unavailableQuantity: unavailableItems[item.id] ? unavailableQuantities[item.id] || 0 : 0,
       blownPouches: blownPouches[item.id] || 0,
+      batchNumber: batchNumbers[item.id] || "",
     }));
 
     // Create updated order with explicit type for status
@@ -137,11 +184,11 @@ const PickingList: React.FC = () => {
       ...order,
       items: updatedItems,
       picker: selectedPicker,
-      batchNumber: batchNumber,
       isPicked: true,
       status: "Picking" as const,
       totalBlownPouches: totalBlownPouches,
       updated: new Date().toISOString(),
+      pickingProgress: null, // Clear progress once completed
     };
 
     // Add missing items if needed
@@ -180,9 +227,14 @@ const PickingList: React.FC = () => {
           </Button>
           <h2 className="text-2xl font-bold">Picking List</h2>
         </div>
-        <Button onClick={handleSave}>
-          <Save className="mr-2 h-4 w-4" /> Complete Picking
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={handleSaveProgress}>
+            <Save className="mr-2 h-4 w-4" /> Save Progress
+          </Button>
+          <Button onClick={handleCompletePicking}>
+            <FileCheck className="mr-2 h-4 w-4" /> Complete Picking
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -192,32 +244,22 @@ const PickingList: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Picker</label>
-                  <Select value={selectedPicker} onValueChange={handlePickerChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a picker" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pickers
-                        .filter(picker => picker.active)
-                        .map((picker) => (
-                          <SelectItem key={picker.id} value={picker.name}>
-                            {picker.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Batch Number</label>
-                  <Input
-                    value={batchNumber}
-                    onChange={(e) => setBatchNumber(e.target.value)}
-                    placeholder="Enter batch number"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Picker</label>
+                <Select value={selectedPicker} onValueChange={handlePickerChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a picker" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pickers
+                      .filter(picker => picker.active)
+                      .map((picker) => (
+                        <SelectItem key={picker.id} value={picker.name}>
+                          {picker.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -236,10 +278,6 @@ const PickingList: React.FC = () => {
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order ID:</dt>
                 <dd className="col-span-2">{order.id.substring(0, 8)}</dd>
-              </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Total Items:</dt>
-                <dd className="col-span-2">{order.items.reduce((acc, item) => acc + item.quantity, 0)}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Delivery Method:</dt>
@@ -262,6 +300,7 @@ const PickingList: React.FC = () => {
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
                   <th className="text-center font-medium py-2">Quantity</th>
+                  <th className="text-center font-medium py-2">Batch Number</th>
                   <th className="text-center font-medium py-2">Picked</th>
                   <th className="text-center font-medium py-2">Unavailable</th>
                   <th className="text-center font-medium py-2">Unavailable Qty</th>
@@ -274,6 +313,14 @@ const PickingList: React.FC = () => {
                     <td className="py-3">{item.product.name}</td>
                     <td className="py-3">{item.product.sku}</td>
                     <td className="py-3 text-center">{item.quantity}</td>
+                    <td className="py-3 text-center">
+                      <Input
+                        value={batchNumbers[item.id] || ""}
+                        onChange={(e) => handleBatchNumberChange(item.id, e.target.value)}
+                        placeholder="Enter batch #"
+                        className="w-28 mx-auto"
+                      />
+                    </td>
                     <td className="py-3 text-center">
                       <div className="flex justify-center">
                         <Checkbox
@@ -300,8 +347,9 @@ const PickingList: React.FC = () => {
                           type="number"
                           min="1"
                           max={item.quantity}
-                          value={unavailableQuantities[item.id] || item.quantity}
-                          onChange={(e) => handleUnavailableQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                          value={unavailableQuantities[item.id] === null ? "" : unavailableQuantities[item.id]}
+                          onChange={(e) => handleUnavailableQuantityChange(item.id, e.target.value)}
+                          placeholder="Qty"
                           className="w-20 mx-auto"
                         />
                       ) : (
@@ -312,17 +360,18 @@ const PickingList: React.FC = () => {
                       <Input
                         type="number"
                         min="0"
-                        value={blownPouches[item.id] || 0}
-                        onChange={(e) => handleBlownPouchesChange(item.id, parseInt(e.target.value) || 0)}
+                        value={blownPouches[item.id] === null ? "" : blownPouches[item.id]}
+                        onChange={(e) => handleBlownPouchesChange(item.id, e.target.value)}
+                        placeholder="0"
                         className="w-20 mx-auto"
                       />
                     </td>
                   </tr>
                 ))}
                 <tr className="font-medium">
-                  <td colSpan={6} className="py-3 text-right">Total Blown Pouches:</td>
+                  <td colSpan={7} className="py-3 text-right">Total Blown Pouches:</td>
                   <td className="py-3 text-center">
-                    {Object.values(blownPouches).reduce((sum, value) => sum + value, 0)}
+                    {Object.values(blownPouches).reduce((sum, value) => sum + (value || 0), 0)}
                   </td>
                 </tr>
               </tbody>

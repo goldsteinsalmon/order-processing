@@ -1,5 +1,3 @@
-
-
 export interface Customer {
   id: string;
   name: string;
@@ -16,7 +14,6 @@ export interface Product {
   name: string;
   sku: string;
   description: string;
-  price: number;
   stockLevel: number;
   unit: string; // e.g., "kg", "unit", etc.
 }
@@ -32,6 +29,15 @@ export interface OrderItem {
   batchNumber?: string;
 }
 
+export interface PickingProgress {
+  picker: string;
+  batchNumbers: { [key: string]: string };
+  pickedItems: { [key: string]: boolean };
+  unavailableItems: { [key: string]: boolean };
+  unavailableQuantities: { [key: string]: number | null };
+  blownPouches: { [key: string]: number | null };
+}
+
 export interface Order {
   id: string;
   customerId: string;
@@ -44,10 +50,10 @@ export interface Order {
   status: "Pending" | "Picking" | "Completed" | "Cancelled";
   picker?: string;
   isPicked?: boolean;
-  batchNumber?: string;
   totalBlownPouches?: number;
   isModified?: boolean;
   modifiedFields?: string[];
+  pickingProgress?: PickingProgress | null;
   created: string;
   updated?: string;
 }
