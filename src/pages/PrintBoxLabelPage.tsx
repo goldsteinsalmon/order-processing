@@ -42,11 +42,15 @@ const PrintBoxLabelPage: React.FC = () => {
           }
           
           // Update the order with this box marked as completed and saved
+          // Make sure to preserve all existing order data, especially picker details
           updateOrder({
             ...order,
             completedBoxes: updatedCompletedBoxes,
             savedBoxes: updatedSavedBoxes,
-            pickedBy: order.pickedBy // Ensure picker details are preserved
+            pickedBy: order.pickedBy,
+            pickedAt: order.pickedAt,
+            pickingProgress: order.pickingProgress,
+            batchNumbers: order.batchNumbers
           });
           
           // Show success toast

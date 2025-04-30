@@ -489,26 +489,37 @@ const PrintBoxLabel: React.FC = () => {
                     {/* Products and quantities in this box */}
                     <div className="w-full mb-4 border-t border-b py-2">
                       <h3 className="font-bold mb-2">Box Contents:</h3>
-                      {box.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center mb-1">
-                          <span>{item.productName}</span>
-                          <div className="flex items-center">
-                            <span className="font-medium mr-2">{item.quantity}</span>
-                            {item.weight > 0 && (
-                              <span className="text-sm bg-gray-100 px-2 py-1 rounded flex items-center">
-                                <Weight className="h-3 w-3 mr-1" />
-                                {(item.weight/1000).toFixed(2)} kg
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-sm text-gray-600 border-b">
+                            <th className="text-left py-1">Product</th>
+                            <th className="text-center py-1">Quantity</th>
+                            <th className="text-right py-1">Weight</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {box.items.map((item, idx) => (
+                            <tr key={idx} className="border-b border-gray-100">
+                              <td className="py-2">{item.productName}</td>
+                              <td className="py-2 text-center font-medium">{item.quantity}</td>
+                              <td className="py-2 text-right">
+                                {item.weight > 0 ? (
+                                  <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
+                                    <Weight className="h-3 w-3 mr-1" />
+                                    {(item.weight/1000).toFixed(2)} kg
+                                  </span>
+                                ) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                     
                     {/* Box weight */}
                     {box.totalBoxWeight > 0 && (
-                      <div className="flex justify-between items-center text-right">
-                        <span className="font-bold">Box Weight:</span>
+                      <div className="flex justify-between items-center text-right mt-2">
+                        <span className="font-bold">Total Box Weight:</span>
                         <span className="font-bold text-lg">{(box.totalBoxWeight/1000).toFixed(2)} kg</span>
                       </div>
                     )}
@@ -518,34 +529,56 @@ const PrintBoxLabel: React.FC = () => {
             ))
           ))
         ) : (
-          // Simple box labels (original design)
+          // Simple box labels (original design) - also updated with tabular format
           Array.from({ length: labelCount }).map((_, index) => (
             <div key={index} className="box-label border rounded-lg mb-4">
               <div className="box-label-content p-6">
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col">
                   {/* Customer name in large font */}
                   <h1 className="text-4xl font-bold text-center mb-2">{order.customer.name}</h1>
                   
                   {/* Order ID in smaller font */}
                   <p className="text-sm mb-4">Order: {order.id}</p>
                   
-                  {/* Products and quantities */}
-                  <div className="w-full">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="text-sm mb-1 flex justify-between">
-                        <span>{item.product.name}</span>
-                        <div className="flex items-center">
-                          <span className="font-medium mr-2">{item.quantity}</span>
-                          {item.product.requiresWeightInput && item.pickedWeight && (
-                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded flex items-center">
-                              <Weight className="h-3 w-3 mr-1" />
-                              {(item.pickedWeight/1000).toFixed(2)} kg
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                  {/* Products and quantities in tabular format */}
+                  <div className="w-full mb-4 border-t border-b py-2">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-sm text-gray-600 border-b">
+                          <th className="text-left py-1">Product</th>
+                          <th className="text-center py-1">Quantity</th>
+                          <th className="text-right py-1">Weight</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.items.map((item) => (
+                          <tr key={item.id} className="border-b border-gray-100">
+                            <td className="py-2">{item.product.name}</td>
+                            <td className="py-2 text-center font-medium">{item.quantity}</td>
+                            <td className="py-2 text-right">
+                              {item.product.requiresWeightInput && item.pickedWeight ? (
+                                <span className="bg-gray-100 px-2 py-1 rounded inline-flex items-center">
+                                  <Weight className="h-3 w-3 mr-1" />
+                                  {(item.pickedWeight/1000).toFixed(2)} kg
+                                </span>
+                              ) : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
+                  
+                  {/* Add total weight if available */}
+                  {order.items.some(item => item.product.requiresWeightInput && item.pickedWeight) && (
+                    <div className="flex justify-between items-center text-right mt-2">
+                      <span className="font-bold">Total Weight:</span>
+                      <span className="font-bold text-lg">
+                        {(order.items.reduce((total, item) => 
+                          total + (item.pickedWeight || 0), 0) / 1000).toFixed(2)} kg
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
