@@ -191,6 +191,7 @@ const ProductsPage: React.FC = () => {
                 <TableHead>SKU</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Weight (g)</TableHead>
+                <TableHead>Requires Weight</TableHead>
                 <TableHead>Stock Level</TableHead>
                 <TableHead>Add Stock</TableHead>
                 <TableHead>Actions</TableHead>
@@ -199,7 +200,7 @@ const ProductsPage: React.FC = () => {
             <TableBody>
               {filteredProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
                     {searchTerm ? "No matching products found" : "No products found"}
                   </TableCell>
                 </TableRow>
@@ -208,7 +209,18 @@ const ProductsPage: React.FC = () => {
                   <TableRow key={product.id}>
                     <TableCell>{product.sku}</TableCell>
                     <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.weight || "N/A"}</TableCell>
+                    <TableCell>{product.requiresWeightInput ? "N/A" : (product.weight || "N/A")}</TableCell>
+                    <TableCell>
+                      {product.requiresWeightInput ? (
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                          No
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>{product.stockLevel}</TableCell>
                     <TableCell className="w-40">
                       <div className="flex items-center">
