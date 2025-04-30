@@ -133,7 +133,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addMissingItem = (missingItem: MissingItem) => {
-    setMissingItems([...missingItems, missingItem]);
+    // Find the full order based on orderId to make sure we have all required data
+    const orderForMissingItem = orders.find(o => o.id === missingItem.orderId);
+    
+    // If we can't find the order, still add the missing item as provided
+    if (!orderForMissingItem) {
+      setMissingItems([...missingItems, missingItem]);
+      return;
+    }
+    
+    // Create a new missing item with complete order info but avoid circular references
+    const completeItem = {
+      ...missingItem,
+      order: {
+        id: orderForMissingItem.id,
+        customer: orderForMissingItem.customer,
+        // Add any other order fields needed for display in the missing items page
+        // but avoid including the entire order object
+      }
+    };
+    
+    setMissingItems([...missingItems, completeItem]);
   };
 
   const addUser = (user: User) => {

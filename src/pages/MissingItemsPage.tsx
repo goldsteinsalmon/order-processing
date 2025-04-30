@@ -41,7 +41,7 @@ const MissingItemsPage: React.FC = () => {
                     <td className="px-4 py-3">
                       {format(parseISO(item.date), "dd/MM/yyyy")}
                     </td>
-                    <td className="px-4 py-3">{item.order.customer.name}</td>
+                    <td className="px-4 py-3">{item.order?.customer?.name || "Unknown"}</td>
                   </tr>
                 ))
               )}

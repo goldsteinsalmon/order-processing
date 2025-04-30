@@ -131,7 +131,10 @@ export interface Complaint {
 export interface MissingItem {
   id: string;
   orderId: string;
-  order: Order;
+  order: {
+    id: string;
+    customer: Customer;
+  } | Order;
   productId: string;
   product: Product;
   quantity: number;

@@ -170,6 +170,21 @@ const PickingList: React.FC = () => {
       return;
     }
 
+    // Validate that all unavailable items have a quantity specified
+    const invalidUnavailableItems = order.items.some(
+      item => unavailableItems[item.id] && 
+      (unavailableQuantities[item.id] === null || unavailableQuantities[item.id] === undefined || unavailableQuantities[item.id] <= 0)
+    );
+    
+    if (invalidUnavailableItems) {
+      toast({
+        title: "Error",
+        description: "Please specify a valid quantity for all unavailable items.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Calculate total blown pouches
     const totalBlownPouches = Object.values(blownPouches).reduce((sum, value) => sum + (value || 0), 0);
 
@@ -183,7 +198,7 @@ const PickingList: React.FC = () => {
     }));
 
     // Check if any items are unavailable to update order status
-    const hasUnavailableItems = updatedItems.some(item => item.isUnavailable && item.unavailableQuantity);
+    const hasUnavailableItems = updatedItems.some(item => item.isUnavailable);
     
     // Create updated order with explicit type for status
     const updatedOrder = {
@@ -197,23 +212,30 @@ const PickingList: React.FC = () => {
       pickingProgress: null, // Clear progress once completed
     };
 
-    // Add missing items if needed
+    // Process missing items
     updatedItems.forEach(item => {
-      if (item.isUnavailable && item.unavailableQuantity) {
+      if (item.isUnavailable && item.unavailableQuantity && item.unavailableQuantity > 0) {
+        // Create a missing item without circular references
         const missingItem = {
           id: crypto.randomUUID(),
           orderId: order.id,
-          order: updatedOrder,
+          // Only include necessary order data to avoid circular references
+          order: {
+            id: order.id,
+            customer: order.customer,
+          },
           productId: item.productId,
           product: item.product,
           quantity: item.unavailableQuantity!,
           date: new Date().toISOString(),
         };
         
+        // Add missing item to the list
         addMissingItem(missingItem);
       }
     });
 
+    // Update order status in the system
     updateOrder(updatedOrder);
 
     toast({
@@ -221,6 +243,7 @@ const PickingList: React.FC = () => {
       description: "The order has been successfully processed.",
     });
 
+    // Navigate back to orders list
     navigate("/");
   };
 
