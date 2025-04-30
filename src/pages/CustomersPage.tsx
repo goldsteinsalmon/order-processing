@@ -25,6 +25,8 @@ const CustomersPage: React.FC = () => {
     );
   }, [customers, searchTerm]);
 
+  console.log("Current customers:", customers.length); // Debug log to see customer count
+
   return (
     <Layout>
       <div className="flex justify-between mb-6">

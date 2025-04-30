@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { v4 as uuidv4 } from "uuid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { parse } from 'papaparse';
 
 const AdminPage: React.FC = () => {
-  const { users, pickers, updateUser, addUser, updatePicker, addPicker, deleteUser, deletePicker } = useData();
+  const { users, pickers, updateUser, addUser, updatePicker, addPicker, deleteUser, deletePicker, addCustomer, addProduct } = useData();
   const { toast } = useToast();
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [restorePassword, setRestorePassword] = useState("");
@@ -338,7 +339,7 @@ const AdminPage: React.FC = () => {
     }
   };
   
-  // File input handlers
+  // Fixed file input handlers to correctly parse and add imported data
   const handleCustomerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -352,12 +353,50 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    // Here you would process the CSV file
-    // For demo purposes, just show a success message
-    toast({
-      title: "Customers imported",
-      description: `File ${file.name} was processed successfully.`
-    });
+    // Read the file and parse the CSV
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csvData = event.target?.result as string;
+      
+      parse(csvData, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.data && Array.isArray(results.data)) {
+            // Process the imported customers
+            const importedCustomers = results.data.map(row => ({
+              id: uuidv4(),
+              accountNumber: (row as any).accountNumber || `ACC-${Math.floor(Math.random() * 10000)}`,
+              name: (row as any).name || "Unknown Customer",
+              email: (row as any).email || "",
+              phone: (row as any).phone || "",
+              address: (row as any).address || "",
+              onHold: false,
+              created: new Date().toISOString(),
+            }));
+            
+            // Add each customer to the data context
+            importedCustomers.forEach(customer => {
+              addCustomer(customer);
+            });
+            
+            toast({
+              title: "Customers imported",
+              description: `Successfully imported ${importedCustomers.length} customers.`
+            });
+          }
+        },
+        error: (error) => {
+          toast({
+            title: "Import error",
+            description: `Error parsing CSV file: ${error.message}`,
+            variant: "destructive"
+          });
+        }
+      });
+    };
+    
+    reader.readAsText(file);
     
     // Clear the file input
     if (customerFileInputRef.current) {
@@ -378,12 +417,49 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    // Here you would process the CSV file
-    // For demo purposes, just show a success message
-    toast({
-      title: "Products imported",
-      description: `File ${file.name} was processed successfully.`
-    });
+    // Read the file and parse the CSV
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csvData = event.target?.result as string;
+      
+      parse(csvData, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.data && Array.isArray(results.data)) {
+            // Process the imported products
+            const importedProducts = results.data.map(row => ({
+              id: uuidv4(),
+              name: (row as any).name || "Unknown Product",
+              sku: (row as any).sku || `SKU-${Math.floor(Math.random() * 10000)}`,
+              stockLevel: parseInt((row as any).stockLevel, 10) || 0,
+              weight: parseInt((row as any).weight, 10) || 0,
+              description: (row as any).description || "",
+              created: new Date().toISOString(),
+            }));
+            
+            // Add each product to the data context
+            importedProducts.forEach(product => {
+              addProduct(product);
+            });
+            
+            toast({
+              title: "Products imported",
+              description: `Successfully imported ${importedProducts.length} products.`
+            });
+          }
+        },
+        error: (error) => {
+          toast({
+            title: "Import error",
+            description: `Error parsing CSV file: ${error.message}`,
+            variant: "destructive"
+          });
+        }
+      });
+    };
+    
+    reader.readAsText(file);
     
     // Clear the file input
     if (productFileInputRef.current) {
