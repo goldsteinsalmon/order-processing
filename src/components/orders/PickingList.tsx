@@ -195,7 +195,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         updateOrder({
           ...selectedOrder,
           completedBoxes: newCompletedBoxes,
-          savedBoxes: savedBoxes,
+          savedBoxes: [...savedBoxes], // Ensure saved boxes state is preserved
           pickedBy: selectedPickerId,
           pickingInProgress: true
         });
@@ -212,7 +212,17 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     
     // Add to saved boxes if not already there
     if (!savedBoxes.includes(boxNumber)) {
-      setSavedBoxes(prev => [...prev, boxNumber]);
+      const newSavedBoxes = [...savedBoxes, boxNumber];
+      setSavedBoxes(newSavedBoxes);
+      
+      // Update the order with the new saved box
+      updateOrder({
+        ...selectedOrder,
+        savedBoxes: newSavedBoxes,
+        completedBoxes,
+        pickedBy: selectedPickerId,
+        pickingInProgress: true
+      });
     }
     
     // Save overall progress to ensure everything is preserved

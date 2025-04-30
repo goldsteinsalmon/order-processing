@@ -51,9 +51,10 @@ const PrintBoxLabelPage: React.FC = () => {
           completedBoxes: updatedCompletedBoxes,
           savedBoxes: updatedSavedBoxes,
           pickedBy: order.pickedBy,
-          pickedAt: order.pickedAt,
+          pickedAt: order.pickedAt || undefined,
           pickingProgress: order.pickingProgress,
-          batchNumbers: order.batchNumbers
+          batchNumbers: order.batchNumbers,
+          pickingInProgress: true
         });
         
         // Show success toast

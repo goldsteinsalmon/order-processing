@@ -376,7 +376,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     </Button>
                   )}
                   
-                  {/* Print Button */}
+                  {/* Print Button - Modified to enable after saving */}
                   {onPrintBoxLabel && (
                     <Button 
                       size="sm"
