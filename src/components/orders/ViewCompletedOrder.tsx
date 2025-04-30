@@ -80,6 +80,12 @@ const ViewCompletedOrder: React.FC = () => {
   
   const changeDesc = getChangeDescription(order);
   
+  // Helper to format weight in kg with proper precision
+  const formatWeight = (weightInGrams) => {
+    if (!weightInGrams && weightInGrams !== 0) return "N/A";
+    return `${(weightInGrams / 1000).toFixed(3)} kg`;
+  };
+  
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -200,7 +206,7 @@ const ViewCompletedOrder: React.FC = () => {
                 <tr className="border-b">
                   <th className="text-left font-medium py-2">Product</th>
                   <th className="text-left font-medium py-2">SKU</th>
-                  <th className="text-right font-medium py-2">Quantity</th>
+                  <th className="text-right font-medium py-2">Quantity/Weight</th>
                   <th className="text-right font-medium py-2">Batch Number</th>
                   <th className="text-right font-medium py-2">Blown Pouches</th>
                 </tr>
@@ -228,7 +234,11 @@ const ViewCompletedOrder: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3">{item.product.sku}</td>
-                      <td className="py-3 text-right">{item.quantity}</td>
+                      <td className="py-3 text-right">
+                        {item.product.requiresWeightInput 
+                          ? (item.pickedWeight ? formatWeight(item.pickedWeight) : "N/A")
+                          : item.quantity}
+                      </td>
                       <td className="py-3 text-right">{getItemBatchNumber(item)}</td>
                       <td className="py-3 text-right">{getItemBlownPouches(item)}</td>
                     </tr>
