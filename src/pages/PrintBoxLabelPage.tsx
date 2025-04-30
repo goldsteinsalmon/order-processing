@@ -135,7 +135,7 @@ const PrintBoxLabelPage: React.FC = () => {
           </Button>
           <Button variant="default" onClick={handlePrintAndSave}>
             <Printer className="h-4 w-4 mr-2" /> 
-            Print & Save Box
+            Print Label
           </Button>
         </div>
       </div>

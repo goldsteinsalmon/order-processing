@@ -182,56 +182,42 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const handlePrintBoxLabel = (boxNumber: number) => {
     if (!selectedOrderId) return;
     
-    // Save progress first to ensure all data is preserved
-    handleSaveProgress();
-    
-    // Add to completed boxes if not already there
-    if (!completedBoxes.includes(boxNumber)) {
-      const newCompletedBoxes = [...completedBoxes, boxNumber];
-      setCompletedBoxes(newCompletedBoxes);
-      
-      // Also update the order with this information
-      if (selectedOrder) {
-        updateOrder({
-          ...selectedOrder,
-          completedBoxes: newCompletedBoxes,
-          savedBoxes: [...savedBoxes], // Ensure saved boxes state is preserved
-          pickedBy: selectedPickerId,
-          pickingInProgress: true
-        });
-      }
-    }
+    // Save the box data first (combining save and print)
+    handleSaveBoxProgress(boxNumber);
     
     // Navigate to print box label page for this specific box
     navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
   };
   
-  // Handle saving a specific box's progress
+  // Handle saving a specific box's progress - now automatically called by print function
   const handleSaveBoxProgress = (boxNumber: number) => {
     if (!selectedOrder) return;
     
     // Add to saved boxes if not already there
-    if (!savedBoxes.includes(boxNumber)) {
-      const newSavedBoxes = [...savedBoxes, boxNumber];
+    const newSavedBoxes = [...savedBoxes];
+    if (!newSavedBoxes.includes(boxNumber)) {
+      newSavedBoxes.push(boxNumber);
       setSavedBoxes(newSavedBoxes);
-      
-      // Update the order with the new saved box
-      updateOrder({
-        ...selectedOrder,
-        savedBoxes: newSavedBoxes,
-        completedBoxes,
-        pickedBy: selectedPickerId,
-        pickingInProgress: true
-      });
     }
+    
+    // Also add to completed boxes to ensure consistency in UI
+    const newCompletedBoxes = [...completedBoxes];
+    if (!newCompletedBoxes.includes(boxNumber)) {
+      newCompletedBoxes.push(boxNumber);
+      setCompletedBoxes(newCompletedBoxes);
+    }
+    
+    // Update the order with the new saved and completed box information
+    updateOrder({
+      ...selectedOrder,
+      savedBoxes: newSavedBoxes,
+      completedBoxes: newCompletedBoxes,
+      pickedBy: selectedPickerId,
+      pickingInProgress: true
+    });
     
     // Save overall progress to ensure everything is preserved
     handleSaveProgress();
-    
-    toast({
-      title: "Box saved",
-      description: `Box ${boxNumber} data has been saved.`
-    });
   };
   
   const handleCheckItem = (itemId: string, checked: boolean) => {

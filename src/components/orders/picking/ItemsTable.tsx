@@ -5,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Weight, Package, Printer, AlertTriangle, Save } from "lucide-react";
+import { Check, Weight, Package, Printer, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
@@ -105,25 +105,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 
   // Function to validate box completion before printing label
   const handlePrintBoxLabel = (boxNumber: number) => {
-    if (!onPrintBoxLabel) return;
-    
-    // Check if box has been saved first
-    if (!savedBoxes.includes(boxNumber)) {
-      toast({
-        title: "Box not saved",
-        description: "Please save the box progress before printing the label.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // If box is saved, allow printing
-    onPrintBoxLabel(boxNumber);
-  };
-  
-  // Function to save box progress
-  const handleSaveBoxProgress = (boxNumber: number) => {
-    if (!onSaveBoxProgress) return;
+    if (!onPrintBoxLabel || !onSaveBoxProgress) return;
     
     const boxItems = groupedItems[boxNumber] || [];
     
@@ -131,7 +113,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     if (!boxItems.every(item => item.checked)) {
       toast({
         title: "Incomplete box",
-        description: "Please check all items in this box before saving.",
+        description: "Please check all items in this box before printing.",
         variant: "destructive"
       });
       return;
@@ -161,10 +143,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
       return;
     }
     
-    // If all validations pass, save the box progress
+    // First save the box data, then proceed to print
     onSaveBoxProgress(boxNumber);
+    
+    // After saving, trigger print
+    onPrintBoxLabel(boxNumber);
   };
-
+  
   // Sort box numbers to ensure sequential processing
   const boxNumbers = Object.keys(groupedItems).map(Number).sort((a, b) => a - b);
   
@@ -305,7 +290,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         // Check if box is complete (all items checked, all batch numbers, all weights)
         const boxComplete = isBoxComplete(boxItems);
         const isBoxPrinted = completedBoxes.includes(boxNumber);
-        const isBoxSaved = savedBoxes.includes(boxNumber);
         
         // A box can only be edited if:
         // - It's box 0 (unassigned items)
@@ -333,7 +317,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             className={`
               ${boxComplete ? "border-green-500 border-2" : ""}
               ${isBoxDisabled ? "opacity-60" : ""}
-              ${isBoxSaved ? "border-blue-500 border-2" : ""}
+              ${isBoxPrinted ? "border-purple-500 border-2" : ""}
             `}
           >
             <CardHeader className="flex flex-row items-center justify-between py-3">
@@ -341,11 +325,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <CardTitle className="flex items-center">
                   <Package className="mr-2 h-5 w-5" />
                   {boxTitle}
-                  {boxComplete && !isBoxSaved && (
-                    <Badge className="ml-2 bg-green-500">Ready to Save</Badge>
-                  )}
-                  {isBoxSaved && !isBoxPrinted && (
-                    <Badge className="ml-2 bg-blue-500">Saved</Badge>
+                  {boxComplete && !isBoxPrinted && (
+                    <Badge className="ml-2 bg-green-500">Ready to Print</Badge>
                   )}
                   {isBoxPrinted && (
                     <Badge className="ml-2 bg-purple-500">Label Printed</Badge>
@@ -362,28 +343,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
               
               {boxNumber > 0 && (
                 <div className="flex gap-2">
-                  {/* Save Button */}
-                  {onSaveBoxProgress && (
-                    <Button 
-                      size="sm"
-                      variant={isBoxSaved ? "outline" : "secondary"}
-                      className="flex items-center"
-                      onClick={() => handleSaveBoxProgress(boxNumber)}
-                      disabled={isBoxDisabled || !previousBoxPrinted || !boxComplete}
-                    >
-                      <Save className="mr-1 h-4 w-4" />
-                      {isBoxSaved ? "Update Box" : "Save Box"}
-                    </Button>
-                  )}
-                  
-                  {/* Print Button - Modified to enable after saving */}
+                  {/* Print Button - Now also saves the box data */}
                   {onPrintBoxLabel && (
                     <Button 
                       size="sm"
                       variant={isBoxPrinted ? "outline" : "default"}
                       className="flex items-center"
                       onClick={() => handlePrintBoxLabel(boxNumber)}
-                      disabled={isBoxDisabled || !previousBoxPrinted || !isBoxSaved} 
+                      disabled={isBoxDisabled || !previousBoxPrinted || !boxComplete} 
                     >
                       <Printer className="mr-1 h-4 w-4" />
                       {isBoxPrinted ? "Print Again" : "Print Label"}
