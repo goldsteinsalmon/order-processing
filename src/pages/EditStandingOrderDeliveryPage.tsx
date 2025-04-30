@@ -127,7 +127,8 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     };
     
     console.log("New item to add:", newItem);
-    setItems([...items, newItem]);
+    const newItems = [...items, newItem];
+    setItems(newItems);
     setSelectedProduct("");
     setProductQuantity(1);
     setShowAddProduct(false);
@@ -167,7 +168,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
         orderDate: deliveryDate.toISOString(),
         requiredDate: deliveryDate.toISOString(),
         deliveryMethod: order.schedule.deliveryMethod,
-        items: [...items], // Make sure we pass a copy of the items array
+        items: JSON.parse(JSON.stringify(items)), // Make sure we pass a deep copy of the items array
         notes: notes ? `${notes} (Modified from Standing Order #${order.id.substring(0, 8)})` : 
           `Modified from Standing Order #${order.id.substring(0, 8)}`,
         status: "Pending" as const,
@@ -179,7 +180,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       addOrder(newOrder);
       
       // Mark this delivery as processed in the standing order
-      const updatedOrder: StandingOrder = { ...order };
+      const updatedOrder: StandingOrder = JSON.parse(JSON.stringify(order));
       
       // Initialize skippedDates if it doesn't exist
       if (!updatedOrder.schedule.skippedDates) {
@@ -199,7 +200,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       });
     } else {
       // Create a copy of the order
-      const updatedOrder: StandingOrder = { ...order };
+      const updatedOrder: StandingOrder = JSON.parse(JSON.stringify(order));
       
       // Initialize modifiedDeliveries if it doesn't exist
       if (!updatedOrder.schedule.modifiedDeliveries) {
@@ -217,12 +218,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       const modifiedDelivery = {
         date: deliveryDate.toISOString(),
         modifications: {
-          items: items.map(item => ({
-            id: item.id,
-            productId: item.productId,
-            product: item.product,
-            quantity: item.quantity
-          })),
+          items: JSON.parse(JSON.stringify(items)), // Deep copy to avoid reference issues
           notes: notes || undefined
         }
       };
@@ -257,7 +253,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     if (!order || !deliveryDate) return;
     
     // Create a copy of the order
-    const updatedOrder: StandingOrder = { ...order };
+    const updatedOrder: StandingOrder = JSON.parse(JSON.stringify(order));
     
     // Remove this delivery from modifiedDeliveries if it exists
     if (updatedOrder.schedule.modifiedDeliveries) {

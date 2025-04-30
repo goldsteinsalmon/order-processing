@@ -24,8 +24,8 @@ const CustomersPage: React.FC = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
+                <th className="px-4 py-3 text-left font-medium">Account Number</th>
                 <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Type</th>
                 <th className="px-4 py-3 text-left font-medium">Email</th>
                 <th className="px-4 py-3 text-left font-medium">Phone</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
@@ -42,8 +42,8 @@ const CustomersPage: React.FC = () => {
               ) : (
                 customers.map((customer) => (
                   <tr key={customer.id} className="border-b">
+                    <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
                     <td className="px-4 py-3">{customer.name}</td>
-                    <td className="px-4 py-3">{customer.type}</td>
                     <td className="px-4 py-3">{customer.email}</td>
                     <td className="px-4 py-3">{customer.phone}</td>
                     <td className="px-4 py-3">
@@ -59,12 +59,12 @@ const CustomersPage: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       <Button 
-                        variant="ghost" 
+                        variant="outline" 
                         size="sm" 
                         onClick={() => navigate(`/customer-details/${customer.id}`)}
                       >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View Details</span>
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Details
                       </Button>
                     </td>
                   </tr>
