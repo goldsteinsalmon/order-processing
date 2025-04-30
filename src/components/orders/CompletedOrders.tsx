@@ -14,7 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const CompletedOrders: React.FC = () => {
+interface CompletedOrdersProps {
+  searchTerm?: string;
+}
+
+const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) => {
   const { completedOrders } = useData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -49,11 +53,39 @@ const CompletedOrders: React.FC = () => {
       });
       
       setFilteredOrders(ordersWithBatch);
+    } else if (searchTerm) {
+      // Filter by search term
+      const searchTermLower = searchTerm.toLowerCase();
+      const filtered = completedOrders.filter(order => {
+        // Search in customer name
+        if (order.customer.name.toLowerCase().includes(searchTermLower)) {
+          return true;
+        }
+        
+        // Search in order ID
+        if (order.id.toLowerCase().includes(searchTermLower)) {
+          return true;
+        }
+        
+        // Search in customer order number
+        if (order.customerOrderNumber?.toLowerCase().includes(searchTermLower)) {
+          return true;
+        }
+        
+        // Search in picker name
+        if (order.picker?.toLowerCase().includes(searchTermLower)) {
+          return true;
+        }
+        
+        return false;
+      });
+      
+      setFilteredOrders(filtered);
     } else {
       // No filter, show all orders
       setFilteredOrders(completedOrders);
     }
-  }, [completedOrders, batchFilter]);
+  }, [completedOrders, batchFilter, searchTerm]);
   
   // Sort completed orders by date (newest first)
   const sortedOrders = [...filteredOrders].sort((a, b) => {

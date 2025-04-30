@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -29,6 +28,9 @@ export interface OrderItem {
   isUnavailable?: boolean;
   blownPouches?: number;
   batchNumber?: string;
+  checked?: boolean;
+  missingQuantity?: number;
+  pickedQuantity?: number;
 }
 
 export interface PickingProgress {
@@ -48,6 +50,20 @@ export interface OrderChange {
   date: string;
 }
 
+export interface MissingItem {
+  id: string;
+  orderId: string;
+  order: {
+    id: string;
+    customer: Customer;
+  } | Order;
+  productId: string;
+  product: Product;
+  quantity: number;
+  date: string;
+  status?: "Pending" | "Processed";
+}
+
 export interface Order {
   id: string;
   customerId: string;
@@ -58,7 +74,7 @@ export interface Order {
   deliveryMethod: "Delivery" | "Collection";
   items: OrderItem[];
   notes?: string;
-  status: "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items" | "Modified";
+  status: "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked";
   picker?: string;
   isPicked?: boolean;
   totalBlownPouches?: number;
@@ -72,6 +88,10 @@ export interface Order {
   hasChanges?: boolean;
   changes?: OrderChange[];
   fromStandingOrder?: string;
+  pickedBy?: string;
+  pickedAt?: string;
+  missingItems?: {id: string, quantity: number}[];
+  pickingInProgress?: boolean;
 }
 
 export interface StandingOrder {
@@ -146,19 +166,6 @@ export interface Complaint {
   resolutionNotes?: string;
   created: string;
   updated?: string;
-}
-
-export interface MissingItem {
-  id: string;
-  orderId: string;
-  order: {
-    id: string;
-    customer: Customer;
-  } | Order;
-  productId: string;
-  product: Product;
-  quantity: number;
-  date: string;
 }
 
 export interface User {
