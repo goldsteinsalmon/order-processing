@@ -28,6 +28,10 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem, removeMissingItem } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  
+  // Use either passed orderId prop or the URL param
+  const effectiveOrderId = orderId || id || null;
   
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedPickerId, setSelectedPickerId] = useState<string>("");
@@ -39,7 +43,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   const printRef = useRef<HTMLDivElement>(null);
   
   // Filter orders that are in "Pending" status
-  const pendingOrders = orders.filter(order => order.status === "Pending" || order.status === "Partially Picked");
+  const pendingOrders = orders.filter(order => order.status === "Pending" || order.status === "Partially Picked" || order.status === "Modified");
   
   // Get the selected order
   const selectedOrder = selectedOrderId 
@@ -48,13 +52,13 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
 
   // If id param exists, set it as selected order when component mounts
   useEffect(() => {
-    if (orderId) {
-      const orderExists = orders.find(order => order.id === orderId);
-      if (orderExists && (orderExists.status === "Pending" || orderExists.status === "Partially Picked")) {
-        setSelectedOrderId(orderId);
+    if (effectiveOrderId) {
+      const orderExists = orders.find(order => order.id === effectiveOrderId);
+      if (orderExists && (orderExists.status === "Pending" || orderExists.status === "Partially Picked" || orderExists.status === "Modified")) {
+        setSelectedOrderId(effectiveOrderId);
       }
     }
-  }, [orderId, orders]);
+  }, [effectiveOrderId, orders]);
   
   // Update allItems when selectedOrderId changes
   useEffect(() => {
@@ -315,7 +319,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       }),
       pickedBy: selectedPickerId,
       pickedAt: new Date().toISOString(),
-      batchNumbers: allItems.map(item => item.batchNumber),
+      batchNumbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
       status: "Completed" as const
     };
     
