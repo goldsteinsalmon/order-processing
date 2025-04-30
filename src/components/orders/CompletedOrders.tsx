@@ -23,30 +23,30 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "", batc
   const navigate = useNavigate();
   const [filteredOrders, setFilteredOrders] = useState(completedOrders);
   const [searchParams] = useSearchParams();
-  const batchFilterParam = searchParams.get('batch');
+  const batchFilterParam = searchParams.get('batch') || batchFilter;
   
   useEffect(() => {
-    if (batchFilter) {
+    if (batchFilterParam) {
       // Filter orders by batch number
       const ordersWithBatch = completedOrders.filter(order => {
         // Check if order has batch numbers array
-        if (order.batchNumbers && order.batchNumbers.includes(batchFilter)) {
+        if (order.batchNumbers && order.batchNumbers.includes(batchFilterParam)) {
           return true;
         }
         
         // Check if order has a single batch number
-        if (order.batchNumber === batchFilter) {
+        if (order.batchNumber === batchFilterParam) {
           return true;
         }
         
         // Check if any item in the order uses this batch number
-        if (order.items && order.items.some(item => item.batchNumber === batchFilter)) {
+        if (order.items && order.items.some(item => item.batchNumber === batchFilterParam)) {
           return true;
         }
         
         // Check if any item in pickingProgress uses this batch number
         if (order.pickingProgress?.batchNumbers) {
-          return Object.values(order.pickingProgress.batchNumbers).includes(batchFilter);
+          return Object.values(order.pickingProgress.batchNumbers).includes(batchFilterParam);
         }
         
         return false;
@@ -85,7 +85,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "", batc
       // No filter, show all orders
       setFilteredOrders(completedOrders);
     }
-  }, [completedOrders, batchFilter, searchTerm]);
+  }, [completedOrders, batchFilterParam, searchTerm]);
   
   // Sort completed orders by completion date (newest first)
   // First try "updated" field, then fall back to "orderDate"
@@ -130,13 +130,13 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "", batc
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">
-        {batchFilter 
-          ? `Completed Orders with Batch #${batchFilter}`
+        {batchFilterParam 
+          ? `Completed Orders with Batch #${batchFilterParam}`
           : "Completed Orders"
         }
       </h2>
 
-      {batchFilter && (
+      {batchFilterParam && (
         <Button 
           variant="outline" 
           className="mb-4" 
