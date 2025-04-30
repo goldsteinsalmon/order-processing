@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -288,11 +289,11 @@ const ProductsPage: React.FC = () => {
                           const dailyUsage = productForecasts[product.id]?.[dateKey] || 0;
                           const remainingStock = dailyStocks[dateKey];
                           
-                          // Determine cell color based on stock level
+                          // Determine cell color based on stock level - modified to not highlight zero values
                           let cellClass = "px-4 py-3 text-center";
                           if (remainingStock < 0) {
                             cellClass += " bg-red-100 text-red-800";
-                          } else if (remainingStock < 10) {
+                          } else if (remainingStock > 0 && remainingStock < 10) {
                             cellClass += " bg-yellow-100 text-yellow-800";
                           }
                           
