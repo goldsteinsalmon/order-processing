@@ -1,4 +1,3 @@
-
 import React from "react";
 import { OrderItem } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -25,6 +24,7 @@ interface ItemsTableProps {
   onWeightChange?: (itemId: string, weight: number) => void;
   onPrintBoxLabel?: (boxNumber: number) => void;
   groupByBox?: boolean;
+  completedBoxes?: number[];
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({ 
@@ -36,7 +36,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onResolveMissingItem,
   onWeightChange,
   onPrintBoxLabel,
-  groupByBox = false
+  groupByBox = false,
+  completedBoxes = []
 }) => {
   // Helper function to determine if an item has changed quantity
   const hasQuantityChanged = (item: ExtendedOrderItem) => {
@@ -75,6 +76,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     return boxItems.length > 0 && boxItems.every(item => item.checked);
   };
 
+  // Sort box numbers to ensure sequential processing
+  const boxNumbers = Object.keys(groupedItems).map(Number).sort((a, b) => a - b);
+  
   // If not grouping by box, render the standard table
   if (!groupByBox) {
     return (
@@ -205,34 +209,47 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   // Group by box rendering
   return (
     <div className="space-y-6">
-      {Object.entries(groupedItems).map(([boxNumberStr, boxItems]) => {
-        const boxNumber = parseInt(boxNumberStr);
+      {boxNumbers.map((boxNumber, index) => {
+        const boxItems = groupedItems[boxNumber];
         const boxTitle = boxNumber === 0 ? "Unassigned Items" : `Box ${boxNumber}`;
         const boxComplete = isBoxComplete(boxItems);
+        const isBoxPrinted = completedBoxes.includes(boxNumber);
+        const previousBoxPrinted = index === 0 || boxNumbers[index - 1] === 0 || completedBoxes.includes(boxNumbers[index - 1]);
+        const isBoxDisabled = index > 0 && boxNumbers[index - 1] !== 0 && !completedBoxes.includes(boxNumbers[index - 1]);
         
         return (
-          <Card key={boxNumberStr} className={boxComplete ? "border-green-500 border-2" : ""}>
+          <Card 
+            key={boxNumber} 
+            className={`
+              ${boxComplete ? "border-green-500 border-2" : ""}
+              ${isBoxDisabled ? "opacity-60" : ""}
+            `}
+          >
             <CardHeader className="flex flex-row items-center justify-between py-3">
               <CardTitle className="flex items-center">
                 <Package className="mr-2 h-5 w-5" />
                 {boxTitle}
-                {boxComplete && (
-                  <Badge className="ml-2 bg-green-500">Complete</Badge>
+                {boxComplete && !isBoxPrinted && (
+                  <Badge className="ml-2 bg-green-500">Ready to Print</Badge>
+                )}
+                {isBoxPrinted && (
+                  <Badge className="ml-2 bg-blue-500">Label Printed</Badge>
                 )}
               </CardTitle>
               {boxNumber > 0 && onPrintBoxLabel && boxComplete && (
                 <Button 
                   size="sm"
-                  variant="outline"
+                  variant={isBoxPrinted ? "outline" : "default"}
                   className="flex items-center"
                   onClick={() => onPrintBoxLabel(boxNumber)}
+                  disabled={isBoxDisabled || !previousBoxPrinted}
                 >
                   <Printer className="mr-1 h-4 w-4" />
-                  Print Label
+                  {isBoxPrinted ? "Print Again" : "Print Label"}
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className={isBoxDisabled ? "pointer-events-none" : ""}>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -267,7 +284,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                               onCheckedChange={(checked) => 
                                 onCheckItem(item.id, checked === true)
                               }
-                              disabled={itemChanged}
+                              disabled={itemChanged || isBoxDisabled}
                             />
                           </TableCell>
                           <TableCell>
@@ -293,6 +310,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                               placeholder="Enter batch #"
                               value={item.batchNumber}
                               onChange={(e) => onBatchNumberChange(item.id, e.target.value)}
+                              disabled={isBoxDisabled}
                             />
                           </TableCell>
                           <TableCell>
@@ -306,6 +324,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                                 item.id, 
                                 Math.min(parseInt(e.target.value) || 0, item.quantity)
                               )}
+                              disabled={isBoxDisabled}
                             />
                           </TableCell>
                           {boxItems.some(item => item.product.requiresWeightInput) && (
@@ -322,6 +341,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                                     parseFloat(e.target.value) * 1000 || 0
                                   )}
                                   className="bg-blue-50"
+                                  disabled={isBoxDisabled}
                                 />
                               ) : (
                                 <span className="text-gray-400">N/A</span>
@@ -335,6 +355,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                                 variant="outline" 
                                 className="flex items-center gap-1"
                                 onClick={() => onResolveMissingItem(item.id)}
+                                disabled={isBoxDisabled}
                               >
                                 <Check className="h-4 w-4" />
                                 Resolve

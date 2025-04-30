@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -112,8 +111,12 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       // Reset resolved missing items
       setResolvedMissingItems([]);
       
-      // Reset completed boxes
-      setCompletedBoxes([]);
+      // Reset completed boxes or load from order state
+      if (selectedOrder.completedBoxes && selectedOrder.completedBoxes.length > 0) {
+        setCompletedBoxes(selectedOrder.completedBoxes);
+      } else {
+        setCompletedBoxes([]);
+      }
     } else {
       setAllItems([]);
       setMissingItems([]);
@@ -142,14 +145,10 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   const handlePrintBoxLabel = (boxNumber: number) => {
     if (!selectedOrderId) return;
     
-    // If box is already completed, just navigate to print box label page
-    if (completedBoxes.includes(boxNumber)) {
-      navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
-      return;
+    // Add to completed boxes if not already there
+    if (!completedBoxes.includes(boxNumber)) {
+      setCompletedBoxes(prev => [...prev, boxNumber]);
     }
-    
-    // Mark box as completed
-    setCompletedBoxes(prev => [...prev, boxNumber]);
     
     // Navigate to print box label page for this specific box
     navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
@@ -166,11 +165,18 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
     );
   };
   
+  // Handler for batch number change with automatic propagation to same product in other boxes
   const handleBatchNumber = (itemId: string, batchNumber: string) => {
-    // Update the item in state
+    // Find the current item to get its product ID
+    const currentItem = allItems.find(item => item.id === itemId);
+    if (!currentItem) return;
+    
+    const productId = currentItem.productId;
+    
+    // Update all items with the same product ID
     setAllItems(
       allItems.map((item) => {
-        if (item.id === itemId) {
+        if (item.productId === productId) {
           return { ...item, batchNumber };
         }
         return item;
@@ -252,7 +258,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       status: missingItems.length > 0 ? "Partially Picked" : "Pending",
       pickedBy: selectedPickerId || undefined,
       picker: selectedPickerId ? pickers.find(p => p.id === selectedPickerId)?.name : undefined, // Save the picker name
-      missingItems: missingItems
+      missingItems: missingItems,
+      completedBoxes: completedBoxes // Save the printed boxes state
     };
     
     // Update the order with progress
@@ -346,6 +353,24 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       return;
     }
     
+    // For orders with box distributions, check if all box labels have been printed
+    if (needsDetailedBoxLabels && hasBoxDistributions && selectedOrder.boxDistributions) {
+      const boxNumbers = selectedOrder.boxDistributions
+        .map(box => box.boxNumber)
+        .filter(num => num > 0); // Exclude unassigned box (0)
+      
+      const allBoxesPrinted = boxNumbers.every(boxNum => completedBoxes.includes(boxNum));
+      
+      if (!allBoxesPrinted) {
+        toast({
+          title: "Box labels not printed",
+          description: "Please print all box labels before completing the order.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     // Show completion dialog
     setShowCompletionDialog(true);
   };
@@ -376,7 +401,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       picker: pickerName, // Save the picker name
       pickedAt: new Date().toISOString(),
       batchNumbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
-      status: "Completed" as const
+      status: "Completed" as const,
+      completedBoxes: completedBoxes // Save the list of completed boxes
     };
     
     // Complete the order
@@ -412,12 +438,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
     // Close dialog and reset state
     setShowCompletionDialog(false);
     
-    // Navigate to print box label page instead of orders page
-    if (selectedOrderId) {
-      navigate(`/print-box-label/${selectedOrderId}`);
-    } else {
-      navigate("/orders");
-    }
+    // Navigate to orders page now instead of print box label
+    navigate("/orders");
   };
 
   // Go back to orders page
@@ -485,6 +507,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
             onWeightChange={handleWeightChange}
             onPrintBoxLabel={handlePrintBoxLabel}
             groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
+            completedBoxes={completedBoxes}
           />
           
           {/* Printable version */}
