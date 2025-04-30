@@ -146,6 +146,10 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) =>
         </Button>
       )}
 
+      <div className="text-sm text-gray-500 mb-4">
+        Sorted by completion date (newest first)
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
