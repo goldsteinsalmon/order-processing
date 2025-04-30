@@ -103,8 +103,8 @@ const PickingList: React.FC = () => {
   }, [selectedOrderId, selectedOrder]);
   
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
+    content: () => printRef.current,
     onAfterPrint: () => {
       toast({
         title: "Picking list printed",
@@ -182,7 +182,7 @@ const PickingList: React.FC = () => {
         };
       }),
       pickingInProgress: true,
-      status: missingItems.length > 0 ? "Partially Picked" : "Pending",
+      status: missingItems.length > 0 ? "Partially Picked" as const : "Pending" as const,
       pickedBy: selectedPickerId || undefined,
       missingItems: missingItems
     };
@@ -286,7 +286,7 @@ const PickingList: React.FC = () => {
       pickedBy: selectedPickerId,
       pickedAt: new Date().toISOString(),
       batchNumbers: allItems.map(item => item.batchNumber),
-      status: "Completed"
+      status: "Completed" as const
     };
     
     // Complete the order
