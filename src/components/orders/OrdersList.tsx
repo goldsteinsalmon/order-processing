@@ -28,10 +28,19 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     );
   }, [orders, searchTerm]);
   
-  // Sort orders by date
+  // Sort orders by date closest to now
   const sortedOrders = useMemo(() => {
+    const now = new Date().getTime();
     return [...filteredOrders].sort((a, b) => {
-      return new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
+      const dateA = new Date(a.orderDate).getTime();
+      const dateB = new Date(b.orderDate).getTime();
+      
+      // Calculate absolute difference from current date
+      const diffA = Math.abs(now - dateA);
+      const diffB = Math.abs(now - dateB);
+      
+      // Sort by closest date to now
+      return diffA - diffB;
     });
   }, [filteredOrders]);
 
