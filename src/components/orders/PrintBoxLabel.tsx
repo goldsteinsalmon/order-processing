@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -295,6 +294,16 @@ const PrintBoxLabel: React.FC = () => {
   
   // Calculate the total order weight from all picked weights
   const getTotalOrderWeight = () => {
+    // If using box distributions, use the sum of box weights
+    if (boxDistributions.length > 0) {
+      return boxDistributions.reduce((sum, box) => sum + box.totalBoxWeight, 0);
+    }
+    
+    // Otherwise check if items have manually entered weights
+    const hasManuallyEnteredWeights = order.items.some(
+      item => item.product.requiresWeightInput && item.pickedWeight && item.pickedWeight > 0
+    );
+    
     if (hasManuallyEnteredWeights) {
       // Sum all picked weights
       return order.items.reduce((total, item) => {
@@ -303,11 +312,6 @@ const PrintBoxLabel: React.FC = () => {
         }
         return total + (item.product.weight ? item.product.weight * item.quantity : 0);
       }, 0);
-    }
-    
-    // If using box distributions, use that total
-    if (boxDistributions.length > 0) {
-      return totalWeight;
     }
     
     // Fallback to standard product weights
