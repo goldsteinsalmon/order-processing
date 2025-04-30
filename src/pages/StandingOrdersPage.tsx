@@ -3,7 +3,7 @@ import React from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, FilePlus } from "lucide-react";
+import { Eye, Edit, Calendar, FilePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 
@@ -59,14 +59,32 @@ const StandingOrdersPage: React.FC = () => {
                       {format(parseISO(order.created), "dd/MM/yyyy")}
                     </td>
                     <td className="px-4 py-3">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => navigate(`/standing-order-details/${order.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View Details</span>
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate(`/standing-order-details/${order.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate(`/edit-standing-order/${order.id}`)}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => navigate(`/standing-order-schedule/${order.id}`)}
+                        >
+                          <Calendar className="h-4 w-4 mr-1" />
+                          Schedule
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))

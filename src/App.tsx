@@ -24,6 +24,9 @@ import ProductDetailsPage from "./pages/ProductDetailsPage";
 import CreateProductPage from "./pages/CreateProductPage";
 import StandingOrdersPage from "./pages/StandingOrdersPage";
 import CreateStandingOrderPage from "./pages/CreateStandingOrderPage";
+import StandingOrderDetailsPage from "./pages/StandingOrderDetailsPage";
+import EditStandingOrderPage from "./pages/EditStandingOrderPage";
+import StandingOrderSchedulePage from "./pages/StandingOrderSchedulePage";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +50,9 @@ const App = () => (
             <Route path="/edit-completed-order/:id" element={<EditCompletedOrderPage />} />
             <Route path="/standing-orders" element={<StandingOrdersPage />} />
             <Route path="/create-standing-order" element={<CreateStandingOrderPage />} />
+            <Route path="/standing-order-details/:id" element={<StandingOrderDetailsPage />} />
+            <Route path="/edit-standing-order/:id" element={<EditStandingOrderPage />} />
+            <Route path="/standing-order-schedule/:id" element={<StandingOrderSchedulePage />} />
             <Route path="/missing-items" element={<MissingItemsPage />} />
             <Route path="/returns" element={<ReturnsPage />} />
             <Route path="/customers" element={<CustomersPage />} />
