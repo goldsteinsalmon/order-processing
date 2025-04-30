@@ -375,7 +375,7 @@ const CreateOrderForm: React.FC = () => {
                       />
                     </div>
                     <CommandList ref={customerListRef}>
-                      <Command filtering={false}>
+                      <Command>
                         <CommandEmpty>No customers found.</CommandEmpty>
                         <CommandGroup heading="Customers">
                           {filteredCustomers.map(customer => {
@@ -657,7 +657,7 @@ const CreateOrderForm: React.FC = () => {
             />
           </div>
           <CommandList ref={productListRef}>
-            <Command filtering={false}>
+            <Command>
               <CommandEmpty>No products found.</CommandEmpty>
               <CommandGroup>
                 {filteredProducts.map(product => (
