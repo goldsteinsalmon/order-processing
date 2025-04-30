@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Eye, Edit, Printer } from "lucide-react";
@@ -16,14 +15,15 @@ import {
 
 interface CompletedOrdersProps {
   searchTerm?: string;
+  batchFilter?: string;  // Added batchFilter prop to fix the type error
 }
 
-const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "" }) => {
+const CompletedOrders: React.FC<CompletedOrdersProps> = ({ searchTerm = "", batchFilter = "" }) => {
   const { completedOrders } = useData();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const batchFilter = searchParams.get('batch');
   const [filteredOrders, setFilteredOrders] = useState(completedOrders);
+  const [searchParams] = useSearchParams();
+  const batchFilterParam = searchParams.get('batch');
   
   useEffect(() => {
     if (batchFilter) {
