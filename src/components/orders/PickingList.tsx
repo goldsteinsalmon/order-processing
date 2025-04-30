@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -7,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Check, Save, ArrowLeft, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useNavigate, useParams } from "react-router-dom";
-import { OrderItem, Order } from "@/types";
+import { OrderItem, Order, Box } from "@/types";
 import OrderSelection from "./picking/OrderSelection";
 import OrderDetailsCard from "./picking/OrderDetailsCard";
 import ItemsTable from "./picking/ItemsTable";
@@ -40,6 +41,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [missingItems, setMissingItems] = useState<{id: string, quantity: number}[]>([]);
   const [resolvedMissingItems, setResolvedMissingItems] = useState<{id: string, quantity: number}[]>([]);
+  const [completedBoxes, setCompletedBoxes] = useState<number[]>([]);
+  const [printBoxNumber, setPrintBoxNumber] = useState<number | null>(null);
   
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -108,12 +111,21 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       
       // Reset resolved missing items
       setResolvedMissingItems([]);
+      
+      // Reset completed boxes
+      setCompletedBoxes([]);
     } else {
       setAllItems([]);
       setMissingItems([]);
       setResolvedMissingItems([]);
     }
   }, [selectedOrderId, selectedOrder]);
+  
+  // Check if the customer needs detailed box labels
+  const needsDetailedBoxLabels = selectedOrder?.customer.needsDetailedBoxLabels || false;
+  
+  // Check if the order has box distributions
+  const hasBoxDistributions = selectedOrder?.boxDistributions && selectedOrder.boxDistributions.length > 0;
   
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
@@ -125,6 +137,23 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
       });
     }
   });
+  
+  // Handle printing a specific box label
+  const handlePrintBoxLabel = (boxNumber: number) => {
+    if (!selectedOrderId) return;
+    
+    // If box is already completed, just navigate to print box label page
+    if (completedBoxes.includes(boxNumber)) {
+      navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
+      return;
+    }
+    
+    // Mark box as completed
+    setCompletedBoxes(prev => [...prev, boxNumber]);
+    
+    // Navigate to print box label page for this specific box
+    navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
+  };
   
   const handleCheckItem = (itemId: string, checked: boolean) => {
     setAllItems(
@@ -445,7 +474,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
             </div>
           </div>
           
-          {/* Items Table with changes tracking */}
+          {/* Items Table with box grouping when needed */}
           <ItemsTable 
             items={allItems}
             missingItems={missingItems}
@@ -454,6 +483,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
             onMissingItemChange={handleMissingItem}
             onResolveMissingItem={handleResolveMissingItem}
             onWeightChange={handleWeightChange}
+            onPrintBoxLabel={handlePrintBoxLabel}
+            groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
           />
           
           {/* Printable version */}
@@ -462,6 +493,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
               ref={printRef}
               selectedOrder={selectedOrder}
               items={allItems}
+              groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
             />
           </div>
         </>

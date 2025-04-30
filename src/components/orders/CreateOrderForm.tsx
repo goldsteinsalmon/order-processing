@@ -46,6 +46,14 @@ import {
 } from "@/components/ui/command";
 import { OrderItem, Customer } from "@/types";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const orderSchema = z.object({
   customerId: z.string({ required_error: "Customer is required" }),

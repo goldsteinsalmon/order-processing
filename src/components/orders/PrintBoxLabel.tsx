@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Printer, Plus, Minus, Package, PackagePlus, PackageX } from "lucide-react";
+import { ArrowLeft, Printer, Plus, Minus, Package, PackagePlus, Boxes } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { OrderItem } from "@/types";
+import { OrderItem, Box, BoxItem } from "@/types";
+import { Badge } from "@/components/ui/badge";
 
 // Interface for box distribution of products
 interface BoxDistribution {
@@ -30,6 +31,9 @@ interface ProductBoxSetting {
 
 const PrintBoxLabel: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const specificBoxParam = searchParams.get('box');
+  
   const navigate = useNavigate();
   const { orders, completedOrders } = useData();
   
@@ -39,6 +43,7 @@ const PrintBoxLabel: React.FC = () => {
   const [labelCount, setLabelCount] = useState<number>(1);
   const [boxDistributions, setBoxDistributions] = useState<BoxDistribution[]>([]);
   const [totalWeight, setTotalWeight] = useState<number>(0);
+  const [selectedBox, setSelectedBox] = useState<number | null>(null);
   
   // Product-specific box settings
   const [productBoxes, setProductBoxes] = useState<Record<string, ProductBoxSetting>>({});
@@ -48,8 +53,41 @@ const PrintBoxLabel: React.FC = () => {
     document.title = `Box Label - ${order?.customer.name || "Order"}`;
   }, [order]);
 
-  // Initialize product box settings
+  // Set selected box from URL parameter
   useEffect(() => {
+    if (specificBoxParam) {
+      const boxNumber = parseInt(specificBoxParam);
+      if (!isNaN(boxNumber)) {
+        setSelectedBox(boxNumber);
+      }
+    }
+  }, [specificBoxParam]);
+
+  // Initialize from box distributions if they exist
+  useEffect(() => {
+    if (order && order.boxDistributions && order.boxDistributions.length > 0) {
+      // Convert the order's box distributions to the format we need
+      const distributions = order.boxDistributions.map(box => {
+        const totalBoxWeight = box.items.reduce((sum, item) => sum + item.weight, 0);
+        
+        return {
+          boxNumber: box.boxNumber,
+          items: box.items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            weight: item.weight
+          })),
+          totalBoxWeight
+        };
+      });
+      
+      setBoxDistributions(distributions);
+      setTotalWeight(distributions.reduce((sum, box) => sum + box.totalBoxWeight, 0));
+      return;
+    }
+
+    // Initialize product box settings
     if (order) {
       const initialProductBoxes: Record<string, ProductBoxSetting> = {};
       
@@ -91,6 +129,12 @@ const PrintBoxLabel: React.FC = () => {
       navigate("/completed-orders");
     } else {
       navigate("/");
+    }
+  };
+
+  const handleBackToPicking = () => {
+    if (id) {
+      navigate(`/picking-list/${id}`);
     }
   };
 
@@ -200,15 +244,29 @@ const PrintBoxLabel: React.FC = () => {
     setTotalWeight(newTotalWeight);
   };
 
+  // Function to filter box distributions by selected box
+  const filteredBoxDistributions = selectedBox 
+    ? boxDistributions.filter(box => box.boxNumber === selectedBox)
+    : boxDistributions;
+
   return (
     <div className="container mx-auto p-4">
       {/* Controls - hidden during printing */}
       <div className="flex justify-between items-center mb-6 print:hidden">
         <div className="flex items-center">
-          <Button variant="ghost" onClick={handleBackToOrders} className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
+          {specificBoxParam ? (
+            <Button variant="ghost" onClick={handleBackToPicking} className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Picking
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={handleBackToOrders} className="mr-4">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          )}
           <h2 className="text-2xl font-bold">Print Box Labels</h2>
+          {selectedBox && (
+            <Badge className="ml-2 bg-blue-500">Box {selectedBox}</Badge>
+          )}
         </div>
         <div className="flex items-center space-x-4">
           <div className="flex items-center">
@@ -229,8 +287,38 @@ const PrintBoxLabel: React.FC = () => {
         </div>
       </div>
 
+      {/* Box selection for previously configured boxes */}
+      {order.customer.needsDetailedBoxLabels && boxDistributions.length > 0 && !selectedBox && (
+        <div className="print:hidden mb-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Boxes className="h-5 w-5 mr-2" /> 
+                Select Box to Print
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {boxDistributions.map(box => (
+                  <Button 
+                    key={box.boxNumber} 
+                    variant="outline" 
+                    className="flex flex-col h-24 border border-gray-200" 
+                    onClick={() => setSelectedBox(box.boxNumber)}
+                  >
+                    <Package className="h-6 w-6 mb-2" />
+                    <span className="font-medium">Box {box.boxNumber}</span>
+                    <span className="text-xs text-gray-500">{box.items.length} items</span>
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Detailed Box Label Controls - only shown for customers with needsDetailedBoxLabels */}
-      {order.customer.needsDetailedBoxLabels && (
+      {order.customer.needsDetailedBoxLabels && boxDistributions.length === 0 && (
         <div className="print:hidden mb-8">
           <Card>
             <CardHeader>
@@ -385,7 +473,7 @@ const PrintBoxLabel: React.FC = () => {
       <div className="print-labels">
         {order.customer.needsDetailedBoxLabels ? (
           // Detailed box labels
-          boxDistributions.map((box) => (
+          filteredBoxDistributions.map((box) => (
             Array.from({ length: labelCount }).map((_, labelIndex) => (
               <div key={`${box.boxNumber}-${labelIndex}`} className="box-label border rounded-lg mb-4 page-break-after">
                 <div className="box-label-content p-6">

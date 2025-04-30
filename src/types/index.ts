@@ -23,6 +23,20 @@ export interface Product {
   requiresWeightInput?: boolean; // Added flag to indicate if weight input is required during picking
 }
 
+export interface BoxItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  weight: number;
+}
+
+export interface Box {
+  boxNumber: number;
+  items: BoxItem[];
+  completed: boolean;
+  printed: boolean;
+}
+
 export interface OrderItem {
   id: string;
   productId: string;
@@ -37,6 +51,7 @@ export interface OrderItem {
   pickedQuantity?: number;
   pickedWeight?: number; // Added picked weight field for weight-based products
   originalQuantity?: number; // Added to track original quantity for modified orders
+  boxNumber?: number; // Added to track which box this item belongs to
 }
 
 export interface PickingProgress {
@@ -98,6 +113,7 @@ export interface Order {
   pickedAt?: string;
   missingItems?: {id: string, quantity: number}[];
   pickingInProgress?: boolean;
+  boxDistributions?: Box[]; // Added for box distribution information
 }
 
 export interface StandingOrder {
