@@ -56,6 +56,7 @@ interface DataContextType {
   addComplaint: (complaint: Complaint) => void;
   updateComplaint: (complaint: Complaint) => void;
   addMissingItem: (missingItem: MissingItem) => void;
+  removeMissingItem: (missingItemId: string) => void;
   addUser: (user: User) => void;
   updateUser: (user: User) => void;
   addPicker: (picker: Picker) => void;
@@ -323,6 +324,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const removeMissingItem = (missingItemId: string) => {
+    setMissingItems(prev => prev.filter(item => item.id !== missingItemId));
+  };
+
   const addUser = (user: User) => {
     setUsers([...users, user]);
   };
@@ -441,6 +446,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     addComplaint,
     updateComplaint,
     addMissingItem,
+    removeMissingItem,
     addUser,
     updateUser,
     addPicker,

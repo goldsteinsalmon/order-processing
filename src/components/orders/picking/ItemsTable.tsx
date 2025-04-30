@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
 
 interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
@@ -17,6 +19,7 @@ interface ItemsTableProps {
   onCheckItem: (itemId: string, checked: boolean) => void;
   onBatchNumberChange: (itemId: string, batchNumber: string) => void;
   onMissingItemChange: (itemId: string, quantity: number) => void;
+  onResolveMissingItem?: (itemId: string) => void;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({ 
@@ -24,7 +27,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   missingItems, 
   onCheckItem, 
   onBatchNumberChange, 
-  onMissingItemChange 
+  onMissingItemChange,
+  onResolveMissingItem
 }) => {
   return (
     <Card>
@@ -41,12 +45,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <TableHead className="text-right">Quantity</TableHead>
                 <TableHead>Batch Number</TableHead>
                 <TableHead>Missing</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map(item => {
                 const missingItem = missingItems.find(mi => mi.id === item.id);
                 const missingQuantity = missingItem ? missingItem.quantity : 0;
+                const hasMissingItems = missingQuantity > 0;
                 
                 return (
                   <TableRow key={item.id}>
@@ -84,6 +90,19 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           Math.min(parseInt(e.target.value) || 0, item.quantity)
                         )}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {hasMissingItems && onResolveMissingItem && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex items-center gap-1"
+                          onClick={() => onResolveMissingItem(item.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                          Resolve
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

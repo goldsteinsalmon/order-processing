@@ -20,6 +20,7 @@ interface CompletionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   missingItems: { id: string; quantity: number }[];
+  resolvedMissingItems?: { id: string; quantity: number }[];
   allItems: ExtendedOrderItem[];
   onConfirm: () => void;
 }
@@ -28,6 +29,7 @@ const CompletionDialog: React.FC<CompletionDialogProps> = ({
   open, 
   onOpenChange, 
   missingItems, 
+  resolvedMissingItems = [],
   allItems, 
   onConfirm 
 }) => {
@@ -40,7 +42,7 @@ const CompletionDialog: React.FC<CompletionDialogProps> = ({
             Are you sure you want to mark this order as complete?
             {missingItems.length > 0 && (
               <div className="mt-2 text-red-500">
-                Warning: This order has missing items.
+                Warning: This order still has missing items.
               </div>
             )}
           </DialogDescription>
@@ -55,6 +57,22 @@ const CompletionDialog: React.FC<CompletionDialogProps> = ({
                 return item ? (
                   <li key={mi.id}>
                     {item.product.name}: {mi.quantity} of {item.quantity}
+                  </li>
+                ) : null;
+              })}
+            </ul>
+          </div>
+        )}
+
+        {resolvedMissingItems.length > 0 && (
+          <div className="my-4">
+            <h4 className="font-medium mb-2">Resolved Missing Items:</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              {resolvedMissingItems.map(mi => {
+                const item = allItems.find(i => i.id === mi.id);
+                return item ? (
+                  <li key={mi.id} className="text-green-600">
+                    {item.product.name}: {mi.quantity} items resolved
                   </li>
                 ) : null;
               })}

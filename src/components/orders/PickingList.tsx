@@ -23,7 +23,7 @@ interface ExtendedOrderItem extends OrderItem {
 
 const PickingList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem } = useData();
+  const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem, removeMissingItem } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   
@@ -32,6 +32,7 @@ const PickingList: React.FC = () => {
   const [allItems, setAllItems] = useState<ExtendedOrderItem[]>([]);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [missingItems, setMissingItems] = useState<{id: string, quantity: number}[]>([]);
+  const [resolvedMissingItems, setResolvedMissingItems] = useState<{id: string, quantity: number}[]>([]);
   
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -75,16 +76,19 @@ const PickingList: React.FC = () => {
       if (selectedOrder.pickedBy) {
         setSelectedPickerId(selectedOrder.pickedBy);
       }
+      
+      // Reset resolved missing items
+      setResolvedMissingItems([]);
     } else {
       setAllItems([]);
       setMissingItems([]);
+      setResolvedMissingItems([]);
     }
   }, [selectedOrderId, selectedOrder]);
   
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
-    // Fix: use the property 'content' instead of invalid property name
-    onBeforeGetContent: () => printRef.current,
+    content: () => printRef.current,
     onAfterPrint: () => {
       toast({
         title: "Picking list printed",
@@ -139,6 +143,34 @@ const PickingList: React.FC = () => {
     }
   };
   
+  // New function to handle resolving missing items
+  const handleResolveMissingItem = (itemId: string) => {
+    // Find the missing item
+    const missingItem = missingItems.find(mi => mi.id === itemId);
+    if (!missingItem || !selectedOrderId) return;
+    
+    // Add to resolved list
+    setResolvedMissingItems(prev => [...prev, missingItem]);
+    
+    // Remove from current missing items list
+    setMissingItems(prev => prev.filter(mi => mi.id !== itemId));
+    
+    // Find the item details
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Remove from the global missing items list
+    const missingItemId = `${selectedOrderId}-${itemId}`;
+    removeMissingItem(missingItemId);
+    
+    // Show success message
+    toast({
+      title: "Item resolved",
+      description: `${item.product.name} has been marked as resolved.`,
+      variant: "success"
+    });
+  };
+  
   // Save current progress
   const handleSaveProgress = () => {
     if (!selectedOrder) return;
@@ -162,7 +194,7 @@ const PickingList: React.FC = () => {
         };
       }),
       pickingInProgress: true,
-      status: missingItems.length > 0 ? "Partially Picked" as const : "Pending" as const,
+      status: missingItems.length > 0 ? "Partially Picked" : "Pending",
       pickedBy: selectedPickerId || undefined,
       missingItems: missingItems
     };
@@ -183,7 +215,7 @@ const PickingList: React.FC = () => {
             id: `${selectedOrderId}-${item.id}`,
             orderId: selectedOrderId,
             productId: item.productId,
-            product: product,  // Include the product
+            product: product,
             quantity: missingItem.quantity,
             date: new Date().toISOString(),
             order: {
@@ -192,7 +224,10 @@ const PickingList: React.FC = () => {
             }
           };
           
-          addMissingItem(missingItemEntry);
+          // Check if this is a new missing item before adding
+          if (!resolvedMissingItems.some(rmi => rmi.id === missingItem.id)) {
+            addMissingItem(missingItemEntry);
+          }
         }
       }
     });
@@ -272,6 +307,14 @@ const PickingList: React.FC = () => {
     // Complete the order
     completeOrder(updatedOrder);
     
+    // Remove any resolved missing items
+    resolvedMissingItems.forEach(resolvedItem => {
+      if (selectedOrderId) {
+        const missingItemId = `${selectedOrderId}-${resolvedItem.id}`;
+        removeMissingItem(missingItemId);
+      }
+    });
+    
     // Show success message
     toast({
       title: "Order completed",
@@ -341,6 +384,7 @@ const PickingList: React.FC = () => {
             onCheckItem={handleCheckItem}
             onBatchNumberChange={handleBatchNumber}
             onMissingItemChange={handleMissingItem}
+            onResolveMissingItem={handleResolveMissingItem}
           />
           
           {/* Printable version */}
@@ -359,6 +403,7 @@ const PickingList: React.FC = () => {
         open={showCompletionDialog}
         onOpenChange={setShowCompletionDialog}
         missingItems={missingItems}
+        resolvedMissingItems={resolvedMissingItems}
         allItems={allItems}
         onConfirm={confirmCompleteOrder}
       />

@@ -4,9 +4,13 @@ import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { format, parseISO } from "date-fns";
 import { MissingItem } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const MissingItemsPage: React.FC = () => {
-  const { missingItems } = useData();
+  const { missingItems, removeMissingItem } = useData();
+  const navigate = useNavigate();
   
   // Group missing items by product
   const groupedByProduct = useMemo(() => {
@@ -37,6 +41,14 @@ const MissingItemsPage: React.FC = () => {
     return Object.values(grouped);
   }, [missingItems]);
 
+  const handleResolveItem = (itemId: string) => {
+    removeMissingItem(itemId);
+  };
+
+  const handleGoToOrder = (orderId: string) => {
+    navigate(`/picking-list/${orderId}`);
+  };
+
   return (
     <Layout>
       <h2 className="text-2xl font-bold mb-6">Missing Items</h2>
@@ -66,6 +78,7 @@ const MissingItemsPage: React.FC = () => {
                       <th className="px-4 py-3 text-left font-medium">Quantity Missing</th>
                       <th className="px-4 py-3 text-left font-medium">Date</th>
                       <th className="px-4 py-3 text-left font-medium">Customer</th>
+                      <th className="px-4 py-3 text-left font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -77,6 +90,25 @@ const MissingItemsPage: React.FC = () => {
                           {format(parseISO(item.date), "dd/MM/yyyy")}
                         </td>
                         <td className="px-4 py-3">{item.order?.customer?.name || "Unknown"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex space-x-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleGoToOrder(item.orderId)}
+                            >
+                              Edit Order
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex items-center"
+                              onClick={() => handleResolveItem(item.id)}
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Resolve
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -84,6 +116,7 @@ const MissingItemsPage: React.FC = () => {
                     <tr>
                       <td className="px-4 py-3 font-medium">Total</td>
                       <td className="px-4 py-3 font-medium">{group.totalQuantity}</td>
+                      <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                     </tr>
