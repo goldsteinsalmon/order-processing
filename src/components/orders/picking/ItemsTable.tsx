@@ -111,7 +111,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                             min="0"
                             step="0.001"
                             placeholder="Enter weight"
-                            value={item.pickedWeight ? (item.pickedWeight / 1000).toFixed(3) : ""}
+                            value={item.pickedWeight ? (item.pickedWeight / 1000) : ""}
                             onChange={(e) => onWeightChange && onWeightChange(
                               item.id, 
                               parseFloat(e.target.value) * 1000 || 0

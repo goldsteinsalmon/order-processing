@@ -10,7 +10,7 @@ const PickingListPage: React.FC = () => {
 
   return (
     <Layout>
-      <PickingList />
+      <PickingList orderId={id} />
     </Layout>
   );
 };

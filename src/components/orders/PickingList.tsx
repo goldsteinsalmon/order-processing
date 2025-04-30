@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { format } from "date-fns";
@@ -21,8 +20,11 @@ interface ExtendedOrderItem extends OrderItem {
   batchNumber: string;
 }
 
-const PickingList: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+interface PickingListProps {
+  orderId?: string;
+}
+
+const PickingList: React.FC<PickingListProps> = ({ orderId }) => {
   const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem, removeMissingItem } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -46,13 +48,13 @@ const PickingList: React.FC = () => {
 
   // If id param exists, set it as selected order when component mounts
   useEffect(() => {
-    if (id) {
-      const orderExists = orders.find(order => order.id === id);
+    if (orderId) {
+      const orderExists = orders.find(order => order.id === orderId);
       if (orderExists && (orderExists.status === "Pending" || orderExists.status === "Partially Picked")) {
-        setSelectedOrderId(id);
+        setSelectedOrderId(orderId);
       }
     }
-  }, [id, orders]);
+  }, [orderId, orders]);
   
   // Update allItems when selectedOrderId changes
   useEffect(() => {
