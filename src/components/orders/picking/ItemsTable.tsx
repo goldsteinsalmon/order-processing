@@ -48,7 +48,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <TableHead>Batch Number</TableHead>
                 <TableHead>Missing</TableHead>
                 {items.some(item => item.product.requiresWeightInput) && (
-                  <TableHead>Weight (g)</TableHead>
+                  <TableHead>Weight (kg)</TableHead>
                 )}
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -109,11 +109,12 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           <Input 
                             type="number"
                             min="0"
+                            step="0.001"
                             placeholder="Enter weight"
-                            value={item.pickedWeight || ""}
+                            value={item.pickedWeight ? (item.pickedWeight / 1000).toFixed(3) : ""}
                             onChange={(e) => onWeightChange && onWeightChange(
                               item.id, 
-                              parseFloat(e.target.value) || 0
+                              parseFloat(e.target.value) * 1000 || 0
                             )}
                             className="bg-blue-50"
                           />

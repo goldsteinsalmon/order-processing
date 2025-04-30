@@ -44,7 +44,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
               <th className="text-left py-2">SKU</th>
               <th className="text-right py-2">Quantity</th>
               <th className="text-left py-2">Batch #</th>
-              {hasWeightInputItems && <th className="text-right py-2">Weight (g)</th>}
+              {hasWeightInputItems && <th className="text-right py-2">Weight (kg)</th>}
               <th className="text-center py-2">Picked</th>
             </tr>
           </thead>
