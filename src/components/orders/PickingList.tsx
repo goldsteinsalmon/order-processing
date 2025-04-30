@@ -167,7 +167,7 @@ const PickingList: React.FC = () => {
     toast({
       title: "Item resolved",
       description: `${item.product.name} has been marked as resolved.`,
-      variant: "success"
+      variant: "default"
     });
   };
   
