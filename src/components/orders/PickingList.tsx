@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Check, Save, ArrowLeft, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useNavigate, useParams } from "react-router-dom";
-import { OrderItem, Order, Box } from "@/types";
+import { OrderItem, Order, Box, BatchSummary } from "@/types";
 import OrderSelection from "./picking/OrderSelection";
 import OrderDetailsCard from "./picking/OrderDetailsCard";
 import ItemsTable from "./picking/ItemsTable";
@@ -442,11 +442,72 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     setShowCompletionDialog(true);
   };
   
+  // Add new function to calculate batch summaries
+  const calculateBatchSummaries = (): BatchSummary[] => {
+    if (!selectedOrder) return [];
+    
+    // Create a map to store batch weights
+    const batchWeights = new Map<string, number>();
+    
+    // Process all items with batch numbers
+    allItems.forEach(item => {
+      if (!item.batchNumber) return;
+      
+      // Calculate weight for this item based on priority:
+      // 1. Manual/picked weight if available
+      // 2. Product weight * quantity as fallback
+      let itemWeight = 0;
+      
+      if (item.pickedWeight && item.pickedWeight > 0) {
+        // Use picked weight if available
+        itemWeight = item.pickedWeight;
+      } else if (item.product.weight) {
+        // Fall back to standard weight * quantity
+        itemWeight = item.product.weight * item.quantity;
+      }
+      
+      // Add to batch total
+      const currentBatchWeight = batchWeights.get(item.batchNumber) || 0;
+      batchWeights.set(item.batchNumber, currentBatchWeight + itemWeight);
+    });
+    
+    // If we have box distributions, use them to get more accurate batch information
+    if (selectedOrder.boxDistributions) {
+      selectedOrder.boxDistributions.forEach(box => {
+        // Get box batch number (if it exists)
+        const boxBatchNumber = box.batchNumber;
+        
+        // Process items in this box
+        box.items.forEach(boxItem => {
+          // Use item-specific batch or box batch
+          const batchNumber = boxItem.batchNumber || boxBatchNumber;
+          if (!batchNumber) return;
+          
+          // Use manually entered weight
+          if (boxItem.weight && boxItem.weight > 0) {
+            const currentBatchWeight = batchWeights.get(batchNumber) || 0;
+            batchWeights.set(batchNumber, currentBatchWeight + boxItem.weight);
+          }
+        });
+      });
+    }
+    
+    // Convert map to array of BatchSummary objects
+    return Array.from(batchWeights.entries()).map(([batchNumber, totalWeight]) => ({
+      batchNumber,
+      totalWeight
+    }));
+  };
+  
   const confirmCompleteOrder = () => {
     if (!selectedOrder || !selectedPickerId) return;
     
     // Find the picker name
     const pickerName = pickers.find(p => p.id === selectedPickerId)?.name;
+    
+    // Calculate batch summaries before completing order
+    const batchSummaries = calculateBatchSummaries();
+    console.log("Calculated batch summaries:", batchSummaries);
     
     // Create a copy of the order with updated items (including batch numbers)
     const updatedOrder: Order = {
@@ -469,7 +530,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       pickedAt: new Date().toISOString(),
       batchNumbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
       status: "Completed" as const,
-      completedBoxes: completedBoxes // Save the list of completed boxes
+      completedBoxes: completedBoxes, // Save the list of completed boxes
+      batchSummaries: batchSummaries // Save the batch summaries
     };
     
     // Complete the order

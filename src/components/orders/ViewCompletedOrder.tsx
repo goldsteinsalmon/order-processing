@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { BatchSummary } from "@/types";
 
 // Type for product summary used in order items view
 interface ProductSummary {
@@ -16,12 +17,6 @@ interface ProductSummary {
   sku: string;
   isWeighted: boolean;
   quantity: number;
-  totalWeight: number;
-}
-
-// Type for batch summaries
-interface BatchSummary {
-  batchNumber: string;
   totalWeight: number;
 }
 
@@ -79,7 +74,7 @@ const ViewCompletedOrder: React.FC = () => {
           const boxItems = box.items.filter(boxItem => boxItem.productId === item.productId);
           
           boxItems.forEach(boxItem => {
-            // Use boxItem.weight as it's the manual weight
+            // Use boxItem.weight as it's the manually entered weight
             const weight = boxItem.weight || 0;
             totalProductWeight += weight;
           });
@@ -126,10 +121,20 @@ const ViewCompletedOrder: React.FC = () => {
   // Calculate total items
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
 
-  // IMPROVED: Create batch summaries that only show batch number and total weight
-  const createBatchSummaries = (): BatchSummary[] => {
+  // Get batch summaries - either from the saved summaries or calculate them
+  const getBatchSummaries = (): BatchSummary[] => {
+    console.log("Getting batch summaries for order:", order.id);
+    
+    // Use pre-calculated batch summaries if available (from PickingList)
+    if (order.batchSummaries && order.batchSummaries.length > 0) {
+      console.log("Using pre-calculated batch summaries:", order.batchSummaries);
+      return order.batchSummaries;
+    }
+    
     // Create a map to aggregate weights by batch number
     const batchWeightMap: Record<string, number> = {};
+    
+    console.log("No pre-calculated summaries, generating from box data");
     
     // Process box distributions if they exist (primary source for batch data)
     if (order.boxDistributions && order.boxDistributions.length > 0) {
@@ -150,6 +155,8 @@ const ViewCompletedOrder: React.FC = () => {
           batchWeightMap[batchNumber] += weight;
         });
       });
+      
+      console.log("Generated batch weights from boxes:", batchWeightMap);
     }
     // If no box distributions, try order-level batch information
     else if (order.items && order.items.length > 0) {
@@ -181,6 +188,8 @@ const ViewCompletedOrder: React.FC = () => {
         }
         batchWeightMap[batchNumber] += weight;
       });
+      
+      console.log("Generated batch weights from items:", batchWeightMap);
     }
     // If no batch information found but we have order.batchNumbers, create entries with zero weight
     else if (order.batchNumbers && order.batchNumbers.length > 0) {
@@ -200,15 +209,16 @@ const ViewCompletedOrder: React.FC = () => {
     }));
   };
   
-  const batchSummaries = createBatchSummaries();
+  const batchSummaries = getBatchSummaries();
+  console.log("Final batch summaries:", batchSummaries);
 
-  // FIXED: Calculate box weights by directly summing item weights
+  // Calculate box weights by directly summing item weights
   const calculateBoxWeight = (box: any): number => {
     if (!box.items || !Array.isArray(box.items)) return 0;
     
+    // Directly sum the weight property from each box item
     return box.items.reduce((total: number, item: any) => {
-      // Directly access the weight property from box items
-      const itemWeight = typeof item.weight === 'number' ? item.weight : 0;
+      const itemWeight = Number(item.weight) || 0;
       return total + itemWeight;
     }, 0);
   };
@@ -225,6 +235,7 @@ const ViewCompletedOrder: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Order Information Card */}
         <Card>
           <CardHeader>
             <CardTitle>Order Information</CardTitle>
@@ -285,6 +296,7 @@ const ViewCompletedOrder: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Customer Information Card */}
         <Card>
           <CardHeader>
             <CardTitle>Customer Information</CardTitle>
@@ -430,7 +442,9 @@ const ViewCompletedOrder: React.FC = () => {
               <CardContent>
                 <div className="space-y-6">
                   {(order.boxDistributions || order.boxes || []).map((box, index) => {
+                    // Ensure we're correctly calculating the box weight
                     const boxTotalWeight = calculateBoxWeight(box);
+                    console.log(`Box ${box.boxNumber} calculated weight: ${boxTotalWeight}g`);
                     
                     return (
                       <div key={index} className="border rounded-md p-4">
@@ -465,6 +479,8 @@ const ViewCompletedOrder: React.FC = () => {
                             <TableBody>
                               {box.items.map((item, itemIndex) => {
                                 const product = products.find(p => p.id === item.productId);
+                                console.log(`Box ${box.boxNumber}, Item ${itemIndex} weight: ${item.weight}g`);
+                                
                                 return (
                                   <TableRow key={itemIndex}>
                                     <TableCell>

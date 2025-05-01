@@ -40,6 +40,12 @@ export interface Box {
   batchNumber?: string;
 }
 
+// Add new BatchSummary type for consolidated batch data
+export interface BatchSummary {
+  batchNumber: string;
+  totalWeight: number;
+}
+
 export interface OrderItem {
   id: string;
   productId: string;
@@ -121,6 +127,7 @@ export interface Order {
   completedBoxes?: number[]; // Added to track which box labels have been printed
   savedBoxes?: number[]; // Added to track which boxes have been saved
   boxes?: Box[]; // Added to match usage in DataContext.tsx
+  batchSummaries?: BatchSummary[]; // Added for consolidated batch data
 }
 
 export interface StandingOrder {
