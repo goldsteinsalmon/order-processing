@@ -193,6 +193,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Clear the set of processed items for this order
     setProcessedBatchOrderItems(new Set());
     
+    // Check if this is a multi-box order (has either boxDistributions or boxes with more than 1 box)
+    const isMultiBoxOrder = 
+      (order.boxDistributions && order.boxDistributions.length > 1) || 
+      (order.boxes && order.boxes.length > 1);
+    
     // Process order-level batch information first if it exists
     if (order.batchNumber) {
       processOrderItems(order.items, order.batchNumber);
@@ -234,18 +239,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Helper function to process box distributions with deduplication
     function processBoxDistributions(boxes: Box[]) {
+      // Create a map of products and their total quantity across all boxes
+      const productTotals = new Map<string, number>();
+      
       // First scan to collect total weights per product across all boxes
       boxes.forEach(box => {
         box.items.forEach(item => {
-          // Only track product totals for deduplication, don't record in batch yet
           const key = item.productId;
-          const currentWeight = processedProductWeights.get(key) || 0;
-          processedProductWeights.set(key, currentWeight + item.weight);
+          const currentWeight = productTotals.get(key) || 0;
+          productTotals.set(key, currentWeight + (item.weight || 0));
         });
       });
       
-      // Now process each box but eliminate double-counting
-      boxes.forEach(box => {
+      // Now process each box but with special handling for multi-box orders
+      boxes.forEach((box, boxIndex) => {
         // Determine which batch number to use for this box
         const boxBatch = box.batchNumber || order.batchNumber || 
           (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : undefined);
@@ -260,10 +267,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             
             // Only process if we haven't seen this product in this box
             if (!processedInThisBox.has(item.productId)) {
-              // Determine effective weight: get actual weight from first occurrence
-              // For multi-box items, we already tracked total weights above
-              // Add item to batch usage tracking
-              addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
+              // Special handling for multi-box orders: if this is the first box for
+              // a product that appears in multiple boxes, process the full weight
+              // Otherwise, skip it to avoid double-counting
+              if (isMultiBoxOrder) {
+                // For multi-box orders, we'll either process the full weight in the first box
+                // or divide by the number of boxes that contain this product
+                
+                // Find how many boxes contain this product
+                let boxesWithThisProduct = 0;
+                boxes.forEach(b => {
+                  if (b.items.some(i => i.productId === item.productId)) {
+                    boxesWithThisProduct++;
+                  }
+                });
+                
+                // Find the first box that contains this product
+                const firstBoxIndex = boxes.findIndex(b => 
+                  b.items.some(i => i.productId === item.productId)
+                );
+                
+                // If this is the first box with this product, process it with weight adjustment
+                if (boxIndex === firstBoxIndex) {
+                  // If this product is in multiple boxes, divide the total weight by the number of boxes
+                  if (boxesWithThisProduct > 1) {
+                    const product = products.find(p => p.id === item.productId);
+                    const totalWeight = product ? (product.weight * item.quantity) : item.weight || 0;
+                    
+                    // Add item to batch usage tracking with adjusted weight (half for duplicated items)
+                    addToBatchProductMap(
+                      itemBatch, 
+                      item.productId, 
+                      item.quantity,
+                      totalWeight / boxesWithThisProduct
+                    );
+                  } else {
+                    // If it's only in one box, process normally
+                    addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
+                  }
+                }
+                // If not the first box, skip to avoid double counting
+              } else {
+                // For single box orders, process normally
+                addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
+              }
               
               // Mark as processed in this box
               processedInThisBox.add(item.productId);
