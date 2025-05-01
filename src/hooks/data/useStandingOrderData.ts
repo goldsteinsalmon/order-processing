@@ -78,10 +78,10 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
           phone: newSOData.customer.phone,
           address: newSOData.customer.address,
           type: newSOData.customer.type as "Private" | "Trade",
-          account_number: newSOData.customer.account_number,
-          on_hold: newSOData.customer.on_hold,
-          hold_reason: newSOData.customer.hold_reason,
-          needs_detailed_box_labels: newSOData.customer.needs_detailed_box_labels
+          accountNumber: newSOData.customer.account_number,
+          onHold: newSOData.customer.on_hold,
+          holdReason: newSOData.customer.hold_reason,
+          needsDetailedBoxLabels: newSOData.customer.needs_detailed_box_labels
         },
         customer_order_number: newSOData.customer_order_number,
         schedule: {

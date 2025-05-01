@@ -323,12 +323,13 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         phone: item.phone,
         address: item.address,
         type: item.type as "Private" | "Trade",
-        account_number: item.account_number,
-        on_hold: item.on_hold,
-        hold_reason: item.hold_reason,
-        needs_detailed_box_labels: item.needs_detailed_box_labels
+        accountNumber: item.account_number,
+        onHold: item.on_hold,
+        holdReason: item.hold_reason,
+        needsDetailedBoxLabels: item.needs_detailed_box_labels
       }));
       
+      // Fetch products
       const mappedProducts: Product[] = productData.map((item: any) => ({
         id: item.id,
         name: item.name,
@@ -349,10 +350,10 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         phone: customerData.phone,
         address: customerData.address,
         type: customerData.type as "Private" | "Trade",
-        account_number: customerData.account_number,
-        on_hold: customerData.on_hold,
-        hold_reason: customerData.hold_reason,
-        needs_detailed_box_labels: customerData.needs_detailed_box_labels
+        accountNumber: customerData.account_number,
+        onHold: customerData.on_hold,
+        holdReason: customerData.hold_reason,
+        needsDetailedBoxLabels: customerData.needs_detailed_box_labels
       });
 
       // Helper function to map product data

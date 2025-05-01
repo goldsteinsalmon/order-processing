@@ -59,10 +59,10 @@ export const useMissingItemData = (toast: any) => {
         phone: orderData.customer.phone,
         address: orderData.customer.address,
         type: orderData.customer.type as "Private" | "Trade",
-        account_number: orderData.customer.account_number,
-        on_hold: orderData.customer.on_hold,
-        hold_reason: orderData.customer.hold_reason,
-        needs_detailed_box_labels: orderData.customer.needs_detailed_box_labels
+        accountNumber: orderData.customer.account_number,
+        onHold: orderData.customer.on_hold,
+        holdReason: orderData.customer.hold_reason,
+        needsDetailedBoxLabels: orderData.customer.needs_detailed_box_labels
       };
       
       const newMissingItem: MissingItem = {
