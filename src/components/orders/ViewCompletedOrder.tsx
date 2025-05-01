@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ArrowLeft, Box, Barcode, FileDown, Check } from "lucide-react";
@@ -13,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useReactToPrint } from "react-to-print";
 
 // Type for product summary used in order items view
 interface ProductSummary {
@@ -30,6 +30,7 @@ const ViewCompletedOrder: React.FC = () => {
   const { completedOrders, products, updateOrder } = useData();
   const { toast } = useToast();
   const [invoiceNumber, setInvoiceNumber] = React.useState("");
+  const printRef = useRef<HTMLDivElement>(null);
 
   const order = completedOrders.find(order => order.id === id);
 
@@ -44,17 +45,17 @@ const ViewCompletedOrder: React.FC = () => {
     );
   }
 
-  // Export this individual order
-  const handleExportOrder = () => {
-    if (!order) return;
-    
-    exportOrdersToCsv([order], `order-${order.id.substring(0, 8)}-${generateCsvFilename()}`);
-    
-    toast({
-      title: "Export successful",
-      description: `Order ${order.id.substring(0, 8)} has been exported to CSV.`
-    });
-  };
+  // Export this individual order to PDF
+  const handleExportOrder = useReactToPrint({
+    documentTitle: `order-${order.id.substring(0, 8)}-${format(new Date(), 'yyyy-MM-dd')}`,
+    contentRef: printRef,
+    onAfterPrint: () => {
+      toast({
+        title: "Export successful",
+        description: `Order ${order.id.substring(0, 8)} has been exported to PDF.`
+      });
+    }
+  });
   
   // Mark order as invoiced
   const handleMarkInvoiced = () => {
@@ -701,6 +702,90 @@ const ViewCompletedOrder: React.FC = () => {
           </TabsContent>
         )}
       </Tabs>
+      
+      {/* Hidden printable content for PDF export */}
+      <div className="hidden">
+        <div ref={printRef} className="p-8">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold mb-2">Order #{order.id.substring(0, 8)}</h1>
+            <p className="text-gray-500">Generated on {format(new Date(), "PPP")}</p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <p className="text-gray-500">Customer</p>
+              <p className="font-medium">{order.customer.name}</p>
+              {order.customer.accountNumber && (
+                <p className="text-sm text-gray-600">Account #: {order.customer.accountNumber}</p>
+              )}
+              {order.customerOrderNumber && (
+                <p className="text-sm text-gray-600">Customer Order #: {order.customerOrderNumber}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-gray-500">Order Date</p>
+              <p className="font-medium">{format(parseISO(order.orderDate), "PPP")}</p>
+              <p className="text-sm text-gray-600">Status: {order.status}</p>
+            </div>
+          </div>
+          
+          <h3 className="font-medium mb-2 mt-4">Order Items</h3>
+          <table className="min-w-full border-collapse mb-4">
+            <thead>
+              <tr className="border-b border-gray-300">
+                <th className="py-2 text-left">Product</th>
+                <th className="py-2 text-left">SKU</th>
+                <th className="py-2 text-right">Quantity</th>
+                <th className="py-2 text-right">Weight</th>
+              </tr>
+            </thead>
+            <tbody>
+              {createProductSummaries().map((summary) => (
+                <tr key={summary.productId} className="border-b border-gray-200">
+                  <td className="py-2">{summary.productName}</td>
+                  <td className="py-2">{summary.sku}</td>
+                  <td className="py-2 text-right">{summary.quantity}</td>
+                  <td className="py-2 text-right">
+                    {summary.totalWeight > 0
+                      ? `${(summary.totalWeight / 1000).toFixed(2)} kg`
+                      : "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {batchSummaries.length > 0 && (
+            <>
+              <h3 className="font-medium mb-2 mt-4">Batch Summary</h3>
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="py-2 text-left">Batch Number</th>
+                    <th className="py-2 text-right">Weight</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {batchSummaries.map((batch, index) => (
+                    <tr key={index} className="border-b border-gray-200">
+                      <td className="py-2">{batch.batchNumber}</td>
+                      <td className="py-2 text-right">
+                        {batch.totalWeight > 0
+                          ? `${(batch.totalWeight / 1000).toFixed(2)} kg`
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          
+          <div className="mt-8 pt-4 border-t border-gray-300 text-sm text-gray-500">
+            <p>This document was generated from the order management system.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

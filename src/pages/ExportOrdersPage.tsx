@@ -49,7 +49,6 @@ const ExportOrdersPage: React.FC = () => {
   
   // PDF printing functionality
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
     documentTitle: `Order-Export-${format(new Date(), 'yyyy-MM-dd')}`,
     onAfterPrint: () => {
       // Mark selected orders as invoiced
@@ -66,7 +65,8 @@ const ExportOrdersPage: React.FC = () => {
         });
         alert(`Exported ${selectedOrders.size} orders to PDF and marked them as invoiced.`);
       }
-    }
+    },
+    contentRef: printRef
   });
   
   // Filter orders based on search, filter mode and date range
