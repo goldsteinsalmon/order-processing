@@ -1,7 +1,7 @@
 
 import Papa from "papaparse";
 import { Order, OrderItem } from "@/types";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 
 interface ExportOrderRow {
   accountNumber: string;
@@ -9,7 +9,7 @@ interface ExportOrderRow {
   customerOrderNumber: string;
   productSku: string;
   productName: string;
-  quantity: number | string;
+  quantity: string;
   weight: string;
 }
 
@@ -22,8 +22,10 @@ export const exportOrdersToCsv = (orders: Order[], filename = "orders-export.csv
     order.items.forEach(item => {
       const productWeight = getItemWeight(item);
       
-      // Determine if we should show quantity or not
-      const quantity = productWeight > 0 && item.manualWeight ? "" : item.quantity;
+      // For the quantity column: show quantity only if there's no manual weight
+      // For the weight column: show weight only if there is weight data
+      const quantityValue = productWeight > 0 && item.manualWeight ? "" : item.quantity.toString();
+      const weightValue = productWeight > 0 ? `${(productWeight / 1000).toFixed(2)} kg` : "";
       
       rows.push({
         accountNumber: order.customer.accountNumber || "",
@@ -31,8 +33,8 @@ export const exportOrdersToCsv = (orders: Order[], filename = "orders-export.csv
         customerOrderNumber: order.customerOrderNumber || "",
         productSku: item.product.sku,
         productName: item.product.name,
-        quantity: quantity,
-        weight: productWeight > 0 ? `${(productWeight / 1000).toFixed(2)} kg` : "",
+        quantity: quantityValue,
+        weight: weightValue,
       });
     });
   });
