@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { OrderItem } from "@/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,7 +19,7 @@ interface ItemsTableProps {
   items: ExtendedOrderItem[];
   missingItems: { id: string; quantity: number }[];
   onCheckItem: (itemId: string, checked: boolean) => void;
-  onBatchNumberChange: (itemId: string, batchNumber: string) => void;
+  onBatchNumberChange: (itemId: string, batchNumber: string, boxNumber: number) => void; // Updated to include boxNumber
   onMissingItemChange: (itemId: string, quantity: number) => void;
   onResolveMissingItem?: (itemId: string) => void;
   onWeightChange?: (itemId: string, weight: number) => void;
@@ -196,7 +195,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           onCheckedChange={(checked) => 
                             onCheckItem(item.id, checked === true)
                           }
-                          // Removed the disabled prop so users can check modified items
                         />
                       </TableCell>
                       <TableCell>
@@ -221,7 +219,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                         <Input 
                           placeholder="Enter batch #"
                           value={item.batchNumber}
-                          onChange={(e) => onBatchNumberChange(item.id, e.target.value)}
+                          onChange={(e) => onBatchNumberChange(item.id, e.target.value, 0)}
                         />
                       </TableCell>
                       <TableCell>
@@ -399,7 +397,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                               onCheckedChange={(checked) => 
                                 onCheckItem(item.id, checked === true)
                               }
-                              // Removed the 'disabled={itemChanged}' prop so users can check modified items
                               disabled={isBoxDisabled}
                             />
                           </TableCell>
@@ -425,7 +422,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                             <Input 
                               placeholder="Enter batch #"
                               value={item.batchNumber}
-                              onChange={(e) => onBatchNumberChange(item.id, e.target.value)}
+                              onChange={(e) => onBatchNumberChange(item.id, e.target.value, boxNumber)}
                               disabled={isBoxDisabled}
                               className={!item.batchNumber?.trim() ? "border-orange-300" : ""}
                             />
@@ -494,4 +491,3 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 };
 
 export default ItemsTable;
-

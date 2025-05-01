@@ -231,19 +231,31 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     );
   };
   
-  // Handler for batch number change with automatic propagation to same product in other boxes
-  const handleBatchNumber = (itemId: string, batchNumber: string) => {
+  // Handler for batch number change with forward-only propagation
+  const handleBatchNumber = (itemId: string, batchNumber: string, boxNumber: number) => {
     // Find the current item to get its product ID
     const currentItem = allItems.find(item => item.id === itemId);
     if (!currentItem) return;
     
     const productId = currentItem.productId;
     
-    // Update all items with the same product ID
+    // Update batch numbers only for the current box and future boxes
+    // Never change batch numbers for boxes that have already been completed/saved
     setAllItems(
       allItems.map((item) => {
+        // Only update items with the same product ID
         if (item.productId === productId) {
-          return { ...item, batchNumber };
+          const itemBoxNumber = item.boxNumber || 0;
+          
+          // Update if:
+          // 1. Item is in the current box, OR
+          // 2. Item is in a future box that has not been completed/saved
+          if (
+            itemBoxNumber === boxNumber || 
+            (itemBoxNumber > boxNumber && !completedBoxes.includes(itemBoxNumber))
+          ) {
+            return { ...item, batchNumber };
+          }
         }
         return item;
       })
