@@ -55,6 +55,7 @@ export interface OrderItem {
   pickedWeight?: number; // Added picked weight field for weight-based products
   originalQuantity?: number; // Added to track original quantity for modified orders
   boxNumber?: number; // Added to track which box this item belongs to
+  manualWeight?: number; // Added for manually entered weight inputs
 }
 
 export interface PickingProgress {
