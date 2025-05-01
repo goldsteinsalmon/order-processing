@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -94,7 +93,7 @@ const BatchTrackingPage: React.FC = () => {
         const lastUsedDate = new Date(usage.lastUsed) > new Date(existingUsage.lastUsed)
           ? usage.lastUsed : existingUsage.lastUsed;
           
-        // Update batch usage record
+        // Update batch usage record - make sure we're not double counting weights
         batchUsageMap.set(key, {
           ...existingUsage,
           usedWeight: existingUsage.usedWeight + usage.usedWeight,

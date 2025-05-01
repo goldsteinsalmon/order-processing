@@ -181,17 +181,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Create a map of batch numbers to items using those batches
     const batchItemsMap: Record<string, { productId: string, quantity: number, weight?: number }[]> = {};
     
+    // Track which batch-product combinations we've already processed for this order
+    // to prevent duplicate weight calculations
+    const processedBatchProducts = new Set<string>();
+    
     // Process the order-level batch number if it exists
     if (order.batchNumber) {
       order.items.forEach(item => {
         if (!batchItemsMap[order.batchNumber]) {
           batchItemsMap[order.batchNumber] = [];
         }
-        batchItemsMap[order.batchNumber].push({
-          productId: item.productId,
-          quantity: item.quantity,
-          weight: item.pickedWeight
-        });
+        
+        const batchProductKey = `${order.batchNumber}-${item.productId}`;
+        if (!processedBatchProducts.has(batchProductKey)) {
+          processedBatchProducts.add(batchProductKey);
+          batchItemsMap[order.batchNumber].push({
+            productId: item.productId,
+            quantity: item.quantity,
+            weight: item.pickedWeight
+          });
+        }
       });
     }
     
@@ -202,34 +211,45 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!batchItemsMap[batchNumber]) {
           batchItemsMap[batchNumber] = [];
         }
-        // If we don't have specific item assignments, assign all items to this batch
-        if (Object.keys(batchItemsMap[batchNumber]).length === 0) {
-          order.items.forEach(item => {
+        
+        // Only assign items to this batch if they haven't been assigned to a more specific batch already
+        order.items.forEach(item => {
+          // Skip if this item already has a specific batch assignment
+          if (item.batchNumber) return;
+          
+          const batchProductKey = `${batchNumber}-${item.productId}`;
+          if (!processedBatchProducts.has(batchProductKey)) {
+            processedBatchProducts.add(batchProductKey);
             batchItemsMap[batchNumber].push({
               productId: item.productId,
               quantity: item.quantity,
               weight: item.pickedWeight
             });
-          });
-        }
+          }
+        });
       });
     }
     
-    // Process item-level batch numbers
+    // Process item-level batch numbers - these are the most specific assignments
     order.items.forEach(item => {
       if (item.batchNumber) {
         if (!batchItemsMap[item.batchNumber]) {
           batchItemsMap[item.batchNumber] = [];
         }
-        batchItemsMap[item.batchNumber].push({
-          productId: item.productId,
-          quantity: item.quantity,
-          weight: item.pickedWeight
-        });
+        
+        const batchProductKey = `${item.batchNumber}-${item.productId}`;
+        if (!processedBatchProducts.has(batchProductKey)) {
+          processedBatchProducts.add(batchProductKey);
+          batchItemsMap[item.batchNumber].push({
+            productId: item.productId,
+            quantity: item.quantity,
+            weight: item.pickedWeight
+          });
+        }
       }
     });
     
-    // Process batch numbers from pickingProgress
+    // Process batch numbers from pickingProgress - these should override general batch assignments
     if (order.pickingProgress?.batchNumbers) {
       Object.entries(order.pickingProgress.batchNumbers).forEach(([itemId, batchNumber]) => {
         if (!batchNumber) return;
@@ -241,13 +261,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           batchItemsMap[batchNumber] = [];
         }
         
-        // Check if this item is already recorded for this batch
-        const existingItemIndex = batchItemsMap[batchNumber].findIndex(
-          entry => entry.productId === item.productId
-        );
-        
-        if (existingItemIndex === -1) {
-          // Item not yet recorded for this batch
+        const batchProductKey = `${batchNumber}-${item.productId}`;
+        if (!processedBatchProducts.has(batchProductKey)) {
+          processedBatchProducts.add(batchProductKey);
           batchItemsMap[batchNumber].push({
             productId: item.productId,
             quantity: item.quantity,
@@ -494,7 +510,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
     
-    // Calculate weight in grams
+    // Calculate weight in grams - ensure we're getting the correct weight
     let totalWeight = 0;
     
     if (manualWeight !== undefined && manualWeight > 0) {
