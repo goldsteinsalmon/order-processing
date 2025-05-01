@@ -28,7 +28,7 @@ const BatchTrackingPage: React.FC = () => {
     key: keyof BatchUsage | null;
     direction: 'ascending' | 'descending';
   }>({
-    key: 'firstUsed',
+    key: 'first_used',
     direction: 'descending'
   });
 
@@ -60,14 +60,14 @@ const BatchTrackingPage: React.FC = () => {
         if (!batchMap.has(batchNumber)) {
           batchMap.set(batchNumber, {
             id: `batch-${batchNumber}`,
-            batchNumber,
-            productId: "", // Not needed when consolidating by batch
-            productName: "", // Not needed when consolidating by batch
-            totalWeight: 0,
-            usedWeight: 0,
-            ordersCount: 0,
-            firstUsed: order.created || order.orderDate,
-            lastUsed: order.created || order.orderDate,
+            batch_number: batchNumber,
+            product_id: "", // Not needed when consolidating by batch
+            product_name: "", // Not needed when consolidating by batch
+            total_weight: 0,
+            used_weight: 0,
+            orders_count: 0,
+            first_used: order.created || order.order_date,
+            last_used: order.created || order.order_date,
             usedBy: []
           });
         }
@@ -75,25 +75,25 @@ const BatchTrackingPage: React.FC = () => {
         const batchEntry = batchMap.get(batchNumber)!;
         
         // Update the weight
-        batchEntry.usedWeight += weight;
+        batchEntry.used_weight += weight;
         
         // Update order count if this is a new order
         if (!batchEntry.usedBy!.includes(`order-${order.id}`)) {
           batchEntry.usedBy!.push(`order-${order.id}`);
-          batchEntry.ordersCount += 1;
+          batchEntry.orders_count += 1;
         }
         
         // Update dates if needed
-        const orderDate = new Date(order.created || order.orderDate);
-        const firstUsedDate = new Date(batchEntry.firstUsed);
-        const lastUsedDate = new Date(batchEntry.lastUsed);
+        const orderDate = new Date(order.created || order.order_date);
+        const firstUsedDate = new Date(batchEntry.first_used);
+        const lastUsedDate = new Date(batchEntry.last_used);
         
         if (orderDate < firstUsedDate) {
-          batchEntry.firstUsed = order.created || order.orderDate;
+          batchEntry.first_used = order.created || order.order_date;
         }
         
         if (orderDate > lastUsedDate) {
-          batchEntry.lastUsed = order.created || order.orderDate;
+          batchEntry.last_used = order.created || order.order_date;
         }
       });
     });
@@ -117,13 +117,13 @@ const BatchTrackingPage: React.FC = () => {
       return 0;
     }
     
-    if (sortConfig.key === 'firstUsed' || sortConfig.key === 'lastUsed') {
+    if (sortConfig.key === 'first_used' || sortConfig.key === 'last_used') {
       const aDate = new Date(a[sortConfig.key]).getTime();
       const bDate = new Date(b[sortConfig.key]).getTime();
       return sortConfig.direction === 'ascending' ? aDate - bDate : bDate - aDate;
     }
     
-    if (sortConfig.key === 'usedWeight' || sortConfig.key === 'ordersCount') {
+    if (sortConfig.key === 'used_weight' || sortConfig.key === 'orders_count') {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
       return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
@@ -138,7 +138,7 @@ const BatchTrackingPage: React.FC = () => {
     
   // Filter batch usages based on search term
   const filteredBatchData = sortedBatchData
-    .filter(batch => searchTerm === "" || batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+    .filter(batch => searchTerm === "" || batch.batch_number.toLowerCase().includes(searchTerm.toLowerCase()));
     
   // Handle clicking on orders count - navigate to completed orders with batch filter
   const handleOrdersClick = (batchNumber: string) => {
@@ -190,31 +190,31 @@ const BatchTrackingPage: React.FC = () => {
                   <TableRow>
                     <TableHead 
                       className="cursor-pointer"
-                      onClick={() => requestSort('batchNumber')}
+                      onClick={() => requestSort('batch_number')}
                     >
-                      Batch Number {renderSortIndicator('batchNumber')}
+                      Batch Number {renderSortIndicator('batch_number')}
                     </TableHead>
                     <TableHead className="text-right cursor-pointer"
-                      onClick={() => requestSort('usedWeight')}
+                      onClick={() => requestSort('used_weight')}
                     >
-                      Total Weight (kg) {renderSortIndicator('usedWeight')}
+                      Total Weight (kg) {renderSortIndicator('used_weight')}
                     </TableHead>
                     <TableHead className="text-right cursor-pointer"
-                      onClick={() => requestSort('ordersCount')}
+                      onClick={() => requestSort('orders_count')}
                     >
-                      Orders {renderSortIndicator('ordersCount')}
+                      Orders {renderSortIndicator('orders_count')}
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer"
-                      onClick={() => requestSort('firstUsed')}
+                      onClick={() => requestSort('first_used')}
                     >
-                      First Used {renderSortIndicator('firstUsed')}
+                      First Used {renderSortIndicator('first_used')}
                     </TableHead>
                     <TableHead
                       className="cursor-pointer"
-                      onClick={() => requestSort('lastUsed')}
+                      onClick={() => requestSort('last_used')}
                     >
-                      Last Used {renderSortIndicator('lastUsed')}
+                      Last Used {renderSortIndicator('last_used')}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -228,21 +228,21 @@ const BatchTrackingPage: React.FC = () => {
                   ) : (
                     filteredBatchData.map((batch) => (
                       <TableRow key={batch.id}>
-                        <TableCell className="font-medium">{batch.batchNumber}</TableCell>
+                        <TableCell className="font-medium">{batch.batch_number}</TableCell>
                         <TableCell className="text-right">
-                          {(batch.usedWeight / 1000).toFixed(2)}
+                          {(batch.used_weight / 1000).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button 
                             variant="link" 
                             className="p-0 h-auto text-blue-600 hover:text-blue-800"
-                            onClick={() => handleOrdersClick(batch.batchNumber)}
+                            onClick={() => handleOrdersClick(batch.batch_number)}
                           >
-                            {batch.ordersCount}
+                            {batch.orders_count}
                           </Button>
                         </TableCell>
-                        <TableCell>{format(parseISO(batch.firstUsed), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>{format(parseISO(batch.lastUsed), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{format(parseISO(batch.first_used), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{format(parseISO(batch.last_used), 'dd/MM/yyyy')}</TableCell>
                       </TableRow>
                     ))
                   )}

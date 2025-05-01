@@ -636,7 +636,7 @@ const CreateStandingOrderForm: React.FC = () => {
                     {selectedCustomer.name} is currently on hold.
                   </p>
                   <p className="mb-4">
-                    Reason: {selectedCustomer.holdReason || "No reason provided"}
+                    Reason: {selectedCustomer.hold_reason || "No reason provided"}
                   </p>
                   <p>Are you sure you want to proceed with this customer?</p>
                 </>

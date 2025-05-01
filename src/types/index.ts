@@ -124,7 +124,7 @@ export interface StandingOrder {
   };
   notes?: string;
   active: boolean;
-  next_processing_date: string;
+  next_processing_date?: string;
   last_processed_date?: string;
 }
 

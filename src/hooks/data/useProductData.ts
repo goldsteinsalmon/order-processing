@@ -36,7 +36,6 @@ export const useProductData = (toast: any) => {
           description: p.description,
           stock_level: p.stock_level,
           weight: p.weight,
-          created: p.created,
           requires_weight_input: p.requires_weight_input,
           unit: p.unit,
           required: p.required
@@ -69,7 +68,6 @@ export const useProductData = (toast: any) => {
           description: data[0].description,
           stock_level: data[0].stock_level,
           weight: data[0].weight,
-          created: data[0].created,
           requires_weight_input: data[0].requires_weight_input,
           unit: data[0].unit,
           required: data[0].required
