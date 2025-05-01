@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Eye, Edit, Printer, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, Edit, Printer, ArrowUp, ArrowDown, FileDown } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -21,7 +20,7 @@ interface CompletedOrdersProps {
 
 // Define sort directions and sortable fields
 type SortDirection = "asc" | "desc";
-type SortableField = "id" | "customer" | "orderDate" | "completedDate" | "batchNumbers" | "picker" | "blownPouches";
+type SortableField = "id" | "customer" | "orderDate" | "completedDate" | "batchNumbers" | "picker" | "blownPouches" | "invoiceStatus";
 
 const CompletedOrders: React.FC<CompletedOrdersProps> = ({ 
   searchTerm = "", 
@@ -176,6 +175,17 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         const blownA = a.totalBlownPouches || 0;
         const blownB = b.totalBlownPouches || 0;
         return sortMultiplier * (blownA - blownB);
+      
+      case "invoiceStatus":
+        // Sort by invoice status (invoiced first) and then by invoice date
+        if (a.invoiced === b.invoiced) {
+          // If both are invoiced or both are not invoiced, sort by invoice date
+          const invoiceDateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+          const invoiceDateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
+          return sortMultiplier * (invoiceDateA - invoiceDateB);
+        }
+        // Otherwise, sort by invoiced status (true comes first)
+        return sortMultiplier * (a.invoiced ? -1 : 1);
         
       default:
         return 0;
@@ -324,13 +334,19 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
               >
                 Blown Pouches {renderSortIcon("blownPouches")}
               </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("invoiceStatus")}
+              >
+                Invoice Status {renderSortIcon("invoiceStatus")}
+              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedOrders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-gray-500">
+                <TableCell colSpan={9} className="text-center text-gray-500">
                   No completed orders found
                 </TableCell>
               </TableRow>
@@ -357,6 +373,24 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                     <TableCell>{batchNumbers}</TableCell>
                     <TableCell>{getPickerName(order)}</TableCell>
                     <TableCell>{order.totalBlownPouches || 0}</TableCell>
+                    <TableCell>
+                      {order.invoiced ? (
+                        <div className="flex flex-col">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Invoiced
+                          </span>
+                          {order.invoiceDate && (
+                            <span className="text-xs text-muted-foreground mt-1">
+                              {format(parseISO(order.invoiceDate), "dd/MM/yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Not Invoiced
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col space-y-2">
                         <div className="flex space-x-2">
@@ -399,6 +433,13 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
             )}
           </TableBody>
         </Table>
+      </div>
+      
+      <div className="mt-6 flex justify-end">
+        <Button onClick={() => navigate("/export-orders")}>
+          <FileDown className="mr-2 h-4 w-4" />
+          Export Orders
+        </Button>
       </div>
     </div>
   );
