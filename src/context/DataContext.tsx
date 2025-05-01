@@ -240,10 +240,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Use item batch number if available, otherwise box batch number
           const batchNumber = item.batchNumber || boxBatchNumber;
           
-          // Calculate weight - IMPORTANT: prioritize manual weight inputs
+          // IMPORTANT: For box items, the weight property directly contains the manually entered weight
+          // Use this weight as is without additional logic
           let weight = 0;
           
-          // Check if manual weight was entered (this is the primary source)
+          // Check if manual weight was directly recorded in box item
           if (item.weight !== undefined && item.weight > 0) {
             weight = item.weight;
           } 
@@ -286,13 +287,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Calculate weight - IMPORTANT: prioritize manual weight inputs
         let weight = 0;
         
-        // Check for manually entered picked weight first
-        if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
-          weight = item.pickedWeight;
-        } 
-        // If no picked weight but product requires weight input, use manualWeight if available
-        else if (product.requiresWeightInput && item.manualWeight !== undefined && item.manualWeight > 0) {
+        // Check for manually entered weight first (highest priority)
+        if (item.manualWeight !== undefined && item.manualWeight > 0) {
           weight = item.manualWeight;
+        }
+        // Then check for picked weight
+        else if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
+          weight = item.pickedWeight;
         }
         // Otherwise use the product's standard weight * quantity
         else if (product.weight) {

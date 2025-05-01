@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -52,7 +53,7 @@ const ViewCompletedOrder: React.FC = () => {
       const product = products.find(p => p.id === productId);
       if (!product) return;
       
-      // Calculate weight if not provided, prioritizing manual weights
+      // Calculate weight based on provided explicit weight or product weight * quantity
       const productWeight = weight > 0 ? weight : (product.weight ? product.weight * quantity : 0);
       
       if (!summary[batchNumber]) {
@@ -96,8 +97,9 @@ const ViewCompletedOrder: React.FC = () => {
         box.items.forEach(item => {
           const batchToUse = item.batchNumber || boxBatch;
           
-          // Prioritize manually entered weights when available
-          const weight = item.weight || 0; // This will capture manually entered weights first
+          // IMPORTANT: Use the manually entered weight from box items
+          // The weight property in BoxItem represents the manually entered weight
+          const weight = item.weight || 0;
           
           addToBatch(batchToUse, item.productId, item.quantity, weight);
         });
@@ -111,12 +113,15 @@ const ViewCompletedOrder: React.FC = () => {
       order.items.forEach(item => {
         const batchToUse = item.batchNumber || defaultBatch;
         
-        // Prioritize manually entered weights when available
+        // Prioritize weights in this order: manualWeight > pickedWeight > product.weight * quantity
         let weight = 0;
-        if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
-          weight = item.pickedWeight;
-        } else if (item.manualWeight !== undefined && item.manualWeight > 0) {
+        
+        if (item.manualWeight !== undefined && item.manualWeight > 0) {
           weight = item.manualWeight;
+        } else if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
+          weight = item.pickedWeight;
+        } else if (item.product.weight) {
+          weight = item.product.weight * item.quantity;
         }
         
         addToBatch(batchToUse, item.productId, item.quantity, weight);
