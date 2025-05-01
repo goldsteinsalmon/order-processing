@@ -1,12 +1,18 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
+import { 
+  exportOrdersToCsv, 
+  generateCsvFilename,
+  exportOrdersToExcel,
+  generateExcelFilename 
+} from "@/utils/exportUtils";
 import { Order } from "@/types";
-import { ArrowLeft, FileDown, Calendar, Check, Undo, Search, Filter } from "lucide-react";
+import { ArrowLeft, FileDown, Calendar, Check, Undo, Search, Filter, FileText } from "lucide-react";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -24,6 +30,12 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 const ExportOrdersPage: React.FC = () => {
   const { completedOrders, updateOrder } = useData();
@@ -110,7 +122,7 @@ const ExportOrdersPage: React.FC = () => {
   };
   
   // Export selected orders and mark them as invoiced
-  const handleExport = () => {
+  const handleExportCsv = () => {
     if (selectedOrders.size === 0) {
       toast({
         title: "No orders selected",
@@ -141,6 +153,41 @@ const ExportOrdersPage: React.FC = () => {
     toast({
       title: "Export successful",
       description: `Exported ${ordersToExport.length} orders to CSV and marked them as invoiced.`,
+    });
+  };
+
+  // Export selected orders to Excel
+  const handleExportExcel = () => {
+    if (selectedOrders.size === 0) {
+      toast({
+        title: "No orders selected",
+        description: "Please select at least one order to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const ordersToExport = filteredOrders.filter(order => 
+      selectedOrders.has(order.id)
+    );
+    
+    // Mark selected orders as invoiced
+    selectedOrders.forEach(id => {
+      const order = completedOrders.find(o => o.id === id);
+      if (order && !order.invoiced) {
+        updateOrder({
+          ...order,
+          invoiced: true,
+          invoiceDate: new Date().toISOString(),
+        });
+      }
+    });
+    
+    exportOrdersToExcel(ordersToExport, generateExcelFilename());
+    
+    toast({
+      title: "Export successful",
+      description: `Exported ${ordersToExport.length} orders to Excel and marked them as invoiced.`,
     });
   };
   
@@ -257,14 +304,27 @@ const ExportOrdersPage: React.FC = () => {
               
               {/* Actions */}
               <div className="flex flex-col space-y-2">
-                <Button 
-                  className="w-full" 
-                  onClick={handleExport}
-                  disabled={selectedOrders.size === 0}
-                >
-                  <FileDown className="mr-2 h-4 w-4" /> 
-                  Export Selected ({selectedOrders.size})
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      className="w-full" 
+                      disabled={selectedOrders.size === 0}
+                    >
+                      <FileDown className="mr-2 h-4 w-4" /> 
+                      Export Selected ({selectedOrders.size})
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExportCsv}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportExcel}>
+                      <FileDown className="mr-2 h-4 w-4" />
+                      Export as Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 
                 <div className="flex space-x-2">
                   <Button 

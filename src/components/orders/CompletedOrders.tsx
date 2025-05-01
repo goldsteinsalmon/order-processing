@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Eye, Edit, Printer, ArrowUp, ArrowDown, FileDown } from "lucide-react";
+import { Eye, Edit, Printer, ArrowUp, ArrowDown, FileDown, FileText } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -12,6 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 interface CompletedOrdersProps {
   searchTerm?: string;
@@ -436,10 +442,24 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
       </div>
       
       <div className="mt-6 flex justify-end">
-        <Button onClick={() => navigate("/export-orders")}>
-          <FileDown className="mr-2 h-4 w-4" />
-          Export Orders
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button>
+              <FileDown className="mr-2 h-4 w-4" />
+              Export Orders
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => navigate("/export-orders")}>
+              <FileText className="mr-2 h-4 w-4" />
+              Export as CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/export-orders")}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Export as Excel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
