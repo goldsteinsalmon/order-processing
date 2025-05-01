@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -15,14 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Search, ChevronDown, ChevronUp } from "lucide-react";
-import { BatchUsage } from "@/types";
+import { BatchUsage, BatchSummary } from "@/types";
 
 const BatchTrackingPage: React.FC = () => {
-  const { batchUsages, completedOrders } = useData();
+  const { completedOrders } = useData();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("batch") || "");
-  const [consolidatedBatchUsages, setConsolidatedBatchUsages] = useState<BatchUsage[]>([]);
+  const [batchData, setBatchData] = useState<BatchUsage[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof BatchUsage | null;
     direction: 'ascending' | 'descending';
@@ -30,8 +31,8 @@ const BatchTrackingPage: React.FC = () => {
     key: 'firstUsed',
     direction: 'descending'
   });
-  
-  // Consolidate batch usages to prevent double-counting
+
+  // Collect batch data directly from completed orders
   useEffect(() => {
     // If the URL has a batch parameter, set it as the search term
     const batchParam = searchParams.get("batch");
@@ -39,98 +40,67 @@ const BatchTrackingPage: React.FC = () => {
       setSearchTerm(batchParam);
     }
     
-    // Group batch usages by batch number to consolidate
-    const batchUsageMap = new Map<string, BatchUsage>();
+    // Create a map to store consolidated batch information
+    const batchMap = new Map<string, BatchUsage>();
     
-    // First collect all unique batch numbers
-    const uniqueBatchNumbers = Array.from(new Set(batchUsages.map(bu => bu.batchNumber)));
-    
-    // For each unique batch number, consolidate all its usages
-    uniqueBatchNumbers.forEach(batchNumber => {
-      const batchItems = batchUsages.filter(bu => bu.batchNumber === batchNumber);
+    // Process all completed orders
+    completedOrders.forEach(order => {
+      // Skip orders without batch information
+      if (!order.batchSummaries || order.batchSummaries.length === 0) return;
       
-      if (batchItems.length === 0) return;
-      
-      // Start with the first item as our base
-      const firstItem = batchItems[0];
-      
-      // Initialize the consolidated entry
-      const consolidated: BatchUsage = {
-        ...firstItem,
-        usedWeight: 0, // We'll correctly sum all weights
-        ordersCount: 0, // We'll count unique orders
-        usedBy: [] // We'll collect all unique order IDs
-      };
-      
-      // Track unique order IDs
-      const uniqueOrderIds = new Set<string>();
-      
-      // Create a map to track processed items by product/order combos
-      // Key: productId-orderId, Value: weight already counted
-      const processedProductOrders = new Map<string, number>();
-      
-      // Go through all items for this batch and properly consolidate
-      batchItems.forEach(item => {
-        // For each item with used by information
-        if (item.usedBy && item.usedBy.length > 0) {
-          item.usedBy.forEach(orderKey => {
-            if (orderKey.startsWith('order-')) {
-              const orderId = orderKey.substring(6); // Remove 'order-' prefix
-              
-              // Create a unique key for this product-order combination
-              const productOrderKey = `${item.productId}-${orderId}`;
-              
-              // Check if we've already processed this product-order combination
-              const existingWeight = processedProductOrders.get(productOrderKey) || 0;
-              
-              // Calculate the weight we should add (if any)
-              let weightToAdd = 0;
-              
-              // If this is the first time we're seeing this combination, add the full weight
-              if (existingWeight === 0) {
-                weightToAdd = item.usedWeight;
-              } 
-              // Otherwise, don't add any weight as we've already counted it
-              
-              // Update our tracking with the weight we've now counted
-              processedProductOrders.set(productOrderKey, existingWeight + weightToAdd);
-              
-              // Only add the weight if we determined we should
-              consolidated.usedWeight += weightToAdd;
-              
-              // Always track unique orders
-              uniqueOrderIds.add(orderId);
-            }
+      // Process each batch summary in the order
+      order.batchSummaries.forEach((summary: BatchSummary) => {
+        const batchNumber = summary.batchNumber;
+        const weight = summary.totalWeight;
+        
+        // Skip entries with no batch number
+        if (!batchNumber || batchNumber === "Unknown") return;
+        
+        // Get existing entry or create a new one
+        if (!batchMap.has(batchNumber)) {
+          batchMap.set(batchNumber, {
+            id: `batch-${batchNumber}`,
+            batchNumber,
+            productId: "", // Not needed when consolidating by batch
+            productName: "", // Not needed when consolidating by batch
+            totalWeight: 0,
+            usedWeight: 0,
+            ordersCount: 0,
+            firstUsed: order.created || order.orderDate,
+            lastUsed: order.created || order.orderDate,
+            usedBy: []
           });
         }
         
-        // Track earliest and latest use dates
-        const itemFirstDate = new Date(item.firstUsed);
-        const consolidatedFirstDate = new Date(consolidated.firstUsed);
-        if (itemFirstDate < consolidatedFirstDate) {
-          consolidated.firstUsed = item.firstUsed;
+        const batchEntry = batchMap.get(batchNumber)!;
+        
+        // Update the weight
+        batchEntry.usedWeight += weight;
+        
+        // Update order count if this is a new order
+        if (!batchEntry.usedBy!.includes(`order-${order.id}`)) {
+          batchEntry.usedBy!.push(`order-${order.id}`);
+          batchEntry.ordersCount += 1;
         }
         
-        const itemLastDate = new Date(item.lastUsed);
-        const consolidatedLastDate = new Date(consolidated.lastUsed);
-        if (itemLastDate > consolidatedLastDate) {
-          consolidated.lastUsed = item.lastUsed;
+        // Update dates if needed
+        const orderDate = new Date(order.created || order.orderDate);
+        const firstUsedDate = new Date(batchEntry.firstUsed);
+        const lastUsedDate = new Date(batchEntry.lastUsed);
+        
+        if (orderDate < firstUsedDate) {
+          batchEntry.firstUsed = order.created || order.orderDate;
+        }
+        
+        if (orderDate > lastUsedDate) {
+          batchEntry.lastUsed = order.created || order.orderDate;
         }
       });
-      
-      // Set the unique order count
-      consolidated.ordersCount = uniqueOrderIds.size;
-      
-      // Set the used by array with unique order keys
-      consolidated.usedBy = Array.from(uniqueOrderIds).map(id => `order-${id}`);
-      
-      // Add this fully consolidated batch to our map
-      batchUsageMap.set(batchNumber, consolidated);
     });
     
-    // Convert back to array for display
-    setConsolidatedBatchUsages(Array.from(batchUsageMap.values()));
-  }, [batchUsages, searchParams, searchTerm, completedOrders]);
+    // Convert map to array
+    setBatchData(Array.from(batchMap.values()));
+  }, [completedOrders, searchParams, searchTerm]);
   
   // Handle sorting
   const requestSort = (key: keyof BatchUsage) => {
@@ -142,7 +112,7 @@ const BatchTrackingPage: React.FC = () => {
   };
   
   // Apply sorting function
-  const sortedBatchUsages = [...consolidatedBatchUsages].sort((a, b) => {
+  const sortedBatchData = [...batchData].sort((a, b) => {
     if (sortConfig.key === null) {
       return 0;
     }
@@ -167,7 +137,7 @@ const BatchTrackingPage: React.FC = () => {
   });
     
   // Filter batch usages based on search term
-  const filteredBatchUsages = sortedBatchUsages
+  const filteredBatchData = sortedBatchData
     .filter(batch => searchTerm === "" || batch.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()));
     
   // Handle clicking on orders count - navigate to completed orders with batch filter
@@ -249,14 +219,14 @@ const BatchTrackingPage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBatchUsages.length === 0 ? (
+                  {filteredBatchData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-gray-500 py-8">
                         No batch usage records found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredBatchUsages.map((batch) => (
+                    filteredBatchData.map((batch) => (
                       <TableRow key={batch.id}>
                         <TableCell className="font-medium">{batch.batchNumber}</TableCell>
                         <TableCell className="text-right">
