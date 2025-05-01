@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
-import { Loader, RefreshCw, UserPlus, UserCog, UserX, Trash2 } from "lucide-react";
+import { Loader, RefreshCw, UserPlus } from "lucide-react";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -292,8 +291,9 @@ const UserManagement: React.FC = () => {
           <CardDescription>Add, edit, and manage users.</CardDescription>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={refreshing}>
-            {refreshing ? <Loader className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          <Button variant="outline" size="sm" onClick={fetchUsers} disabled={refreshing}>
+            {refreshing ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Refresh
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -443,18 +443,18 @@ const UserManagement: React.FC = () => {
                     <td className="py-2">
                       <div className="flex space-x-2">
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant="outline"
+                          size="sm"
                           onClick={() => openEditDialog(user)}
                         >
-                          <UserCog className="h-4 w-4" />
+                          Edit
                         </Button>
                         <Button
-                          variant={user.active ? "ghost" : "outline"}
-                          size="icon"
+                          variant={user.active ? "outline" : "secondary"}
+                          size="sm"
                           onClick={() => handleToggleUserStatus(user)}
                         >
-                          <UserX className="h-4 w-4" />
+                          {user.active ? "Deactivate" : "Activate"}
                         </Button>
                         <AlertDialog open={deleteDialogOpen && userToDelete?.id === user.id} onOpenChange={(open) => {
                           if (!open) setUserToDelete(null);
@@ -462,12 +462,11 @@ const UserManagement: React.FC = () => {
                         }}>
                           <AlertDialogTrigger asChild>
                             <Button
-                              variant="ghost"
-                              size="icon"
+                              variant="destructive"
+                              size="sm"
                               onClick={() => setUserToDelete(user)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              Delete
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
