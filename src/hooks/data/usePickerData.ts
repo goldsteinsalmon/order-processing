@@ -7,7 +7,7 @@ export const usePickerData = (toast: any) => {
   const [pickers, setPickers] = useState<Picker[]>([]);
 
   // Add picker
-  const addPicker = async (picker: Picker): Promise<Picker | null> => {
+  const addPicker = async (picker: Partial<Picker>): Promise<Picker | null> => {
     try {
       const { data, error } = await supabase
         .from('pickers')
@@ -89,3 +89,4 @@ export const usePickerData = (toast: any) => {
     deletePicker
   };
 };
+
