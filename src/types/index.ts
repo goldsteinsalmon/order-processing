@@ -52,12 +52,16 @@ export interface Order {
     batchNumbers?: Record<string, string>;
   };
   box_distributions?: Box[];
-  completed_boxes?: string[];
+  completed_boxes?: number[];
   missing_items?: MissingItem[];
   invoiced?: boolean;
   invoice_number?: string;
   invoice_date?: string;
   changes?: OrderChange[];
+  // Add savedBoxes property that was missing
+  savedBoxes?: number[];
+  // Add property for batch summaries
+  batchSummaries?: BatchSummary[];
 }
 
 export interface OrderItem {
@@ -156,6 +160,11 @@ export interface BatchUsage {
   first_used: string;
   last_used: string;
   orders_count: number;
+}
+
+export interface BatchSummary {
+  batchNumber: string;
+  totalWeight: number;
 }
 
 export interface MissingItem {

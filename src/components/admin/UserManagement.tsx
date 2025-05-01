@@ -1,424 +1,411 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
-import { Loader, Trash, UserPlus, Edit } from "lucide-react";
+import { Loader, RefreshCw, UserPlus, UserCog, UserX } from "lucide-react";
 
 const UserManagement: React.FC = () => {
-  const { toast } = useToast();
-  const { users, addUser, updateUser, deleteUser } = useData();
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // State for the new user form
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: "",
     email: "",
+    password: "",
     role: "User",
-    active: true
+    active: true,
   });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate loading state for a short time
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-    
-    return () => clearTimeout(timer);
+    fetchUsers();
   }, []);
-  
-  // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewUser({ ...newUser, [name]: value });
+
+  const fetchUsers = async () => {
+    try {
+      setRefreshing(true);
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+
+      setUsers(data || []);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch users.",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
   };
-  
-  // Handle edit input changes
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!editingUser) return;
-    const { name, value } = e.target;
-    setEditingUser({ ...editingUser, [name]: value });
-  };
-  
-  // Handle role change
-  const handleRoleChange = (value: string) => {
-    setNewUser({ ...newUser, role: value as "Admin" | "User" | "Manager" });
-  };
-  
-  // Handle edit role change
-  const handleEditRoleChange = (value: string) => {
-    if (!editingUser) return;
-    setEditingUser({ ...editingUser, role: value as "Admin" | "User" | "Manager" });
-  };
-  
-  // Handle active status change
-  const handleActiveChange = (checked: boolean) => {
-    setNewUser({ ...newUser, active: checked });
-  };
-  
-  // Handle edit active status change
-  const handleEditActiveChange = (checked: boolean) => {
-    if (!editingUser) return;
-    setEditingUser({ ...editingUser, active: checked });
-  };
-  
-  // Handle user submission
+
   const handleAddUser = async () => {
-    if (!newUser.name || !newUser.email || !newUser.password) {
-      toast({
-        title: "Missing Fields",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!newUser.email.includes('@')) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const userToAdd: User = {
-      id: "", // Will be generated
-      name: newUser.name,
-      email: newUser.email,
-      password: newUser.password,
-      role: newUser.role as "Admin" | "User" | "Manager",
-      active: newUser.active || true
-    };
-    
-    const addedUser = await addUser(userToAdd);
-    
-    if (addedUser) {
-      setIsAddDialogOpen(false);
-      toast({
-        title: "User Added",
-        description: `User ${newUser.name} has been added successfully.`
-      });
-      setNewUser({
-        name: "",
-        email: "",
-        password: "",
-        role: "User",
-        active: true
-      });
-    }
-  };
-  
-  // Handle user edit
-  const handleEditUser = async () => {
-    if (!editingUser) return;
-    
-    if (!editingUser.name || !editingUser.email) {
-      toast({
-        title: "Missing Fields",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const success = await updateUser(editingUser);
-    
-    if (success) {
-      setIsEditDialogOpen(false);
-      toast({
-        title: "User Updated",
-        description: `User ${editingUser.name} has been updated successfully.`
-      });
-      setEditingUser(null);
-    }
-  };
-  
-  // Handle user deletion
-  const handleDeleteUser = async (user: User) => {
-    if (confirm(`Are you sure you want to delete ${user.name}?`)) {
-      const success = await deleteUser(user.id);
-      
-      if (success) {
+    try {
+      // Validate form
+      if (!newUser.name || !newUser.email || !newUser.password) {
         toast({
-          title: "User Deleted",
-          description: `User ${user.name} has been deleted.`
+          title: "Missing fields",
+          description: "Please fill in all required fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.from("users").insert([
+        {
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password, // In a real app, you should hash this password
+          role: newUser.role,
+          active: newUser.active,
+        },
+      ]).select();
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data) {
+        // Add the new user to the users state
+        setUsers([...users, data[0]]);
+        
+        // Reset form
+        setNewUser({
+          name: "",
+          email: "",
+          password: "",
+          role: "User",
+          active: true,
+        });
+        
+        // Close dialog
+        setIsDialogOpen(false);
+        
+        // Show success toast
+        toast({
+          title: "Success",
+          description: "User added successfully.",
         });
       }
+    } catch (error) {
+      console.error("Error adding user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add user.",
+        variant: "destructive",
+      });
     }
   };
-  
-  // Open edit dialog
+
   const openEditDialog = (user: User) => {
     setEditingUser({ ...user });
-    setIsEditDialogOpen(true);
+    setIsDialogOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name: editingUser.name,
+          email: editingUser.email,
+          role: editingUser.role,
+          active: editingUser.active,
+          ...(editingUser.password ? { password: editingUser.password } : {}),
+        })
+        .eq("id", editingUser.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update user in state
+      setUsers(users.map((user) => (user.id === editingUser.id ? editingUser : user)));
+      
+      // Close dialog
+      setIsDialogOpen(false);
+      setEditingUser(null);
+      
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "User updated successfully.",
+      });
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update user.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleUserStatus = async (user: User) => {
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({ active: !user.active })
+        .eq("id", user.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update user status.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update user in state
+      setUsers(
+        users.map((u) => (u.id === user.id ? { ...u, active: !u.active } : u))
+      );
+      
+      // Show success toast
+      toast({
+        title: "Success",
+        description: `User ${user.active ? "deactivated" : "activated"} successfully.`,
+      });
+    } catch (error) {
+      console.error("Error toggling user status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update user status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (editingUser) {
+      handleUpdateUser();
+    } else {
+      handleAddUser();
+    }
   };
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex justify-between items-center">
-          <span>User Management</span>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>User Management</CardTitle>
+          <CardDescription>Add, edit, and deactivate users.</CardDescription>
+        </div>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={refreshing}>
+            {refreshing ? <Loader className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => {
+                setEditingUser(null);
+                setNewUser({
+                  name: "",
+                  email: "",
+                  password: "",
+                  role: "User",
+                  active: true,
+                });
+              }}>
                 <UserPlus className="mr-2 h-4 w-4" />
                 Add User
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New User</DialogTitle>
+                <DialogTitle>
+                  {editingUser ? "Edit User" : "Add New User"}
+                </DialogTitle>
                 <DialogDescription>
-                  Create a new user with the appropriate role and permissions.
+                  {editingUser
+                    ? "Update user details below"
+                    : "Fill in the details to create a new user."}
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={newUser.name}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={newUser.email}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="password" className="text-right">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={handleInputChange}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="role" className="text-right">
-                    Role
-                  </Label>
-                  <Select
-                    value={newUser.role}
-                    onValueChange={handleRoleChange}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="User">User</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="active" className="text-right">
-                    Active
-                  </Label>
-                  <div className="flex items-center space-x-2 col-span-3">
-                    <Switch
-                      id="active"
-                      checked={newUser.active}
-                      onCheckedChange={handleActiveChange}
+              <form onSubmit={handleFormSubmit}>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      value={editingUser ? editingUser.name : newUser.name}
+                      onChange={(e) =>
+                        editingUser
+                          ? setEditingUser({ ...editingUser, name: e.target.value })
+                          : setNewUser({ ...newUser, name: e.target.value })
+                      }
                     />
-                    <Label htmlFor="active">
-                      {newUser.active ? "Active" : "Inactive"}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={editingUser ? editingUser.email : newUser.email}
+                      onChange={(e) =>
+                        editingUser
+                          ? setEditingUser({ ...editingUser, email: e.target.value })
+                          : setNewUser({ ...newUser, email: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">
+                      {editingUser ? "New Password (leave blank to keep current)" : "Password"}
                     </Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={editingUser ? editingUser.password || "" : newUser.password || ""}
+                      onChange={(e) =>
+                        editingUser
+                          ? setEditingUser({ ...editingUser, password: e.target.value })
+                          : setNewUser({ ...newUser, password: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={editingUser ? editingUser.role : newUser.role}
+                      onValueChange={(value) =>
+                        editingUser
+                          ? setEditingUser({ ...editingUser, role: value as User["role"] })
+                          : setNewUser({ ...newUser, role: value as User["role"] })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                        <SelectItem value="Manager">Manager</SelectItem>
+                        <SelectItem value="User">User</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="active"
+                      className="h-4 w-4 rounded border-gray-300"
+                      checked={editingUser ? editingUser.active : newUser.active}
+                      onChange={(e) =>
+                        editingUser
+                          ? setEditingUser({ ...editingUser, active: e.target.checked })
+                          : setNewUser({ ...newUser, active: e.target.checked })
+                      }
+                    />
+                    <Label htmlFor="active">Active</Label>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddUser}>
-                  Add User
-                </Button>
-              </DialogFooter>
+                <DialogFooter className="mt-4">
+                  <Button type="submit">
+                    {editingUser ? "Update User" : "Add User"}
+                  </Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
-        </CardTitle>
-        <CardDescription>
-          Manage users and their access to the system.
-        </CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader className="mr-2 h-4 w-4 animate-spin" />
-            Loading users...
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader className="h-6 w-6 animate-spin" />
+          </div>
+        ) : users.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-2 text-left font-medium">Name</th>
+                  <th className="py-2 text-left font-medium">Email</th>
+                  <th className="py-2 text-left font-medium">Role</th>
+                  <th className="py-2 text-left font-medium">Status</th>
+                  <th className="py-2 text-left font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id} className="border-b hover:bg-gray-50">
+                    <td className="py-2">{user.name}</td>
+                    <td className="py-2">{user.email}</td>
+                    <td className="py-2">{user.role}</td>
+                    <td className="py-2">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                        ${user.active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}
+                      >
+                        {user.active ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td className="py-2">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(user)}
+                        >
+                          <UserCog className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant={user.active ? "ghost" : "outline"}
+                          size="icon"
+                          onClick={() => handleToggleUserStatus(user)}
+                        >
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6">
-                      No users found. Add a new user to get started.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <div className={`mr-2 h-2.5 w-2.5 rounded-full ${user.active ? "bg-green-500" : "bg-gray-400"}`}></div>
-                          <span>{user.active ? "Active" : "Inactive"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(user)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => handleDeleteUser(user)}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <div className="py-8 text-center text-gray-500">
+            No users found. Add your first user to get started.
           </div>
         )}
       </CardContent>
-      
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update user information and permissions.
-            </DialogDescription>
-          </DialogHeader>
-          {editingUser && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-name" className="text-right">
-                  Name
-                </Label>
-                <Input
-                  id="edit-name"
-                  name="name"
-                  value={editingUser.name}
-                  onChange={handleEditChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-email" className="text-right">
-                  Email
-                </Label>
-                <Input
-                  id="edit-email"
-                  name="email"
-                  type="email"
-                  value={editingUser.email}
-                  onChange={handleEditChange}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-role" className="text-right">
-                  Role
-                </Label>
-                <Select
-                  value={editingUser.role}
-                  onValueChange={handleEditRoleChange}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Manager">Manager</SelectItem>
-                    <SelectItem value="User">User</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-active" className="text-right">
-                  Active
-                </Label>
-                <div className="flex items-center space-x-2 col-span-3">
-                  <Switch
-                    id="edit-active"
-                    checked={editingUser.active}
-                    onCheckedChange={handleEditActiveChange}
-                  />
-                  <Label htmlFor="edit-active">
-                    {editingUser.active ? "Active" : "Inactive"}
-                  </Label>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEditUser}>
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };
