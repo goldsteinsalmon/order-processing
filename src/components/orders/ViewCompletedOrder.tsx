@@ -213,25 +213,46 @@ const ViewCompletedOrder: React.FC = () => {
   console.log("Final batch summaries:", batchSummaries);
 
   // Improved function to get weight from box items, considering all sources of weight data
-  const getItemWeight = (boxItem: any): number => {
-    // If the boxItem has a weight directly assigned, use it
+  const getItemWeight = (boxItem: any, boxNumber: number): number => {
+    // CRITICAL FIX: Always prioritize the specific weight assigned to this box item
+    // as the weights may differ between boxes for the same product
     if (boxItem.weight !== undefined && boxItem.weight > 0) {
       return boxItem.weight;
     }
     
-    // Try to find the corresponding order item
-    const orderItem = order.items.find(item => item.productId === boxItem.productId);
-    if (orderItem) {
-      // Check for manual or picked weights in the order item
-      if (orderItem.manualWeight && orderItem.manualWeight > 0) {
-        return orderItem.manualWeight;
+    // If no weight directly on the box item, try to find weight information from order items
+    // that might be box-specific
+    if (order.items) {
+      const orderItem = order.items.find(item => 
+        item.productId === boxItem.productId && 
+        item.boxNumber === boxNumber
+      );
+      
+      if (orderItem) {
+        if (orderItem.manualWeight && orderItem.manualWeight > 0) {
+          return orderItem.manualWeight;
+        }
+        if (orderItem.pickedWeight && orderItem.pickedWeight > 0) {
+          return orderItem.pickedWeight;
+        }
       }
-      if (orderItem.pickedWeight && orderItem.pickedWeight > 0) {
-        return orderItem.pickedWeight;
+      
+      // If no box-specific item found, try to find general item information
+      const generalOrderItem = order.items.find(item => 
+        item.productId === boxItem.productId
+      );
+      
+      if (generalOrderItem) {
+        if (generalOrderItem.manualWeight && generalOrderItem.manualWeight > 0) {
+          return generalOrderItem.manualWeight;
+        }
+        if (generalOrderItem.pickedWeight && generalOrderItem.pickedWeight > 0) {
+          return generalOrderItem.pickedWeight;
+        }
       }
     }
     
-    // If no weight found so far, use product default weight if applicable
+    // If no weight found in order items, use product default weight if applicable
     const product = products.find(p => p.id === boxItem.productId);
     if (product && product.weight) {
       return product.weight * boxItem.quantity;
@@ -247,7 +268,7 @@ const ViewCompletedOrder: React.FC = () => {
     
     // Sum weights from all items, using our improved weight retrieval function
     return box.items.reduce((total: number, item: any) => {
-      const itemWeight = getItemWeight(item);
+      const itemWeight = getItemWeight(item, box.boxNumber);
       return total + itemWeight;
     }, 0);
   };
@@ -507,7 +528,7 @@ const ViewCompletedOrder: React.FC = () => {
                             <TableBody>
                               {box.items.map((item, itemIndex) => {
                                 const product = products.find(p => p.id === item.productId);
-                                const itemWeight = getItemWeight(item);
+                                const itemWeight = getItemWeight(item, box.boxNumber);
                                 const isWeighted = isWeightedProduct(item.productId);
                                 
                                 return (
