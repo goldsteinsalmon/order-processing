@@ -323,6 +323,230 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
   };
 
+  // Create consolidated batch summary for an order
+  const createConsolidatedBatchSummary = (order: Order) => {
+    const batchSummary: Record<string, { 
+      productId: string, 
+      productName: string, 
+      quantity: number, 
+      totalWeight: number,
+      batchNumber: string
+    }[]> = {};
+    
+    // Process each item with a batch number
+    order.items?.forEach(item => {
+      if (!item.batchNumber || !item.product) return;
+      
+      const key = `${item.batchNumber}_${item.productId}`;
+      
+      // Skip if already processed
+      if (processedBatchOrderItems.has(key)) return;
+      
+      // Calculate weight based on manual weight or quantity * standard weight
+      const weight = item.manualWeight || 
+        (item.product.weight && item.pickedQuantity 
+          ? item.pickedQuantity * item.product.weight 
+          : 0);
+      
+      if (!batchSummary[item.batchNumber]) {
+        batchSummary[item.batchNumber] = [];
+      }
+      
+      batchSummary[item.batchNumber].push({
+        productId: item.productId,
+        productName: item.product.name,
+        quantity: item.pickedQuantity || 0,
+        totalWeight: weight,
+        batchNumber: item.batchNumber
+      });
+      
+      // Mark as processed
+      const updatedProcessed = new Set(processedBatchOrderItems);
+      updatedProcessed.add(key);
+      setProcessedBatchOrderItems(updatedProcessed);
+    });
+    
+    return batchSummary;
+  };
+  
+  // Record batch usages from summary
+  const recordBatchUsagesFromSummary = async (
+    batchSummary: Record<string, { 
+      productId: string, 
+      productName: string, 
+      quantity: number, 
+      totalWeight: number,
+      batchNumber: string
+    }[]>,
+    orderId: string
+  ) => {
+    for (const batchNumber in batchSummary) {
+      for (const item of batchSummary[batchNumber]) {
+        await recordBatchUsage(
+          batchNumber,
+          item.productId,
+          item.quantity,
+          orderId,
+          item.totalWeight
+        );
+      }
+    }
+  };
+
+  // Record a single batch usage
+  const recordBatchUsage = async (
+    batchNumber: string,
+    productId: string,
+    quantity: number,
+    orderId: string,
+    manualWeight?: number
+  ) => {
+    try {
+      // Find product details
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        console.error(`Product with ID ${productId} not found`);
+        return;
+      }
+      
+      // Calculate weight if not provided manually
+      const weight = manualWeight || (product.weight ? quantity * product.weight : 0);
+      
+      // Check if batch usage already exists for this batch number and product
+      const { data: existingBatchUsages, error: findError } = await supabase
+        .from('batch_usages')
+        .select('*')
+        .eq('batch_number', batchNumber)
+        .eq('product_id', productId);
+      
+      if (findError) {
+        console.error('Error checking for existing batch usage:', findError);
+        return;
+      }
+      
+      if (existingBatchUsages && existingBatchUsages.length > 0) {
+        // Update existing batch usage
+        const existingBatchUsage = existingBatchUsages[0];
+        const newUsedWeight = existingBatchUsage.used_weight + weight;
+        const newOrdersCount = existingBatchUsage.orders_count + 1;
+        
+        const { error: updateError } = await supabase
+          .from('batch_usages')
+          .update({
+            used_weight: newUsedWeight,
+            orders_count: newOrdersCount,
+            last_used: new Date().toISOString()
+          })
+          .eq('id', existingBatchUsage.id);
+        
+        if (updateError) {
+          console.error('Error updating batch usage:', updateError);
+          return;
+        }
+        
+        // Add order reference
+        const { error: orderRefError } = await supabase
+          .from('batch_usage_orders')
+          .insert({
+            batch_usage_id: existingBatchUsage.id,
+            order_identifier: orderId
+          });
+        
+        if (orderRefError) {
+          console.error('Error adding batch usage order reference:', orderRefError);
+        }
+        
+        // Update local state
+        const updatedBatchUsages = batchUsages.map(bu => {
+          if (bu.id === existingBatchUsage.id) {
+            return {
+              ...bu,
+              usedWeight: newUsedWeight,
+              ordersCount: newOrdersCount,
+              lastUsed: new Date().toISOString(),
+              usedBy: [...bu.usedBy, orderId]
+            };
+          }
+          return bu;
+        });
+        
+        setBatchUsages(updatedBatchUsages);
+      } else {
+        // Create new batch usage
+        const { data: newBatchUsage, error: createError } = await supabase
+          .from('batch_usages')
+          .insert({
+            batch_number: batchNumber,
+            product_id: productId,
+            product_name: product.name,
+            total_weight: weight,
+            used_weight: weight,
+            orders_count: 1,
+            first_used: new Date().toISOString(),
+            last_used: new Date().toISOString()
+          })
+          .select();
+        
+        if (createError || !newBatchUsage) {
+          console.error('Error creating batch usage:', createError);
+          return;
+        }
+        
+        // Add order reference
+        const { error: orderRefError } = await supabase
+          .from('batch_usage_orders')
+          .insert({
+            batch_usage_id: newBatchUsage[0].id,
+            order_identifier: orderId
+          });
+        
+        if (orderRefError) {
+          console.error('Error adding batch usage order reference:', orderRefError);
+        }
+        
+        // Update local state
+        setBatchUsages([...batchUsages, {
+          id: newBatchUsage[0].id,
+          batchNumber,
+          productId,
+          productName: product.name,
+          totalWeight: weight,
+          usedWeight: weight,
+          ordersCount: 1,
+          firstUsed: new Date().toISOString(),
+          lastUsed: new Date().toISOString(),
+          usedBy: [orderId]
+        }]);
+      }
+    } catch (error) {
+      console.error('Error recording batch usage:', error);
+    }
+  };
+  
+  // Record all batch usages for an order
+  const recordAllBatchUsagesForOrder = (order: Order) => {
+    if (!order.items || order.items.length === 0) return;
+    
+    // Reset processed items tracking
+    setProcessedBatchOrderItems(new Set());
+    
+    // Create batch summary
+    const batchSummary = createConsolidatedBatchSummary(order);
+    
+    // Record batch usages
+    recordBatchUsagesFromSummary(batchSummary, order.id);
+  };
+  
+  // Get all batch usages
+  const getBatchUsages = () => {
+    return batchUsages;
+  };
+  
+  // Get batch usage by batch number
+  const getBatchUsageByBatchNumber = (batchNumber: string) => {
+    return batchUsages.find(bu => bu.batchNumber === batchNumber);
+  };
+
   // Add customer
   const addCustomer = async (customer: Customer): Promise<Customer | null> => {
     try {
@@ -764,210 +988,4 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
   };
 
   // Complete order (move to completed orders)
-  const completeOrder = async (order: Order): Promise<boolean> => {
-    try {
-      // Update order status to completed
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({
-          status: 'Completed',
-          updated: new Date().toISOString(),
-          batch_number: order.batchNumber,
-          picker: order.picker || order.pickedBy
-        })
-        .eq('id', order.id);
-      
-      if (orderError) throw orderError;
-      
-      // Record batch usages if applicable
-      if (order.batchNumber || (order.batchNumbers && order.batchNumbers.length > 0)) {
-        // Reset processed items tracking
-        setProcessedBatchOrderItems(new Set());
-        
-        // Create batch summary
-        const batchSummary = createConsolidatedBatchSummary(order);
-        
-        // Record batch usages
-        await recordBatchUsagesFromSummary(batchSummary, order.id);
-      }
-      
-      // Update local state
-      const updatedOrder = { ...order, status: 'Completed', updated: new Date().toISOString() };
-      setOrders(orders.filter(o => o.id !== order.id));
-      setCompletedOrders([...completedOrders, updatedOrder]);
-      
-      return true;
-    } catch (error) {
-      console.error('Error completing order:', error);
-      toast({
-        title: "Error",
-        description: "Failed to complete order.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  // Add standing order
-  const addStandingOrder = async (standingOrder: StandingOrder): Promise<StandingOrder | null> => {
-    try {
-      // Insert standing order
-      const { data: soData, error: soError } = await supabase
-        .from('standing_orders')
-        .insert({
-          customer_id: standingOrder.customerId,
-          customer_order_number: standingOrder.customerOrderNumber,
-          frequency: standingOrder.schedule.frequency,
-          day_of_week: standingOrder.schedule.dayOfWeek,
-          day_of_month: standingOrder.schedule.dayOfMonth,
-          delivery_method: standingOrder.schedule.deliveryMethod,
-          next_delivery_date: standingOrder.schedule.nextDeliveryDate,
-          notes: standingOrder.notes,
-          active: standingOrder.active,
-          next_processing_date: standingOrder.nextProcessingDate
-        })
-        .select();
-      
-      if (soError) throw soError;
-      
-      const newStandingOrderId = soData[0].id;
-      
-      // Insert standing order items
-      const itemsToInsert = standingOrder.items.map(item => ({
-        standing_order_id: newStandingOrderId,
-        product_id: item.productId,
-        quantity: item.quantity
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('standing_order_items')
-        .insert(itemsToInsert);
-      
-      if (itemsError) throw itemsError;
-      
-      // Fetch the complete standing order including customer
-      const { data: newSOData, error: fetchError } = await supabase
-        .from('standing_orders')
-        .select(`
-          *,
-          customer:customers(*)
-        `)
-        .eq('id', newStandingOrderId)
-        .single();
-      
-      if (fetchError) throw fetchError;
-      
-      // Fetch the standing order items with products
-      const { data: newItemsData, error: newItemsError } = await supabase
-        .from('standing_order_items')
-        .select(`
-          *,
-          product:products(*)
-        `)
-        .eq('standing_order_id', newStandingOrderId);
-      
-      if (newItemsError) throw newItemsError;
-      
-      // Assemble complete standing order object
-      const newStandingOrder = {
-        ...newSOData,
-        items: newItemsData.map((item: any) => ({
-          ...item,
-          id: item.id,
-          productId: item.product_id,
-          product: item.product
-        })),
-        schedule: {
-          frequency: newSOData.frequency,
-          dayOfWeek: newSOData.day_of_week,
-          dayOfMonth: newSOData.day_of_month,
-          deliveryMethod: newSOData.delivery_method,
-          nextDeliveryDate: newSOData.next_delivery_date
-        }
-      };
-      
-      setStandingOrders([...standingOrders, newStandingOrder]);
-      return newStandingOrder;
-    } catch (error) {
-      console.error('Error adding standing order:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add standing order.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
-
-  // Update standing order
-  const updateStandingOrder = async (standingOrder: StandingOrder): Promise<boolean> => {
-    try {
-      // Update standing order
-      const { error: soError } = await supabase
-        .from('standing_orders')
-        .update({
-          customer_id: standingOrder.customerId,
-          customer_order_number: standingOrder.customerOrderNumber,
-          frequency: standingOrder.schedule.frequency,
-          day_of_week: standingOrder.schedule.dayOfWeek,
-          day_of_month: standingOrder.schedule.dayOfMonth,
-          delivery_method: standingOrder.schedule.deliveryMethod,
-          next_delivery_date: standingOrder.schedule.nextDeliveryDate,
-          notes: standingOrder.notes,
-          active: standingOrder.active,
-          updated: new Date().toISOString(),
-          next_processing_date: standingOrder.nextProcessingDate,
-          last_processed_date: standingOrder.lastProcessedDate
-        })
-        .eq('id', standingOrder.id);
-      
-      if (soError) throw soError;
-      
-      // Handle items - get existing items
-      const { data: existingItems, error: existingItemsError } = await supabase
-        .from('standing_order_items')
-        .select('*')
-        .eq('standing_order_id', standingOrder.id);
-      
-      if (existingItemsError) throw existingItemsError;
-      
-      // Create map of existing items
-      const existingItemMap = new Map();
-      existingItems.forEach((item: any) => {
-        existingItemMap.set(item.id, item);
-      });
-      
-      // Process each updated item
-      for (const item of standingOrder.items) {
-        if (item.id && existingItemMap.has(item.id)) {
-          // Update existing item
-          const { error: updateItemError } = await supabase
-            .from('standing_order_items')
-            .update({
-              product_id: item.productId,
-              quantity: item.quantity
-            })
-            .eq('id', item.id);
-          
-          if (updateItemError) throw updateItemError;
-          
-          // Remove from map to track what's been processed
-          existingItemMap.delete(item.id);
-        } else {
-          // Insert new item
-          const { error: insertItemError } = await supabase
-            .from('standing_order_items')
-            .insert({
-              standing_order_id: standingOrder.id,
-              product_id: item.productId,
-              quantity: item.quantity
-            });
-          
-          if (insertItemError) throw insertItemError;
-        }
-      }
-      
-      // Delete any items that were removed
-      if (existingItemMap.size > 0) {
-        const itemsToDelete = Array.from(existingItemMap.keys());
-        const { error:
+  const completeOrder = async (order: Order): Promise
