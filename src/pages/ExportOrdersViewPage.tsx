@@ -46,32 +46,35 @@ const ExportOrdersViewPage: React.FC = () => {
     }
 
     setSelectedOrders(ordersToExport);
-  }, [location, completedOrders, navigate, toast]);
+    
+    // Mark orders as invoiced immediately when viewing the export
+    const notInvoicedOrders = ordersToExport.filter(order => !order.invoiced);
+    if (notInvoicedOrders.length > 0) {
+      notInvoicedOrders.forEach(order => {
+        updateOrder({
+          ...order,
+          invoiced: true,
+          invoiceDate: new Date().toISOString(),
+        });
+      });
+      
+      toast({
+        title: "Orders marked as invoiced",
+        description: `${notInvoicedOrders.length} orders have been marked as invoiced.`
+      });
+    }
+  }, [location, completedOrders, navigate, toast, updateOrder]);
 
   // Print functionality
   const handlePrint = useReactToPrint({
     documentTitle: `Order-Export-${format(new Date(), 'yyyy-MM-dd')}`,
     contentRef: printRef,
     onAfterPrint: () => {
-      // Mark orders as invoiced after printing if desired
-      const shouldMarkAsInvoiced = window.confirm("Would you like to mark these orders as invoiced?");
-      
-      if (shouldMarkAsInvoiced) {
-        selectedOrders.forEach(order => {
-          if (!order.invoiced) {
-            updateOrder({
-              ...order,
-              invoiced: true,
-              invoiceDate: new Date().toISOString(),
-            });
-          }
-        });
-        
-        toast({
-          title: "Orders marked as invoiced",
-          description: `${selectedOrders.length} orders have been marked as invoiced.`
-        });
-      }
+      // Just show a toast that printing is complete
+      toast({
+        title: "Print completed",
+        description: "The export has been sent to your printer."
+      });
     }
   });
 
@@ -154,7 +157,7 @@ const ExportOrdersViewPage: React.FC = () => {
               
               <div className="mt-6">
                 <p className="text-sm text-gray-500">
-                  Order completed and ready for invoicing
+                  Order completed and invoiced on {format(new Date(), "PPP")}
                 </p>
               </div>
             </div>
