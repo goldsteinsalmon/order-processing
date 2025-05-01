@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -169,13 +170,15 @@ const CreateOrderSteps: React.FC = () => {
     setSelectedCustomer(null);
     setShowOnHoldWarning(false);
     
-    // Set dialog transitioning state to true to prevent immediate reopening
-    setIsDialogTransitioning(true);
+    // Instead of tracking dialog transition, navigate back to orders list
+    // with an informative toast message
+    toast({
+      title: "Selection canceled",
+      description: "You've canceled the on-hold customer selection. Returning to orders list.",
+    });
     
-    // Allow time for the dialog to fully close before enabling the button again
-    setTimeout(() => {
-      setIsDialogTransitioning(false);
-    }, 300); // 300ms matches the animation duration
+    // Navigate back to the orders list
+    navigate("/orders");
   };
   
   const confirmOnHoldCustomer = () => {
