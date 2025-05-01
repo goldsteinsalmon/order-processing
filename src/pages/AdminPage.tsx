@@ -9,38 +9,45 @@ import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 
 const AdminPage: React.FC = () => {
   const { toast } = useToast();
-  const { getUserCount, users, getUsers, activateUser, deactivateUser } = useUserData(useToast());
+  const { users, fetchUsers, updateUser } = useUserData(useToast());
   const [isLoading, setIsLoading] = useState(false);
   const { user: currentUser } = useSupabaseAuth();
   
   useEffect(() => {
-    const fetchUsers = async () => {
-      await getUsers();
+    const loadUsers = async () => {
+      await fetchUsers();
     };
     
-    fetchUsers();
-  }, [getUsers]);
+    loadUsers();
+  }, [fetchUsers]);
   
   const handleToggleUserStatus = async (userId: string, active: boolean) => {
     setIsLoading(true);
     
     try {
-      if (active) {
-        await deactivateUser(userId);
-        toast({
-          title: "User Deactivated",
-          description: "User has been deactivated successfully.",
-        });
-      } else {
-        await activateUser(userId);
-        toast({
-          title: "User Activated",
-          description: "User has been activated successfully.",
-        });
+      const userToUpdate = users.find(u => u.id === userId);
+      
+      if (!userToUpdate) {
+        throw new Error("User not found");
       }
       
-      // Refresh users list
-      await getUsers();
+      // Update the user's active status
+      const updatedUser = { ...userToUpdate, active: !active };
+      const success = await updateUser(updatedUser);
+      
+      if (success) {
+        toast({
+          title: active ? "User Deactivated" : "User Activated",
+          description: active ? 
+            "User has been deactivated successfully." : 
+            "User has been activated successfully.",
+        });
+        
+        // Refresh users list
+        await fetchUsers();
+      } else {
+        throw new Error("Failed to update user status");
+      }
     } catch (error) {
       console.error("Error toggling user status:", error);
       toast({
