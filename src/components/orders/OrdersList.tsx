@@ -6,6 +6,7 @@ import { useData } from "@/context/DataContext";
 import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { adaptCustomerToCamelCase } from "@/lib/utils";
 
 interface OrdersListProps {
   searchTerm?: string;
@@ -170,6 +171,11 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                 </tr>
               ) : (
                 sortedOrders.map((order) => {
+                  // Adapt customer to ensure camelCase properties are available
+                  if (order.customer) {
+                    order.customer = adaptCustomerToCamelCase(order.customer);
+                  }
+                  
                   // Safely check dates - avoid errors for invalid dates
                   let isSameDay = false;
                   let isNextDay = false;

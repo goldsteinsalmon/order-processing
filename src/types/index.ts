@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   name: string;
@@ -6,10 +5,10 @@ export interface Customer {
   phone: string;
   address: string;
   type: 'Private' | 'Trade';
-  account_number?: string;
-  on_hold?: boolean;
-  hold_reason?: string;
-  needs_detailed_box_labels?: boolean;
+  accountNumber?: string;
+  onHold?: boolean;
+  holdReason?: string;
+  needsDetailedBoxLabels?: boolean;
 }
 
 export interface Product {

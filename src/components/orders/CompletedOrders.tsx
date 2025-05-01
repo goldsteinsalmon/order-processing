@@ -6,6 +6,7 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { adaptCustomerToCamelCase } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -63,9 +64,15 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   };
   
   useEffect(() => {
+    // Process customers to ensure camelCase properties
+    const processedOrders = completedOrders.map(order => ({
+      ...order,
+      customer: order.customer ? adaptCustomerToCamelCase(order.customer) : order.customer
+    }));
+    
     if (batchFilterParam) {
       // Filter orders by batch number
-      const ordersWithBatch = completedOrders.filter(order => {
+      const ordersWithBatch = processedOrders.filter(order => {
         // Check if order has batch numbers array
         if (order.batchNumbers && order.batchNumbers.includes(batchFilterParam)) {
           return true;
@@ -101,7 +108,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     } else if (searchTerm) {
       // Filter by search term
       const searchTermLower = searchTerm.toLowerCase();
-      const filtered = completedOrders.filter(order => {
+      const filtered = processedOrders.filter(order => {
         // Search in customer name
         if (order.customer.name.toLowerCase().includes(searchTermLower)) {
           return true;
@@ -139,7 +146,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
       setFilteredOrders(filtered);
     } else {
       // No filter, show all orders
-      setFilteredOrders(completedOrders);
+      setFilteredOrders(processedOrders);
     }
   }, [completedOrders, batchFilterParam, searchTerm]);
   
