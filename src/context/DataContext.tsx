@@ -198,6 +198,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       (order.boxDistributions && order.boxDistributions.length > 1) || 
       (order.boxes && order.boxes.length > 1);
     
+    console.log(`Processing order ${order.id}: isMultiBoxOrder=${isMultiBoxOrder}`);
+    
     // Process order-level batch information first if it exists
     if (order.batchNumber) {
       processOrderItems(order.items, order.batchNumber);
@@ -239,19 +241,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Helper function to process box distributions with deduplication
     function processBoxDistributions(boxes: Box[]) {
-      // Create a map of products and their total quantity across all boxes
-      const productTotals = new Map<string, number>();
+      // Create a product occurrence map to track which products appear in how many boxes
+      const productOccurrences = new Map<string, number>();
       
-      // First scan to collect total weights per product across all boxes
+      // First scan to count in how many boxes each product appears
       boxes.forEach(box => {
+        // Track unique products in this box
+        const uniqueProductsInBox = new Set<string>();
+        
         box.items.forEach(item => {
-          const key = item.productId;
-          const currentWeight = productTotals.get(key) || 0;
-          productTotals.set(key, currentWeight + (item.weight || 0));
+          uniqueProductsInBox.add(item.productId);
+        });
+        
+        // For each unique product in this box, increment its occurrence count
+        uniqueProductsInBox.forEach(productId => {
+          const currentCount = productOccurrences.get(productId) || 0;
+          productOccurrences.set(productId, currentCount + 1);
         });
       });
       
-      // Now process each box but with special handling for multi-box orders
+      // Debug output
+      if (isMultiBoxOrder) {
+        console.log('Multi-box order detected. Product occurrences:');
+        productOccurrences.forEach((count, productId) => {
+          const product = products.find(p => p.id === productId);
+          console.log(`${product?.name || productId}: appears in ${count} boxes`);
+        });
+      }
+      
+      // Keep track of which products we've processed to avoid double counting
+      const processedProducts = new Set<string>();
+      
+      // Process each box
       boxes.forEach((box, boxIndex) => {
         // Determine which batch number to use for this box
         const boxBatch = box.batchNumber || order.batchNumber || 
@@ -259,61 +280,58 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (boxBatch) {
           // For each box, process each product only ONCE
-          // Use a set to track which products we've handled in THIS box
           const processedInThisBox = new Set<string>();
           
           box.items.forEach(item => {
             const itemBatch = item.batchNumber || boxBatch;
+            const productId = item.productId;
             
             // Only process if we haven't seen this product in this box
-            if (!processedInThisBox.has(item.productId)) {
-              // Special handling for multi-box orders: if this is the first box for
-              // a product that appears in multiple boxes, process the full weight
-              // Otherwise, skip it to avoid double-counting
-              if (isMultiBoxOrder) {
-                // For multi-box orders, we'll either process the full weight in the first box
-                // or divide by the number of boxes that contain this product
+            if (!processedInThisBox.has(productId)) {
+              // Only process the product if we haven't processed it in any previous box
+              if (!processedProducts.has(productId)) {
+                // Get how many boxes this product appears in
+                const occurrenceCount = productOccurrences.get(productId) || 1;
                 
-                // Find how many boxes contain this product
-                let boxesWithThisProduct = 0;
-                boxes.forEach(b => {
-                  if (b.items.some(i => i.productId === item.productId)) {
-                    boxesWithThisProduct++;
-                  }
-                });
+                // Find the product to get accurate weight information
+                const product = products.find(p => p.id === productId);
                 
-                // Find the first box that contains this product
-                const firstBoxIndex = boxes.findIndex(b => 
-                  b.items.some(i => i.productId === item.productId)
-                );
+                // Calculate the correct weight based on various factors
+                let weightToRecord: number | undefined = undefined;
                 
-                // If this is the first box with this product, process it with weight adjustment
-                if (boxIndex === firstBoxIndex) {
-                  // If this product is in multiple boxes, divide the total weight by the number of boxes
-                  if (boxesWithThisProduct > 1) {
-                    const product = products.find(p => p.id === item.productId);
-                    const totalWeight = product ? (product.weight * item.quantity) : item.weight || 0;
-                    
-                    // Add item to batch usage tracking with adjusted weight (half for duplicated items)
-                    addToBatchProductMap(
-                      itemBatch, 
-                      item.productId, 
-                      item.quantity,
-                      totalWeight / boxesWithThisProduct
-                    );
+                if (item.weight !== undefined && item.weight > 0) {
+                  // If the item has a specific weight set, use that as the base
+                  weightToRecord = item.weight;
+                } else if (product?.weight) {
+                  // Otherwise calculate from product weight and quantity
+                  weightToRecord = product.weight * item.quantity;
+                }
+                
+                if (weightToRecord !== undefined) {
+                  // IMPORTANT: For multi-box orders where the same product appears in multiple boxes,
+                  // we need to handle the weight correctly to avoid double-counting
+                  
+                  if (isMultiBoxOrder && occurrenceCount > 1) {
+                    // This is a multi-box order AND this product appears in multiple boxes,
+                    // so record the correct fraction of the weight
+                    console.log(`Product ${product?.name || productId} appears in ${occurrenceCount} boxes. Recording ${weightToRecord / occurrenceCount}g instead of ${weightToRecord}g`);
+                    weightToRecord = weightToRecord / occurrenceCount;
                   } else {
-                    // If it's only in one box, process normally
-                    addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
+                    // Either this is a single-box order OR this product only appears in one box,
+                    // so use the full weight
+                    console.log(`Product ${product?.name || productId} appears in only one box or is in a single-box order. Using full weight: ${weightToRecord}g`);
                   }
                 }
-                // If not the first box, skip to avoid double counting
-              } else {
-                // For single box orders, process normally
-                addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
+                
+                // Record batch usage with correct weight
+                addToBatchProductMap(itemBatch, productId, item.quantity, weightToRecord);
+                
+                // Mark as processed globally to avoid processing in other boxes
+                processedProducts.add(productId);
               }
               
-              // Mark as processed in this box
-              processedInThisBox.add(item.productId);
+              // Mark as processed in this box to avoid processing duplicates within same box
+              processedInThisBox.add(productId);
             }
           });
         }
