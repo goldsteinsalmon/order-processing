@@ -140,9 +140,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
     
     if (isCompletedOrder) {
-      // If it's a completed order being modified, remove it from completedOrders and add to orders
-      setCompletedOrders(completedOrders.filter(o => o.id !== updatedOrder.id));
-      setOrders([...orders, updatedOrder]);
+      // If it's a completed order, keep it in completedOrders
+      // This is the key change - we're no longer moving orders back to orders list
+      // especially if they're just being marked as invoiced
+      setCompletedOrders(completedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     } else {
       // Normal update in orders list
       setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
