@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -23,6 +22,7 @@ export interface Product {
   created?: string; // Added created property
   requiresWeightInput?: boolean; // Added flag to indicate if weight input is required during picking
   unit?: string; // Added unit property for weight measurements (e.g., 'g', 'kg')
+  required?: boolean; // Added required property to mark essential products
 }
 
 export interface BoxItem {

@@ -9,6 +9,7 @@ import { useData } from "@/context/DataContext";
 import { getItemWeight } from "@/utils/exportUtils";
 import { useReactToPrint } from "react-to-print";
 import { useToast } from "@/hooks/use-toast";
+import { OrderItem } from "@/types";
 
 const ExportOrdersViewPage: React.FC = () => {
   const location = useLocation();
@@ -70,13 +71,42 @@ const ExportOrdersViewPage: React.FC = () => {
     documentTitle: `Order-Export-${format(new Date(), 'yyyy-MM-dd')}`,
     contentRef: printRef,
     onAfterPrint: () => {
-      // Just show a toast that printing is complete
       toast({
         title: "Print completed",
         description: "The export has been sent to your printer."
       });
     }
   });
+
+  // New function to aggregate items by product
+  const aggregateOrderItems = (order: any): OrderItem[] => {
+    // Create a map to combine same products
+    const productMap = new Map<string, OrderItem & { totalWeight: number }>();
+    
+    // Process all items in the order
+    order.items.forEach((item: OrderItem) => {
+      const productId = item.productId;
+      
+      if (!productMap.has(productId)) {
+        productMap.set(productId, {
+          ...item,
+          quantity: 0,
+          totalWeight: 0
+        });
+      }
+      
+      const existingItem = productMap.get(productId)!;
+      existingItem.quantity += item.quantity;
+      
+      // Add weights if available
+      const weight = getItemWeight(item);
+      if (weight > 0) {
+        existingItem.totalWeight += weight;
+      }
+    });
+    
+    return Array.from(productMap.values());
+  };
 
   // Return to export page
   const handleBack = () => {
@@ -106,61 +136,67 @@ const ExportOrdersViewPage: React.FC = () => {
             <p className="text-gray-500">Total Orders: {selectedOrders.length}</p>
           </div>
           
-          {selectedOrders.map(order => (
-            <div key={order.id} className="mb-8 pb-6 border-b border-gray-200">
-              {/* Customer name now bigger and more prominent */}
-              <h2 className="text-2xl font-bold mb-2 text-primary">
-                {order.customer.name}
-              </h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  {order.customer.accountNumber && (
-                    <p className="text-sm text-gray-600">Account #: {order.customer.accountNumber}</p>
-                  )}
-                  {order.customerOrderNumber && (
-                    <p className="text-sm text-gray-600">Customer Order #: {order.customerOrderNumber}</p>
-                  )}
+          {selectedOrders.map(order => {
+            // Get aggregated items for this order
+            const aggregatedItems = aggregateOrderItems(order);
+            
+            return (
+              <div key={order.id} className="mb-8 pb-6 border-b border-gray-200">
+                {/* Customer name now bigger and more prominent */}
+                <h2 className="text-2xl font-bold mb-2 text-primary">
+                  {order.customer.name}
+                </h2>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    {order.customer.accountNumber && (
+                      <p className="text-sm text-gray-600">Account #: {order.customer.accountNumber}</p>
+                    )}
+                    {order.customerOrderNumber && (
+                      <p className="text-sm text-gray-600">Customer Order #: {order.customerOrderNumber}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Date</p>
+                    <p className="font-medium">{format(parseISO(order.orderDate), "PPP")}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-gray-500">Date</p>
-                  <p className="font-medium">{format(parseISO(order.orderDate), "PPP")}</p>
+                
+                <h3 className="font-medium mb-2 mt-4">Items</h3>
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-300">
+                      <th className="py-2 text-left">SKU</th>
+                      <th className="py-2 text-left">Product</th>
+                      <th className="py-2 text-left">Quantity</th>
+                      <th className="py-2 text-left">Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aggregatedItems.map((item: any, idx: number) => {
+                      // Use totalWeight if available, otherwise calculate from getItemWeight
+                      const weight = item.totalWeight > 0 ? item.totalWeight : getItemWeight(item);
+                      const weightValue = weight > 0 ? `${(weight / 1000).toFixed(3)} kg` : "-";
+                      
+                      return (
+                        <tr key={idx} className="border-b border-gray-200">
+                          <td className="py-2">{item.product.sku}</td>
+                          <td className="py-2">{item.product.name}</td>
+                          <td className="py-2">{item.quantity}</td>
+                          <td className="py-2">{weightValue}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                
+                <div className="mt-6">
+                  <p className="text-sm text-gray-500">
+                    Order completed and invoiced on {format(new Date(), "PPP")}
+                  </p>
                 </div>
               </div>
-              
-              <h3 className="font-medium mb-2 mt-4">Items</h3>
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-300">
-                    <th className="py-2 text-left">SKU</th>
-                    <th className="py-2 text-left">Product</th>
-                    <th className="py-2 text-left">Quantity</th>
-                    <th className="py-2 text-left">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {order.items.map((item: any, idx: number) => {
-                    const weight = getItemWeight(item);
-                    const weightValue = weight > 0 ? `${(weight / 1000).toFixed(3)} kg` : "-";
-                    
-                    return (
-                      <tr key={idx} className="border-b border-gray-200">
-                        <td className="py-2">{item.product.sku}</td>
-                        <td className="py-2">{item.product.name}</td>
-                        <td className="py-2">{item.quantity}</td>
-                        <td className="py-2">{weightValue}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              
-              <div className="mt-6">
-                <p className="text-sm text-gray-500">
-                  Order completed and invoiced on {format(new Date(), "PPP")}
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           
           <div className="mt-10 pt-4 border-t border-gray-300 text-sm text-gray-500">
             <p>This document was generated from the order management system.</p>
