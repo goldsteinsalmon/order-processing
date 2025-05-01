@@ -66,7 +66,7 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
         <Button 
           type="button"
           variant="outline" 
-          className="w-full justify-between h-auto py-6 text-lg"
+          className="w-full justify-between h-auto py-6 text-lg customer-selection-button"
           onClick={() => setShowCustomerSearch(true)}
         >
           {selectedCustomer ? (

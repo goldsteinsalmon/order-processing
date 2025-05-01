@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -166,6 +165,12 @@ const CreateOrderSteps: React.FC = () => {
   const handleCancelCustomerSelection = () => {
     setSelectedCustomer(null);
     setShowOnHoldWarning(false);
+    
+    // Reset the customer search dialog state to make it work again
+    const customerSelectionSteps = document.querySelector('.customer-selection-button');
+    if (customerSelectionSteps) {
+      customerSelectionSteps.removeAttribute('disabled');
+    }
   };
   
   const confirmOnHoldCustomer = () => {
@@ -453,7 +458,13 @@ const CreateOrderSteps: React.FC = () => {
       </Dialog>
 
       {/* On Hold Customer Warning Dialog */}
-      <AlertDialog open={showOnHoldWarning} onOpenChange={setShowOnHoldWarning}>
+      <AlertDialog 
+        open={showOnHoldWarning} 
+        onOpenChange={(open) => {
+          setShowOnHoldWarning(open);
+          if (!open) handleCancelCustomerSelection();
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Customer On Hold Warning</AlertDialogTitle>
