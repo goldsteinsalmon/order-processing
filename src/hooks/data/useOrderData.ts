@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -81,8 +80,7 @@ export const useOrderData = (toast: any) => {
           account_number: newOrderData.customer.account_number,
           on_hold: newOrderData.customer.on_hold,
           hold_reason: newOrderData.customer.hold_reason,
-          needs_detailed_box_labels: newOrderData.customer.needs_detailed_box_labels,
-          created: newOrderData.customer.created
+          needs_detailed_box_labels: newOrderData.customer.needs_detailed_box_labels
         },
         customer_order_number: newOrderData.customer_order_number,
         order_date: newOrderData.order_date,

@@ -1,477 +1,166 @@
-import { Order, OrderItem, Box, BoxItem, BatchSummary, Customer, StandingOrder, StandingOrderItem, MissingItem, Return, Complaint, BatchUsage } from "@/types";
 
-/**
- * Adapts snake_case property names to camelCase for components
- */
-export function adaptOrderToCamelCase(order: Order): any {
-  if (!order) return null;
-  
+import { Customer, Order, Product, Return, BatchUsage } from "@/types";
+
+// Convert Customer from snake_case (database) to camelCase (UI)
+export const adaptCustomerToCamelCase = (customer: any): Customer => {
   return {
-    ...order,
-    orderDate: order.order_date,
-    deliveryMethod: order.delivery_method,
-    requiredDate: order.required_date,
-    customerOrderNumber: order.customer_order_number,
-    pickedBy: order.picked_by,
-    pickedAt: order.picked_at,
-    isPicked: order.is_picked,
-    totalBlownPouches: order.total_blown_pouches,
-    isModified: order.is_modified,
-    hasChanges: order.has_changes,
-    fromStandingOrder: order.from_standing_order,
-    pickingInProgress: order.picking_in_progress,
-    boxDistributions: order.box_distributions?.map(adaptBoxToCamelCase),
-    completedBoxes: order.completed_boxes,
-    missingItems: order.missing_items,
-    invoiceDate: order.invoice_date,
-    invoiceNumber: order.invoice_number,
-    batchNumber: order.batch_number,
-    batchNumbers: order.batch_numbers,
-    pickingProgress: order.picking_progress,
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    address: customer.address,
+    type: customer.type,
+    account_number: customer.account_number,
+    on_hold: customer.on_hold,
+    hold_reason: customer.hold_reason,
+    needs_detailed_box_labels: customer.needs_detailed_box_labels
+  };
+};
+
+// Convert Customer from camelCase (UI) to snake_case (database)
+export const adaptCustomerToSnakeCase = (customer: Customer): any => {
+  return {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    address: customer.address,
+    type: customer.type,
+    account_number: customer.account_number,
+    on_hold: customer.on_hold,
+    hold_reason: customer.hold_reason,
+    needs_detailed_box_labels: customer.needs_detailed_box_labels
+  };
+};
+
+// Convert Order from snake_case (database) to camelCase (UI)
+export const adaptOrderToCamelCase = (order: any): Order => {
+  return {
+    id: order.id,
+    customer_id: order.customer_id,
+    customer: order.customer ? adaptCustomerToCamelCase(order.customer) : undefined,
+    customer_order_number: order.customer_order_number,
+    order_date: order.order_date,
+    required_date: order.required_date,
+    delivery_method: order.delivery_method,
+    notes: order.notes,
+    status: order.status,
+    created: order.created,
+    updated: order.updated,
+    picker: order.picker,
+    picked_by: order.picked_by,
+    picked_at: order.picked_at,
+    is_picked: order.is_picked,
+    total_blown_pouches: order.total_blown_pouches,
+    is_modified: order.is_modified,
+    batch_number: order.batch_number,
+    batch_numbers: order.batch_numbers,
+    has_changes: order.has_changes,
+    from_standing_order: order.from_standing_order,
+    picking_in_progress: order.picking_in_progress,
+    picking_progress: order.picking_progress,
+    box_distributions: order.box_distributions,
+    completed_boxes: order.completed_boxes,
+    missing_items: order.missing_items,
+    invoiced: order.invoiced,
+    invoice_number: order.invoice_number,
+    invoice_date: order.invoice_date,
+    changes: order.changes,
     savedBoxes: order.savedBoxes,
-    items: order.items?.map(adaptOrderItemToCamelCase),
-    // Adapt batchSummaries if they exist
-    batchSummaries: order.batch_summaries?.map(bs => ({
-      batchNumber: bs.batch_number,
-      totalWeight: bs.total_weight
-    }))
+    batchSummaries: order.batchSummaries,
+    items: order.items
   };
-}
+};
 
-export function adaptOrderItemToCamelCase(item: OrderItem): any {
-  if (!item) return null;
-  
+// Convert Order from camelCase (UI) to snake_case (database)
+export const adaptOrderToSnakeCase = (order: Order): any => {
   return {
-    ...item,
-    orderId: item.order_id,
-    productId: item.product_id,
-    originalQuantity: item.original_quantity,
-    unavailableQuantity: item.unavailable_quantity,
-    isUnavailable: item.is_unavailable,
-    blownPouches: item.blown_pouches,
-    batchNumber: item.batch_number,
-    missingQuantity: item.missing_quantity,
-    pickedQuantity: item.picked_quantity,
-    pickedWeight: item.picked_weight,
-    boxNumber: item.box_number,
-    manualWeight: item.manual_weight,
-    product: item.product ? adaptProductToCamelCase(item.product) : undefined
+    id: order.id,
+    customer_id: order.customer_id,
+    customer_order_number: order.customer_order_number,
+    order_date: order.order_date,
+    required_date: order.required_date,
+    delivery_method: order.delivery_method,
+    notes: order.notes,
+    status: order.status,
+    created: order.created,
+    updated: order.updated,
+    picker: order.picker,
+    picked_by: order.picked_by,
+    picked_at: order.picked_at,
+    is_picked: order.is_picked,
+    total_blown_pouches: order.total_blown_pouches,
+    is_modified: order.is_modified,
+    batch_number: order.batch_number,
+    batch_numbers: order.batch_numbers,
+    has_changes: order.has_changes,
+    from_standing_order: order.from_standing_order,
+    picking_in_progress: order.picking_in_progress,
+    picking_progress: order.picking_progress,
+    invoiced: order.invoiced,
+    invoice_number: order.invoice_number,
+    invoice_date: order.invoice_date
   };
-}
+};
 
-/**
- * Adapts Product to use camelCase property names
- */
-export function adaptProductToCamelCase(product: any): any {
-  if (!product) return null;
-  
+// Convert Product from snake_case (database) to camelCase (UI)
+export const adaptProductToCamelCase = (product: any): Product => {
   return {
-    ...product,
-    stockLevel: product.stock_level,
-    requiresWeightInput: product.requires_weight_input
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
+    stock_level: product.stock_level,
+    weight: product.weight,
+    requires_weight_input: product.requires_weight_input,
+    unit: product.unit,
+    required: product.required
   };
-}
+};
 
-/**
- * Adapts Customer to use camelCase property names
- */
-export function adaptCustomerToCamelCase(customer: Customer): any {
-  if (!customer) return null;
-  
+// Convert Product from camelCase (UI) to snake_case (database)
+export const adaptProductToSnakeCase = (product: Product): any => {
   return {
-    ...customer,
-    accountNumber: customer.account_number,
-    onHold: customer.on_hold,
-    holdReason: customer.hold_reason,
-    needsDetailedBoxLabels: customer.needs_detailed_box_labels
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
+    stock_level: product.stock_level,
+    weight: product.weight,
+    requires_weight_input: product.requires_weight_input,
+    unit: product.unit,
+    required: product.required
   };
-}
+};
 
-/**
- * Adapts camelCase property names to snake_case for database
- */
-export function adaptOrderToSnakeCase(order: any): Order {
-  if (!order) return null;
-  
-  return {
-    ...order,
-    order_date: order.orderDate || order.order_date,
-    delivery_method: order.deliveryMethod || order.delivery_method,
-    required_date: order.requiredDate || order.required_date,
-    customer_order_number: order.customerOrderNumber || order.customer_order_number,
-    picked_by: order.pickedBy || order.picked_by,
-    picked_at: order.pickedAt || order.picked_at,
-    is_picked: order.isPicked || order.is_picked,
-    total_blown_pouches: order.totalBlownPouches || order.total_blown_pouches,
-    is_modified: order.isModified || order.is_modified,
-    has_changes: order.hasChanges || order.has_changes,
-    from_standing_order: order.fromStandingOrder || order.from_standing_order,
-    picking_in_progress: order.pickingInProgress || order.picking_in_progress,
-    box_distributions: order.boxDistributions?.map(adaptBoxToSnakeCase) || order.box_distributions,
-    completed_boxes: order.completedBoxes || order.completed_boxes,
-    missing_items: order.missingItems?.map(adaptMissingItemToSnakeCase) || order.missing_items,
-    invoice_date: order.invoiceDate || order.invoice_date,
-    invoice_number: order.invoiceNumber || order.invoice_number,
-    batch_number: order.batchNumber || order.batch_number,
-    batch_numbers: order.batchNumbers || order.batch_numbers,
-    picking_progress: order.pickingProgress || order.picking_progress,
-    items: order.items?.map(adaptOrderItemToSnakeCase)
-  };
-}
-
-export function adaptOrderItemToSnakeCase(item: any): OrderItem {
-  if (!item) return null;
-  
-  return {
-    ...item,
-    order_id: item.orderId || item.order_id,
-    product_id: item.productId || item.product_id,
-    original_quantity: item.originalQuantity || item.original_quantity,
-    unavailable_quantity: item.unavailableQuantity || item.unavailable_quantity,
-    is_unavailable: item.isUnavailable || item.is_unavailable,
-    blown_pouches: item.blownPouches || item.blown_pouches,
-    batch_number: item.batchNumber || item.batch_number,
-    missing_quantity: item.missingQuantity || item.missing_quantity,
-    picked_quantity: item.pickedQuantity || item.picked_quantity,
-    picked_weight: item.pickedWeight || item.picked_weight,
-    box_number: item.boxNumber || item.box_number,
-    manual_weight: item.manualWeight || item.manual_weight,
-    product: item.product ? adaptProductToSnakeCase(item.product) : undefined
-  };
-}
-
-/**
- * Adapts Product to use snake_case property names
- */
-export function adaptProductToSnakeCase(product: any): any {
-  if (!product) return null;
-  
-  return {
-    ...product,
-    stock_level: product.stockLevel || product.stock_level,
-    requires_weight_input: product.requiresWeightInput || product.requires_weight_input
-  };
-}
-
-/**
- * Adapts Customer to use snake_case property names
- */
-export function adaptCustomerToSnakeCase(customer: any): Customer {
-  if (!customer) return null;
-  
-  return {
-    ...customer,
-    account_number: customer.accountNumber || customer.account_number,
-    on_hold: customer.onHold || customer.on_hold,
-    hold_reason: customer.holdReason || customer.hold_reason,
-    needs_detailed_box_labels: customer.needsDetailedBoxLabels || customer.needs_detailed_box_labels
-  };
-}
-
-/**
- * Helper functions for box adapters
- */
-export function adaptBoxToCamelCase(box: Box): any {
-  if (!box) return null;
-  
-  return {
-    ...box,
-    orderId: box.order_id,
-    boxNumber: box.box_number,
-    batchNumber: box.batch_number,
-    items: box.items?.map(adaptBoxItemToCamelCase)
-  };
-}
-
-export function adaptBoxToSnakeCase(box: any): Box {
-  if (!box) return null;
-  
-  // Generate an id if one doesn't exist (for new boxes)
-  const boxId = box.id || crypto.randomUUID();
-  
-  return {
-    id: boxId,
-    order_id: box.orderId || box.order_id || '',
-    box_number: box.boxNumber || box.box_number,
-    batch_number: box.batchNumber || box.batch_number,
-    completed: box.completed,
-    printed: box.printed,
-    items: box.items?.map(adaptBoxItemToSnakeCase) || []
-  };
-}
-
-export function adaptBoxItemToCamelCase(item: BoxItem): any {
-  if (!item) return null;
-  
-  return {
-    ...item,
-    boxId: item.box_id,
-    productId: item.product_id,
-    productName: item.product_name,
-    batchNumber: item.batch_number
-  };
-}
-
-export function adaptBoxItemToSnakeCase(item: any): BoxItem {
-  if (!item) return null;
-  
-  // Generate an id if one doesn't exist (for new box items)
-  const itemId = item.id || crypto.randomUUID();
-  
-  return {
-    id: itemId,
-    box_id: item.boxId || item.box_id || '',
-    product_id: item.productId || item.product_id,
-    product_name: item.productName || item.product_name,
-    quantity: item.quantity,
-    weight: item.weight || 0,
-    batch_number: item.batchNumber || item.batch_number
-  };
-}
-
-// Missing Item adapters
-export function adaptMissingItemToSnakeCase(item: MissingItem): any {
-  if (!item) return null;
-  
-  return {
-    ...item,
-    order_id: item.order_id,
-    product_id: item.product_id
-  };
-}
-
-export function adaptMissingItemToCamelCase(item: any): MissingItem {
-  if (!item) return null;
-  
-  return {
-    ...item,
-    orderId: item.order_id,
-    productId: item.product_id,
-    product: item.product ? adaptProductToCamelCase(item.product) : undefined,
-    order: item.order ? {
-      id: item.order.id,
-      customer: item.order.customer ? adaptCustomerToCamelCase(item.order.customer) : undefined
-    } : undefined
-  };
-}
-
-// Standing Order adapters
-export function adaptStandingOrderToCamelCase(standingOrder: any): StandingOrder {
-  if (!standingOrder) return null;
-  
-  return {
-    ...standingOrder,
-    customer_id: standingOrder.customer_id,
-    customer_order_number: standingOrder.customer_order_number,
-    schedule: {
-      frequency: standingOrder.frequency,
-      dayOfWeek: standingOrder.day_of_week,
-      dayOfMonth: standingOrder.day_of_month,
-      deliveryMethod: standingOrder.delivery_method,
-      nextDeliveryDate: standingOrder.next_delivery_date
-    },
-    items: standingOrder.items?.map(adaptStandingOrderItemToCamelCase) || [],
-    customer: standingOrder.customer ? adaptCustomerToCamelCase(standingOrder.customer) : undefined,
-    next_processing_date: standingOrder.next_processing_date,
-    last_processed_date: standingOrder.last_processed_date
-  };
-}
-
-export function adaptStandingOrderToSnakeCase(standingOrder: StandingOrder): any {
-  if (!standingOrder) return null;
-  
-  return {
-    ...standingOrder,
-    customer_id: standingOrder.customer_id,
-    customer_order_number: standingOrder.customer_order_number,
-    frequency: standingOrder.schedule?.frequency,
-    day_of_week: standingOrder.schedule?.dayOfWeek,
-    day_of_month: standingOrder.schedule?.dayOfMonth,
-    delivery_method: standingOrder.schedule?.deliveryMethod,
-    next_delivery_date: standingOrder.schedule?.nextDeliveryDate,
-    customer: standingOrder.customer ? adaptCustomerToSnakeCase(standingOrder.customer) : undefined,
-    items: standingOrder.items?.map(adaptStandingOrderItemToSnakeCase) || [],
-    next_processing_date: standingOrder.next_processing_date,
-    last_processed_date: standingOrder.last_processed_date
-  };
-}
-
-export function adaptStandingOrderItemToCamelCase(item: any): StandingOrderItem {
-  if (!item) return null;
-  
-  return {
-    id: item.id,
-    product_id: item.product_id,
-    product: item.product ? adaptProductToCamelCase(item.product) : undefined,
-    quantity: item.quantity
-  };
-}
-
-export function adaptStandingOrderItemToSnakeCase(item: StandingOrderItem): any {
-  if (!item) return null;
-  
-  return {
-    id: item.id,
-    product_id: item.product_id,
-    product: item.product ? adaptProductToSnakeCase(item.product) : undefined,
-    quantity: item.quantity,
-    standing_order_id: item.standing_order_id
-  };
-}
-
-// Return adapters
-export function adaptReturnToCamelCase(returnItem: any): Return {
-  if (!returnItem) return null;
-  
-  return {
-    ...returnItem,
-    customer_id: returnItem.customer_id,
-    customer_type: returnItem.customer_type,
-    customer_name: returnItem.customer_name,
-    contact_email: returnItem.contact_email,
-    contact_phone: returnItem.contact_phone,
-    date_returned: returnItem.date_returned,
-    order_number: returnItem.order_number,
-    invoice_number: returnItem.invoice_number,
-    product_sku: returnItem.product_sku,
-    product_id: returnItem.product_id,
-    product: returnItem.product ? adaptProductToCamelCase(returnItem.product) : undefined,
-    returns_required: returnItem.returns_required,
-    return_status: returnItem.return_status,
-    resolution_status: returnItem.resolution_status,
-    resolution_notes: returnItem.resolution_notes
-  };
-}
-
-export function adaptReturnToSnakeCase(returnItem: Return): any {
-  if (!returnItem) return null;
-  
-  return {
-    ...returnItem,
-    customer_id: returnItem.customer_id,
-    customer_type: returnItem.customer_type,
-    customer_name: returnItem.customer_name,
-    contact_email: returnItem.contact_email,
-    contact_phone: returnItem.contact_phone,
-    date_returned: returnItem.date_returned,
-    order_number: returnItem.order_number, 
-    invoice_number: returnItem.invoice_number,
-    product_sku: returnItem.product_sku,
-    product_id: returnItem.product_id,
-    product: returnItem.product ? adaptProductToSnakeCase(returnItem.product) : undefined,
-    returns_required: returnItem.returns_required,
-    return_status: returnItem.return_status,
-    resolution_status: returnItem.resolution_status,
-    resolution_notes: returnItem.resolution_notes
-  };
-}
-
-// Complaint adapters
-export function adaptComplaintToCamelCase(complaint: any): Complaint {
-  if (!complaint) return null;
-  
-  return {
-    ...complaint,
-    customer_id: complaint.customer_id,
-    customer_type: complaint.customer_type,
-    customer_name: complaint.customer_name,
-    contact_email: complaint.contact_email,
-    contact_phone: complaint.contact_phone,
-    date_submitted: complaint.date_submitted,
-    order_number: complaint.order_number,
-    invoice_number: complaint.invoice_number,
-    product_sku: complaint.product_sku,
-    product_id: complaint.product_id,
-    product: complaint.product ? adaptProductToCamelCase(complaint.product) : undefined,
-    complaint_type: complaint.complaint_type,
-    complaint_details: complaint.complaint_details,
-    returns_required: complaint.returns_required,
-    return_status: complaint.return_status,
-    resolution_status: complaint.resolution_status,
-    resolution_notes: complaint.resolution_notes
-  };
-}
-
-export function adaptComplaintToSnakeCase(complaint: Complaint): any {
-  if (!complaint) return null;
-  
-  return {
-    ...complaint,
-    customer_id: complaint.customer_id,
-    customer_type: complaint.customer_type,
-    customer_name: complaint.customer_name,
-    contact_email: complaint.contact_email,
-    contact_phone: complaint.contact_phone,
-    date_submitted: complaint.date_submitted,
-    order_number: complaint.order_number, 
-    invoice_number: complaint.invoice_number,
-    product_sku: complaint.product_sku,
-    product_id: complaint.product_id,
-    product: complaint.product ? adaptProductToSnakeCase(complaint.product) : undefined,
-    complaint_type: complaint.complaint_type,
-    complaint_details: complaint.complaint_details,
-    returns_required: complaint.returns_required,
-    return_status: complaint.return_status,
-    resolution_status: complaint.resolution_status,
-    resolution_notes: complaint.resolution_notes
-  };
-}
-
-/**
- * Adapts BatchSummary to use camelCase property names
- */
-export function adaptBatchSummaryToCamelCase(summary: any): BatchSummary {
-  if (!summary) return null;
-  
-  return {
-    batchNumber: summary.batch_number,
-    totalWeight: summary.total_weight
-  };
-}
-
-/**
- * Adapts BatchSummary to use snake_case property names
- */
-export function adaptBatchSummaryToSnakeCase(summary: BatchSummary): any {
-  if (!summary) return null;
-  
-  return {
-    batch_number: summary.batchNumber,
-    total_weight: summary.totalWeight
-  };
-}
-
-// Add BatchUsage adapters
-export function adaptBatchUsageToCamelCase(batchUsage: BatchUsage): any {
-  if (!batchUsage) return null;
-  
+// Convert BatchUsage from snake_case (database) to camelCase (UI)
+export const adaptBatchUsageToCamelCase = (batchUsage: any): BatchUsage => {
   return {
     id: batchUsage.id,
-    batchNumber: batchUsage.batch_number,
-    productId: batchUsage.product_id,
-    productName: batchUsage.product_name,
-    totalWeight: batchUsage.total_weight,
-    usedWeight: batchUsage.used_weight,
-    ordersCount: batchUsage.orders_count,
-    firstUsed: batchUsage.first_used,
-    lastUsed: batchUsage.last_used,
+    batch_number: batchUsage.batch_number,
+    product_id: batchUsage.product_id,
+    product_name: batchUsage.product_name,
+    total_weight: batchUsage.total_weight,
+    used_weight: batchUsage.used_weight,
+    orders_count: batchUsage.orders_count,
+    first_used: batchUsage.first_used,
+    last_used: batchUsage.last_used,
     usedBy: batchUsage.usedBy
   };
-}
+};
 
-export function adaptBatchUsageToSnakeCase(batchUsage: any): BatchUsage {
-  if (!batchUsage) return null;
-  
+// Convert BatchUsage from camelCase (UI) to snake_case (database)
+export const adaptBatchUsageToSnakeCase = (batchUsage: BatchUsage): any => {
   return {
     id: batchUsage.id,
-    batch_number: batchUsage.batchNumber || batchUsage.batch_number,
-    product_id: batchUsage.productId || batchUsage.product_id,
-    product_name: batchUsage.productName || batchUsage.product_name,
-    total_weight: batchUsage.totalWeight || batchUsage.total_weight,
-    used_weight: batchUsage.usedWeight || batchUsage.used_weight,
-    orders_count: batchUsage.ordersCount || batchUsage.orders_count,
-    first_used: batchUsage.firstUsed || batchUsage.first_used,
-    last_used: batchUsage.lastUsed || batchUsage.last_used,
+    batch_number: batchUsage.batch_number,
+    product_id: batchUsage.product_id,
+    product_name: batchUsage.product_name,
+    total_weight: batchUsage.total_weight,
+    used_weight: batchUsage.used_weight,
+    orders_count: batchUsage.orders_count,
+    first_used: batchUsage.first_used,
+    last_used: batchUsage.last_used,
     usedBy: batchUsage.usedBy
   };
-}
+};

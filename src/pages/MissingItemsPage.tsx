@@ -71,7 +71,7 @@ const MissingItemsPage: React.FC = () => {
                   <tbody>
                     {group.items.map((item) => (
                       <tr key={item.id} className="border-b">
-                        <td className="px-4 py-3">{item.orderId.substring(0, 8)}</td>
+                        <td className="px-4 py-3">{item.order_id.substring(0, 8)}</td>
                         <td className="px-4 py-3">{item.quantity}</td>
                         <td className="px-4 py-3">
                           {format(parseISO(item.date), "dd/MM/yyyy")}

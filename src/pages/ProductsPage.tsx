@@ -86,7 +86,7 @@ const ProductsPage: React.FC = () => {
     // Count products needed for each day from pending orders
     orders.forEach((order) => {
       if (order.status === "Pending" || order.status === "Picking") {
-        const orderDate = parseISO(order.requiredDate || order.orderDate);
+        const orderDate = parseISO(order.required_date || order.order_date);
         
         // Only consider orders going out in the next 7 working days
         const matchingDay = next7WorkingDays.find((day) => isSameDay(day, orderDate));
@@ -94,8 +94,8 @@ const ProductsPage: React.FC = () => {
           const dateKey = format(matchingDay, "yyyy-MM-dd");
           
           order.items.forEach((item) => {
-            if (forecasts[item.productId] && forecasts[item.productId][dateKey] !== undefined) {
-              forecasts[item.productId][dateKey] += item.quantity;
+            if (forecasts[item.product_id] && forecasts[item.product_id][dateKey] !== undefined) {
+              forecasts[item.product_id][dateKey] += item.quantity;
             }
           });
         }
@@ -121,7 +121,7 @@ const ProductsPage: React.FC = () => {
       if (adjustment !== 0) {
         return {
           ...product,
-          stockLevel: product.stockLevel + adjustment
+          stock_level: product.stock_level + adjustment
         };
       }
       return product;
@@ -130,7 +130,7 @@ const ProductsPage: React.FC = () => {
     // Update only products that have changes
     updatedProducts.forEach((product) => {
       const originalProduct = products.find((p) => p.id === product.id);
-      if (originalProduct && originalProduct.stockLevel !== product.stockLevel) {
+      if (originalProduct && originalProduct.stock_level !== product.stock_level) {
         updateProduct(product);
       }
     });
@@ -167,6 +167,7 @@ const ProductsPage: React.FC = () => {
 
   return (
     <Layout>
+      {/* Keep existing UI code */}
       <div className="flex justify-between mb-6">
         <h2 className="text-2xl font-bold">Products</h2>
         <Button onClick={() => navigate("/create-product")}>
@@ -183,6 +184,7 @@ const ProductsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Keep existing UI code for the table */}
       <div className="space-y-6">
         <div className="flex items-center mb-4">
           <div className="relative w-full max-w-sm">
@@ -222,9 +224,9 @@ const ProductsPage: React.FC = () => {
                   <TableRow key={product.id}>
                     <TableCell>{product.sku}</TableCell>
                     <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.requiresWeightInput ? "N/A" : (product.weight || "N/A")}</TableCell>
+                    <TableCell>{product.requires_weight_input ? "N/A" : (product.weight || "N/A")}</TableCell>
                     <TableCell>
-                      {product.requiresWeightInput ? (
+                      {product.requires_weight_input ? (
                         <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
                           Yes
                         </span>
@@ -234,7 +236,7 @@ const ProductsPage: React.FC = () => {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>{product.stockLevel}</TableCell>
+                    <TableCell>{product.stock_level}</TableCell>
                     <TableCell className="w-40">
                       <div className="flex items-center">
                         <Input
@@ -303,7 +305,7 @@ const ProductsPage: React.FC = () => {
                 ) : (
                   filteredProducts.map((product) => {
                     // Calculate running stock level
-                    let runningStock = product.stockLevel;
+                    let runningStock = product.stock_level;
                     const dailyStocks: Record<string, number> = {};
                     
                     next7WorkingDays.forEach((day) => {
@@ -317,7 +319,7 @@ const ProductsPage: React.FC = () => {
                       <tr key={product.id} className="border-b">
                         <td className="px-4 py-3">{product.sku}</td>
                         <td className="px-4 py-3">{product.name}</td>
-                        <td className="px-4 py-3">{product.stockLevel}</td>
+                        <td className="px-4 py-3">{product.stock_level}</td>
                         {next7WorkingDays.map((day) => {
                           const dateKey = format(day, "yyyy-MM-dd");
                           const dailyUsage = productForecasts[product.id]?.[dateKey] || 0;

@@ -29,16 +29,16 @@ const ReturnsPage: React.FC = () => {
   
   // Combine returns and complaints into a single array and sort by date
   const allItems = [
-    ...returns.map(item => ({ ...item, type: 'return', date: item.dateReturned })),
-    ...complaints.map(item => ({ ...item, type: 'complaint', date: item.dateSubmitted }))
+    ...returns.map(item => ({ ...item, type: 'return', date: item.date_returned })),
+    ...complaints.map(item => ({ ...item, type: 'complaint', date: item.date_submitted }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
   // Filter items based on search term
   const filteredItems = allItems.filter(item => 
-    item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.product?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.productSku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.type === "return" ? ((item as any).reason || "").toLowerCase() : ((item as any).complaintType || "").toLowerCase()).includes(searchTerm.toLowerCase())
+    (item.product_sku || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.type === "return" ? ((item as any).reason || "").toLowerCase() : ((item as any).complaint_type || "").toLowerCase()).includes(searchTerm.toLowerCase())
   );
   
   return (

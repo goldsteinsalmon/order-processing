@@ -20,7 +20,7 @@ export const useReturnData = (toast: any) => {
           date_returned: returnItem.date_returned,
           order_number: returnItem.order_number,
           invoice_number: returnItem.invoice_number,
-          product_id: returnItem.product.id,
+          product_id: returnItem.product_id,
           product_sku: returnItem.product_sku,
           quantity: returnItem.quantity,
           reason: returnItem.reason,
@@ -38,7 +38,7 @@ export const useReturnData = (toast: any) => {
       const { data: productData, error: productError } = await supabase
         .from('products')
         .select('*')
-        .eq('id', returnItem.product.id)
+        .eq('id', returnItem.product_id)
         .single();
       
       if (productError) throw productError;
