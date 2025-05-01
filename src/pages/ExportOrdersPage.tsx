@@ -1,16 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  exportOrdersToCsv, 
-  generateCsvFilename,
-  exportOrdersToExcel,
-  generateExcelFilename 
-} from "@/utils/exportUtils";
 import { Order } from "@/types";
-import { ArrowLeft, FileDown, Calendar, Check, Undo, Search, Filter, FileText } from "lucide-react";
+import { ArrowLeft, FileDown, Calendar, Check, Undo, Search, Filter, FileText, Printer } from "lucide-react";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -18,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { getNextWorkingDay } from "@/utils/dateUtils";
+import { useReactToPrint } from "react-to-print";
 import {
   Table,
   TableBody,
@@ -38,6 +33,7 @@ import {
 const ExportOrdersPage: React.FC = () => {
   const { completedOrders, updateOrder } = useData();
   const navigate = useNavigate();
+  const printRef = useRef<HTMLDivElement>(null);
   
   // Set default fromDate and toDate to the next working day
   const nextWorkingDay = getNextWorkingDay();
@@ -50,6 +46,28 @@ const ExportOrdersPage: React.FC = () => {
   // New state for search and filter
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "not-invoiced">("all");
+  
+  // PDF printing functionality
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: `Order-Export-${format(new Date(), 'yyyy-MM-dd')}`,
+    onAfterPrint: () => {
+      // Mark selected orders as invoiced
+      if (selectedOrders.size > 0) {
+        selectedOrders.forEach(id => {
+          const order = completedOrders.find(o => o.id === id);
+          if (order && !order.invoiced) {
+            updateOrder({
+              ...order,
+              invoiced: true,
+              invoiceDate: new Date().toISOString(),
+            });
+          }
+        });
+        alert(`Exported ${selectedOrders.size} orders to PDF and marked them as invoiced.`);
+      }
+    }
+  });
   
   // Filter orders based on search, filter mode and date range
   useEffect(() => {
@@ -119,59 +137,13 @@ const ExportOrdersPage: React.FC = () => {
   };
   
   // Export selected orders and mark them as invoiced
-  const handleExportCsv = () => {
+  const handleExportPdf = () => {
     if (selectedOrders.size === 0) {
       alert("Please select at least one order to export.");
       return;
     }
     
-    const ordersToExport = filteredOrders.filter(order => 
-      selectedOrders.has(order.id)
-    );
-    
-    // Mark selected orders as invoiced
-    selectedOrders.forEach(id => {
-      const order = completedOrders.find(o => o.id === id);
-      if (order && !order.invoiced) {
-        updateOrder({
-          ...order,
-          invoiced: true,
-          invoiceDate: new Date().toISOString(),
-        });
-      }
-    });
-    
-    exportOrdersToCsv(ordersToExport, generateCsvFilename());
-    
-    alert(`Exported ${ordersToExport.length} orders to CSV and marked them as invoiced.`);
-  };
-
-  // Export selected orders to Excel
-  const handleExportExcel = () => {
-    if (selectedOrders.size === 0) {
-      alert("Please select at least one order to export.");
-      return;
-    }
-    
-    const ordersToExport = filteredOrders.filter(order => 
-      selectedOrders.has(order.id)
-    );
-    
-    // Mark selected orders as invoiced
-    selectedOrders.forEach(id => {
-      const order = completedOrders.find(o => o.id === id);
-      if (order && !order.invoiced) {
-        updateOrder({
-          ...order,
-          invoiced: true,
-          invoiceDate: new Date().toISOString(),
-        });
-      }
-    });
-    
-    exportOrdersToExcel(ordersToExport, generateExcelFilename());
-    
-    alert(`Exported ${ordersToExport.length} orders to Excel and marked them as invoiced.`);
+    handlePrint();
   };
   
   // Mark selected orders as invoiced
@@ -273,27 +245,14 @@ const ExportOrdersPage: React.FC = () => {
               
               {/* Actions */}
               <div className="flex flex-col space-y-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button 
-                      className="w-full" 
-                      disabled={selectedOrders.size === 0}
-                    >
-                      <FileDown className="mr-2 h-4 w-4" /> 
-                      Export Selected ({selectedOrders.size})
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleExportCsv}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Export as CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportExcel}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      Export as Excel
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button 
+                  className="w-full" 
+                  onClick={handleExportPdf}
+                  disabled={selectedOrders.size === 0}
+                >
+                  <Printer className="mr-2 h-4 w-4" /> 
+                  Export to PDF ({selectedOrders.size})
+                </Button>
                 
                 <div className="flex space-x-2">
                   <Button 
@@ -459,6 +418,89 @@ const ExportOrdersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Hidden printable content for PDF export */}
+      <div className="hidden">
+        <div ref={printRef} className="p-8">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold mb-2">Order Export</h1>
+            <p className="text-gray-500">Generated on {format(new Date(), "PPP")}</p>
+          </div>
+          
+          {Array.from(selectedOrders).map(orderId => {
+            const order = filteredOrders.find(o => o.id === orderId);
+            if (!order) return null;
+            
+            return (
+              <div key={order.id} className="mb-8 pb-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold mb-2">
+                  Order #{order.id.substring(0, 8)}
+                </h2>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-gray-500">Customer</p>
+                    <p className="font-medium">{order.customer.name}</p>
+                    {order.customer.accountNumber && (
+                      <p className="text-sm text-gray-600">Account #: {order.customer.accountNumber}</p>
+                    )}
+                    {order.customerOrderNumber && (
+                      <p className="text-sm text-gray-600">Customer Order #: {order.customerOrderNumber}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Date</p>
+                    <p className="font-medium">{format(parseISO(order.orderDate), "PPP")}</p>
+                  </div>
+                </div>
+                
+                <h3 className="font-medium mb-2 mt-4">Items</h3>
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-300">
+                      <th className="py-2 text-left">SKU</th>
+                      <th className="py-2 text-left">Product</th>
+                      <th className="py-2 text-left">Quantity</th>
+                      <th className="py-2 text-left">Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {order.items.map((item, idx) => {
+                      const hasWeight = (item.manualWeight && item.manualWeight > 0) || 
+                                      (item.pickedWeight && item.pickedWeight > 0);
+                      
+                      const weight = item.manualWeight && item.manualWeight > 0 
+                        ? item.manualWeight 
+                        : item.pickedWeight;
+                      
+                      const weightValue = hasWeight ? `${(weight! / 1000).toFixed(3)} kg` : "-";
+                      const quantityValue = hasWeight ? "-" : item.quantity.toString();
+                      
+                      return (
+                        <tr key={idx} className="border-b border-gray-200">
+                          <td className="py-2">{item.product.sku}</td>
+                          <td className="py-2">{item.product.name}</td>
+                          <td className="py-2">{quantityValue}</td>
+                          <td className="py-2">{weightValue}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                
+                <div className="mt-6">
+                  <p className="text-sm text-gray-500">
+                    Order completed and ready for invoicing
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+          
+          <div className="mt-10 pt-4 border-t border-gray-300 text-sm text-gray-500">
+            <p>This document was generated from the order management system.</p>
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 };
