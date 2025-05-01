@@ -182,12 +182,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Improved function to collect and process all batch usages for an order
   const recordAllBatchUsagesForOrder = (order: Order) => {
     // Create a map to track which products are using which batches
-    // Key is batchNumber, value is array of {productId, quantity, weight}
+    // Key is batchNumber-productId, value is {productId, quantity, weight}
     const batchProductMap = new Map<string, {
       productId: string;
       quantity: number;
       weight?: number;
-    }[]>();
+    }>();
+    
+    // Clear the processed items set for this new order processing
+    setProcessedBatchOrderItems(new Set());
     
     // Track processed items to prevent duplicates
     const processedItems = new Set<string>();
@@ -227,7 +230,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!item.batchNumber) {
           const itemKey = `item-${item.id}-${defaultBatch}`;
           if (!processedItems.has(itemKey)) {
-            addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.pickedWeight);
+            // Find the product to get its weight
+            const product = products.find(p => p.id === item.productId);
+            const itemWeight = item.pickedWeight || (product?.weight ? product.weight * item.quantity : undefined);
+            addToBatchProductMap(defaultBatch, item.productId, item.quantity, itemWeight);
             processedItems.add(itemKey);
           }
         }
@@ -256,28 +262,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Now record each batch usage from our map
-    batchProductMap.forEach((products, batchNumber) => {
-      products.forEach(({ productId, quantity, weight }) => {
-        // Record usage for each unique product-batch combination
-        const uniqueId = `${batchNumber}-${order.id}-${productId}`;
-        if (!processedBatchOrderItems.has(uniqueId)) {
-          recordBatchUsage(
-            batchNumber,
-            productId,
-            quantity,
-            order.id,
-            weight
-          );
-          
-          // Mark this combination as processed
-          setProcessedBatchOrderItems(prev => {
-            const newSet = new Set(prev);
-            newSet.add(uniqueId);
-            return newSet;
-          });
-        }
-      });
-    });
+    for (const [batchProductKey, {productId, quantity, weight}] of batchProductMap.entries()) {
+      const [batchNumber] = batchProductKey.split('-');
+      
+      // Generate a unique tracking ID for this specific batch usage
+      const uniqueId = `${batchNumber}-${order.id}-${productId}`;
+      if (!processedBatchOrderItems.has(uniqueId)) {
+        recordBatchUsage(
+          batchNumber,
+          productId,
+          quantity,
+          order.id,
+          weight
+        );
+        
+        // Mark this combination as processed
+        setProcessedBatchOrderItems(prev => {
+          const newSet = new Set(prev);
+          newSet.add(uniqueId);
+          return newSet;
+        });
+      }
+    }
     
     // Helper function to add items to the batch-product map
     function addToBatchProductMap(
@@ -288,22 +294,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ) {
       if (!batchNumber) return;
       
-      if (!batchProductMap.has(batchNumber)) {
-        batchProductMap.set(batchNumber, []);
+      const key = `${batchNumber}-${productId}`;
+      
+      // Find the product to get its weight if not provided
+      if (weight === undefined) {
+        const product = products.find(p => p.id === productId);
+        if (product?.weight) {
+          weight = product.weight * quantity;
+        }
       }
       
-      // Check if this product is already in the array for this batch
-      const existingProduct = batchProductMap.get(batchNumber)!.find(p => p.productId === productId);
-      if (existingProduct) {
-        // Update existing product entry
-        existingProduct.quantity += quantity;
-        // Take the higher weight value if present
-        if (weight && (!existingProduct.weight || weight > existingProduct.weight)) {
-          existingProduct.weight = weight;
+      if (batchProductMap.has(key)) {
+        // Update existing entry
+        const existing = batchProductMap.get(key)!;
+        existing.quantity += quantity;
+        if (weight !== undefined) {
+          existing.weight = (existing.weight || 0) + weight;
         }
       } else {
-        // Add new product entry
-        batchProductMap.get(batchNumber)!.push({
+        // Create new entry
+        batchProductMap.set(key, {
           productId,
           quantity,
           weight

@@ -141,7 +141,7 @@ const BatchTrackingPage: React.FC = () => {
       const key = usage.batchNumber;
       
       if (batchUsageMap.has(key)) {
-        // Already have this batch, only update if needed (don't double count)
+        // Already have this batch, only update if needed
         const existing = batchUsageMap.get(key)!;
         
         // For date range, use the earliest firstUsed and latest lastUsed
@@ -160,15 +160,27 @@ const BatchTrackingPage: React.FC = () => {
           ...(usage.usedBy || [])
         ]);
         
-        // DO NOT add the weights - this was causing double counting
-        // Instead, take the maximum weight as the true weight
-        batchUsageMap.set(key, {
-          ...existing,
-          firstUsed: firstUsedDate,
-          lastUsed: lastUsedDate,
-          ordersCount: ordersCount,
-          usedBy: Array.from(usedBySet)
-        });
+        // Don't add to the weight if this is the same batch + productId combination
+        // to prevent double-counting
+        if (usage.productId !== existing.productId) {
+          batchUsageMap.set(key, {
+            ...existing,
+            usedWeight: existing.usedWeight + usage.usedWeight,
+            firstUsed: firstUsedDate,
+            lastUsed: lastUsedDate,
+            ordersCount: ordersCount,
+            usedBy: Array.from(usedBySet)
+          });
+        } else {
+          // Same product + batch combination, use the maximum weight to avoid double counting
+          batchUsageMap.set(key, {
+            ...existing,
+            firstUsed: firstUsedDate,
+            lastUsed: lastUsedDate,
+            ordersCount: ordersCount,
+            usedBy: Array.from(usedBySet)
+          });
+        }
       } else {
         // First time seeing this batch
         const ordersCount = batchOrderUsage.has(key) ? batchOrderUsage.get(key)!.size : usage.ordersCount;
