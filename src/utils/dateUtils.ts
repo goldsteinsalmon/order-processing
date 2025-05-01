@@ -1,3 +1,4 @@
+
 import { format, isWeekend, addDays, isToday, isBefore, parseISO, startOfDay, isSaturday, isSunday } from "date-fns";
 
 // Helper to safely parse dates
@@ -49,7 +50,7 @@ export const isBusinessDay = (date: Date): boolean => {
 };
 
 // Format a date for display
-export const formatDisplayDate = (date: Date | string): string => {
+export const formatDisplayDate = (date: Date | string | null | undefined): string => {
   const safeDate = safeParseDate(date);
   if (!safeDate) return "Invalid Date";
   
@@ -57,7 +58,7 @@ export const formatDisplayDate = (date: Date | string): string => {
 };
 
 // Check if an order is same day
-export const isSameDayOrder = (orderDate: Date | string): boolean => {
+export const isSameDayOrder = (orderDate: Date | string | null | undefined): boolean => {
   const safeDate = safeParseDate(orderDate);
   if (!safeDate) return false;
   
@@ -65,7 +66,7 @@ export const isSameDayOrder = (orderDate: Date | string): boolean => {
 };
 
 // Check if an order is next working day
-export const isNextWorkingDayOrder = (orderDate: Date | string): boolean => {
+export const isNextWorkingDayOrder = (orderDate: Date | string | null | undefined): boolean => {
   const safeDate = safeParseDate(orderDate);
   if (!safeDate) return false;
   
@@ -112,7 +113,7 @@ export const isWeekendDay = (date: Date): boolean => {
 };
 
 // Check if a standing order needs to be processed immediately
-export const shouldProcessImmediately = (deliveryDate: Date | string): boolean => {
+export const shouldProcessImmediately = (deliveryDate: Date | string | null | undefined): boolean => {
   const safeDate = safeParseDate(deliveryDate);
   if (!safeDate) return false;
   
@@ -131,7 +132,7 @@ export const shouldProcessImmediately = (deliveryDate: Date | string): boolean =
 };
 
 // Check if an order should be scheduled for processing
-export const shouldScheduleProcessing = (deliveryDate: Date | string): boolean => {
+export const shouldScheduleProcessing = (deliveryDate: Date | string | null | undefined): boolean => {
   const safeDate = safeParseDate(deliveryDate);
   if (!safeDate) return false;
   
@@ -142,7 +143,7 @@ export const shouldScheduleProcessing = (deliveryDate: Date | string): boolean =
 };
 
 // Get the date when an order should be processed (midnight of working day before delivery)
-export const getOrderProcessingDate = (deliveryDate: Date | string): Date => {
+export const getOrderProcessingDate = (deliveryDate: Date | string | null | undefined): Date => {
   const safeDate = safeParseDate(deliveryDate);
   if (!safeDate) return new Date(); // Return today as fallback
   

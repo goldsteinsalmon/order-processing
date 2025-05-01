@@ -1,4 +1,3 @@
-
 import React from "react";
 import { format, isToday, isBefore, startOfDay } from "date-fns";
 import { UseFormReturn } from "react-hook-form";
@@ -36,6 +35,17 @@ interface OrderDetailsStepProps {
   hideNavigationButtons?: boolean;
 }
 
+// Helper function to safely format dates
+const safeFormatDate = (date?: Date | null) => {
+  if (!date) return "";
+  try {
+    return format(date, "MMMM do, yyyy");
+  } catch (error) {
+    console.error("Error formatting date:", date, error);
+    return "Invalid date";
+  }
+};
+
 const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
   form,
   onDateChange,
@@ -60,7 +70,7 @@ const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
                       className="pl-3 text-left font-normal"
                     >
                       {field.value ? (
-                        format(field.value, "MMMM do, yyyy")
+                        safeFormatDate(field.value)
                       ) : (
                         <span>Pick a date</span>
                       )}

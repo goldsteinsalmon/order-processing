@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -17,6 +18,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+
+// Helper function to safely format dates
+const safeFormatDate = (dateString?: string | null) => {
+  if (!dateString) return "Not specified";
+  try {
+    return format(parseISO(dateString), "MMMM d, yyyy");
+  } catch (error) {
+    console.error("Error formatting date:", dateString, error);
+    return "Invalid date";
+  }
+};
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -104,7 +116,7 @@ const OrderDetails: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>
-                <dd className="col-span-2">{format(parseISO(order.orderDate), "MMMM d, yyyy")}</dd>
+                <dd className="col-span-2">{safeFormatDate(order.orderDate)}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Status:</dt>
