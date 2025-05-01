@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { 
   Customer, 
@@ -18,6 +19,18 @@ import { v4 as uuidv4 } from "uuid";
 import { format, addDays, addWeeks, addMonths, parseISO } from "date-fns";
 import { useSupabaseAuth } from "./SupabaseAuthContext";
 import { useToast } from "@/hooks/use-toast";
+
+// Import the refactored hooks
+import { useCustomerData } from "@/hooks/data/useCustomerData";
+import { useProductData } from "@/hooks/data/useProductData";
+import { useOrderData } from "@/hooks/data/useOrderData";
+import { useStandingOrderData } from "@/hooks/data/useStandingOrderData";
+import { useReturnData } from "@/hooks/data/useReturnData";
+import { useComplaintData } from "@/hooks/data/useComplaintData";
+import { useMissingItemData } from "@/hooks/data/useMissingItemData";
+import { useUserData } from "@/hooks/data/useUserData";
+import { usePickerData } from "@/hooks/data/usePickerData";
+import { useBatchUsageData } from "@/hooks/data/useBatchUsageData";
 
 interface DataContextType {
   customers: Customer[];
@@ -73,24 +86,91 @@ export const useSupabaseData = () => {
 };
 
 export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
-  const [standingOrders, setStandingOrders] = useState<StandingOrder[]>([]);
-  const [returns, setReturns] = useState<Return[]>([]);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [pickers, setPickers] = useState<Picker[]>([]);
-  const [batchUsages, setBatchUsages] = useState<BatchUsage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
   const { session } = useSupabaseAuth();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Create a tracking structure for processed batches to prevent double counting
-  const [processedBatchOrderItems, setProcessedBatchOrderItems] = useState<Set<string>>(new Set());
+  // Use our refactored data hooks
+  const {
+    customers,
+    setCustomers,
+    addCustomer,
+    updateCustomer
+  } = useCustomerData(toast);
+
+  const {
+    products,
+    setProducts,
+    addProduct,
+    updateProduct
+  } = useProductData(toast);
+
+  const {
+    orders,
+    completedOrders,
+    setOrders,
+    setCompletedOrders,
+    addOrder,
+    updateOrder,
+    deleteOrder,
+    completeOrder
+  } = useOrderData(toast);
+
+  const {
+    standingOrders,
+    setStandingOrders,
+    addStandingOrder,
+    updateStandingOrder,
+    processStandingOrders
+  } = useStandingOrderData(toast, addOrder);
+
+  const {
+    returns,
+    setReturns,
+    addReturn,
+    updateReturn
+  } = useReturnData(toast);
+
+  const {
+    complaints,
+    setComplaints,
+    addComplaint,
+    updateComplaint
+  } = useComplaintData(toast);
+
+  const {
+    missingItems,
+    setMissingItems,
+    addMissingItem,
+    removeMissingItem
+  } = useMissingItemData(toast);
+
+  const {
+    users,
+    setUsers,
+    addUser,
+    updateUser,
+    deleteUser
+  } = useUserData(toast);
+
+  const {
+    pickers,
+    setPickers,
+    addPicker,
+    updatePicker,
+    deletePicker
+  } = usePickerData(toast);
+
+  const {
+    batchUsages,
+    setBatchUsages,
+    processedBatchOrderItems,
+    setProcessedBatchOrderItems,
+    getBatchUsages,
+    getBatchUsageByBatchNumber,
+    recordBatchUsage,
+    recordAllBatchUsagesForOrder
+  } = useBatchUsageData(toast, products);
 
   // Load data when authenticated
   useEffect(() => {
@@ -322,670 +402,51 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
       setIsLoading(false);
     }
   };
-
-  // Create consolidated batch summary for an order
-  const createConsolidatedBatchSummary = (order: Order) => {
-    const batchSummary: Record<string, { 
-      productId: string, 
-      productName: string, 
-      quantity: number, 
-      totalWeight: number,
-      batchNumber: string
-    }[]> = {};
-    
-    // Process each item with a batch number
-    order.items?.forEach(item => {
-      if (!item.batchNumber || !item.product) return;
-      
-      const key = `${item.batchNumber}_${item.productId}`;
-      
-      // Skip if already processed
-      if (processedBatchOrderItems.has(key)) return;
-      
-      // Calculate weight based on manual weight or quantity * standard weight
-      const weight = item.manualWeight || 
-        (item.product.weight && item.pickedQuantity 
-          ? item.pickedQuantity * item.product.weight 
-          : 0);
-      
-      if (!batchSummary[item.batchNumber]) {
-        batchSummary[item.batchNumber] = [];
-      }
-      
-      batchSummary[item.batchNumber].push({
-        productId: item.productId,
-        productName: item.product.name,
-        quantity: item.pickedQuantity || 0,
-        totalWeight: weight,
-        batchNumber: item.batchNumber
-      });
-      
-      // Mark as processed
-      const updatedProcessed = new Set(processedBatchOrderItems);
-      updatedProcessed.add(key);
-      setProcessedBatchOrderItems(updatedProcessed);
-    });
-    
-    return batchSummary;
-  };
   
-  // Record batch usages from summary
-  const recordBatchUsagesFromSummary = async (
-    batchSummary: Record<string, { 
-      productId: string, 
-      productName: string, 
-      quantity: number, 
-      totalWeight: number,
-      batchNumber: string
-    }[]>,
-    orderId: string
-  ) => {
-    for (const batchNumber in batchSummary) {
-      for (const item of batchSummary[batchNumber]) {
-        await recordBatchUsage(
-          batchNumber,
-          item.productId,
-          item.quantity,
-          orderId,
-          item.totalWeight
-        );
-      }
-    }
+  const value = {
+    customers,
+    products,
+    orders,
+    completedOrders,
+    standingOrders,
+    returns,
+    complaints,
+    missingItems,
+    users,
+    pickers,
+    batchUsages,
+    addCustomer,
+    updateCustomer,
+    addProduct,
+    updateProduct,
+    addOrder,
+    updateOrder,
+    deleteOrder,
+    completeOrder,
+    addStandingOrder,
+    updateStandingOrder,
+    processStandingOrders,
+    addReturn,
+    updateReturn,
+    addComplaint,
+    updateComplaint,
+    addMissingItem,
+    removeMissingItem,
+    addUser,
+    updateUser,
+    deleteUser,
+    addPicker,
+    updatePicker,
+    deletePicker,
+    getBatchUsages,
+    getBatchUsageByBatchNumber,
+    recordBatchUsage,
+    recordAllBatchUsagesForOrder,
+    refreshData,
+    isLoading
   };
 
-  // Record a single batch usage
-  const recordBatchUsage = async (
-    batchNumber: string,
-    productId: string,
-    quantity: number,
-    orderId: string,
-    manualWeight?: number
-  ) => {
-    try {
-      // Find product details
-      const product = products.find(p => p.id === productId);
-      if (!product) {
-        console.error(`Product with ID ${productId} not found`);
-        return;
-      }
-      
-      // Calculate weight if not provided manually
-      const weight = manualWeight || (product.weight ? quantity * product.weight : 0);
-      
-      // Check if batch usage already exists for this batch number and product
-      const { data: existingBatchUsages, error: findError } = await supabase
-        .from('batch_usages')
-        .select('*')
-        .eq('batch_number', batchNumber)
-        .eq('product_id', productId);
-      
-      if (findError) {
-        console.error('Error checking for existing batch usage:', findError);
-        return;
-      }
-      
-      if (existingBatchUsages && existingBatchUsages.length > 0) {
-        // Update existing batch usage
-        const existingBatchUsage = existingBatchUsages[0];
-        const newUsedWeight = existingBatchUsage.used_weight + weight;
-        const newOrdersCount = existingBatchUsage.orders_count + 1;
-        
-        const { error: updateError } = await supabase
-          .from('batch_usages')
-          .update({
-            used_weight: newUsedWeight,
-            orders_count: newOrdersCount,
-            last_used: new Date().toISOString()
-          })
-          .eq('id', existingBatchUsage.id);
-        
-        if (updateError) {
-          console.error('Error updating batch usage:', updateError);
-          return;
-        }
-        
-        // Add order reference
-        const { error: orderRefError } = await supabase
-          .from('batch_usage_orders')
-          .insert({
-            batch_usage_id: existingBatchUsage.id,
-            order_identifier: orderId
-          });
-        
-        if (orderRefError) {
-          console.error('Error adding batch usage order reference:', orderRefError);
-        }
-        
-        // Update local state
-        const updatedBatchUsages = batchUsages.map(bu => {
-          if (bu.id === existingBatchUsage.id) {
-            return {
-              ...bu,
-              usedWeight: newUsedWeight,
-              ordersCount: newOrdersCount,
-              lastUsed: new Date().toISOString(),
-              usedBy: [...bu.usedBy, orderId]
-            };
-          }
-          return bu;
-        });
-        
-        setBatchUsages(updatedBatchUsages);
-      } else {
-        // Create new batch usage
-        const { data: newBatchUsage, error: createError } = await supabase
-          .from('batch_usages')
-          .insert({
-            batch_number: batchNumber,
-            product_id: productId,
-            product_name: product.name,
-            total_weight: weight,
-            used_weight: weight,
-            orders_count: 1,
-            first_used: new Date().toISOString(),
-            last_used: new Date().toISOString()
-          })
-          .select();
-        
-        if (createError || !newBatchUsage) {
-          console.error('Error creating batch usage:', createError);
-          return;
-        }
-        
-        // Add order reference
-        const { error: orderRefError } = await supabase
-          .from('batch_usage_orders')
-          .insert({
-            batch_usage_id: newBatchUsage[0].id,
-            order_identifier: orderId
-          });
-        
-        if (orderRefError) {
-          console.error('Error adding batch usage order reference:', orderRefError);
-        }
-        
-        // Update local state
-        setBatchUsages([...batchUsages, {
-          id: newBatchUsage[0].id,
-          batchNumber,
-          productId,
-          productName: product.name,
-          totalWeight: weight,
-          usedWeight: weight,
-          ordersCount: 1,
-          firstUsed: new Date().toISOString(),
-          lastUsed: new Date().toISOString(),
-          usedBy: [orderId]
-        }]);
-      }
-    } catch (error) {
-      console.error('Error recording batch usage:', error);
-    }
-  };
-  
-  // Record all batch usages for an order
-  const recordAllBatchUsagesForOrder = (order: Order) => {
-    if (!order.items || order.items.length === 0) return;
-    
-    // Reset processed items tracking
-    setProcessedBatchOrderItems(new Set());
-    
-    // Create batch summary
-    const batchSummary = createConsolidatedBatchSummary(order);
-    
-    // Record batch usages
-    recordBatchUsagesFromSummary(batchSummary, order.id);
-  };
-  
-  // Get all batch usages
-  const getBatchUsages = () => {
-    return batchUsages;
-  };
-  
-  // Get batch usage by batch number
-  const getBatchUsageByBatchNumber = (batchNumber: string) => {
-    return batchUsages.find(bu => bu.batchNumber === batchNumber);
-  };
+  return <SupabaseDataContext.Provider value={value}>{children}</SupabaseDataContext.Provider>;
+};
 
-  // Add customer
-  const addCustomer = async (customer: Customer): Promise<Customer | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .insert({
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          address: customer.address,
-          type: customer.type,
-          account_number: customer.accountNumber,
-          on_hold: customer.onHold || false,
-          hold_reason: customer.holdReason,
-          needs_detailed_box_labels: customer.needsDetailedBoxLabels || false
-        })
-        .select();
-      
-      if (error) throw error;
-      
-      const newCustomer = {
-        ...data[0],
-        accountNumber: data[0].account_number,
-        onHold: data[0].on_hold,
-        holdReason: data[0].hold_reason,
-        needsDetailedBoxLabels: data[0].needs_detailed_box_labels
-      };
-      
-      setCustomers([...customers, newCustomer]);
-      return newCustomer;
-    } catch (error) {
-      console.error('Error adding customer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add customer.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
-
-  // Update customer
-  const updateCustomer = async (customer: Customer): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('customers')
-        .update({
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          address: customer.address,
-          type: customer.type,
-          account_number: customer.accountNumber,
-          on_hold: customer.onHold || false,
-          hold_reason: customer.holdReason,
-          needs_detailed_box_labels: customer.needsDetailedBoxLabels || false
-        })
-        .eq('id', customer.id);
-      
-      if (error) throw error;
-      
-      setCustomers(customers.map(c => c.id === customer.id ? customer : c));
-      return true;
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update customer.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  // Add product
-  const addProduct = async (productData: Product | Product[]): Promise<Product | Product[] | null> => {
-    try {
-      if (Array.isArray(productData)) {
-        // Add multiple products
-        const productsToInsert = productData.map(p => ({
-          name: p.name,
-          sku: p.sku,
-          description: p.description,
-          stock_level: p.stockLevel,
-          weight: p.weight,
-          requires_weight_input: p.requiresWeightInput,
-          unit: p.unit,
-          required: p.required
-        }));
-        
-        const { data, error } = await supabase
-          .from('products')
-          .insert(productsToInsert)
-          .select();
-        
-        if (error) throw error;
-        
-        const newProducts = data.map((p: any) => ({
-          ...p,
-          stockLevel: p.stock_level,
-          requiresWeightInput: p.requires_weight_input
-        }));
-        
-        setProducts([...products, ...newProducts]);
-        return newProducts;
-      } else {
-        // Add a single product
-        const { data, error } = await supabase
-          .from('products')
-          .insert({
-            name: productData.name,
-            sku: productData.sku,
-            description: productData.description,
-            stock_level: productData.stockLevel,
-            weight: productData.weight,
-            requires_weight_input: productData.requiresWeightInput,
-            unit: productData.unit,
-            required: productData.required
-          })
-          .select();
-        
-        if (error) throw error;
-        
-        const newProduct = {
-          ...data[0],
-          stockLevel: data[0].stock_level,
-          requiresWeightInput: data[0].requires_weight_input
-        };
-        
-        setProducts([...products, newProduct]);
-        return newProduct;
-      }
-    } catch (error) {
-      console.error('Error adding product:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add product.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
-
-  // Update product
-  const updateProduct = async (product: Product): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({
-          name: product.name,
-          sku: product.sku,
-          description: product.description,
-          stock_level: product.stockLevel,
-          weight: product.weight,
-          requires_weight_input: product.requiresWeightInput,
-          unit: product.unit,
-          required: product.required
-        })
-        .eq('id', product.id);
-      
-      if (error) throw error;
-      
-      setProducts(products.map(p => p.id === product.id ? product : p));
-      return true;
-    } catch (error) {
-      console.error('Error updating product:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update product.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  // Add order
-  const addOrder = async (order: Order): Promise<Order | null> => {
-    try {
-      // Insert order
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          customer_id: order.customerId,
-          customer_order_number: order.customerOrderNumber,
-          order_date: order.orderDate,
-          required_date: order.requiredDate,
-          delivery_method: order.deliveryMethod,
-          notes: order.notes,
-          status: order.status,
-          created: new Date().toISOString()
-        })
-        .select();
-      
-      if (orderError) throw orderError;
-      
-      const newOrderId = orderData[0].id;
-      
-      // Insert order items
-      const orderItemsToInsert = order.items.map(item => ({
-        order_id: newOrderId,
-        product_id: item.productId,
-        quantity: item.quantity,
-        original_quantity: item.quantity
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsToInsert);
-      
-      if (itemsError) throw itemsError;
-      
-      // Fetch the newly created order with joined customer and items
-      const { data: newOrderData, error: fetchError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customer:customers(*)
-        `)
-        .eq('id', newOrderId)
-        .single();
-      
-      if (fetchError) throw fetchError;
-      
-      // Fetch the order items with joined product
-      const { data: newItemsData, error: newItemsError } = await supabase
-        .from('order_items')
-        .select(`
-          *,
-          product:products(*)
-        `)
-        .eq('order_id', newOrderId);
-      
-      if (newItemsError) throw newItemsError;
-      
-      const newOrder = {
-        ...newOrderData,
-        items: newItemsData.map((item: any) => ({
-          ...item,
-          id: item.id,
-          productId: item.product_id,
-          product: item.product
-        }))
-      };
-      
-      setOrders([...orders, newOrder]);
-      return newOrder;
-    } catch (error) {
-      console.error('Error adding order:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add order.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
-
-  // Update order
-  const updateOrder = async (updatedOrder: Order): Promise<boolean> => {
-    try {
-      // Check if the order is in orders list or completedOrders
-      const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
-      
-      // Update the order details
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({
-          customer_id: updatedOrder.customerId,
-          customer_order_number: updatedOrder.customerOrderNumber,
-          order_date: updatedOrder.orderDate,
-          required_date: updatedOrder.requiredDate,
-          delivery_method: updatedOrder.deliveryMethod,
-          notes: updatedOrder.notes,
-          status: updatedOrder.status,
-          picker: updatedOrder.picker,
-          is_picked: updatedOrder.isPicked,
-          total_blown_pouches: updatedOrder.totalBlownPouches,
-          is_modified: updatedOrder.isModified,
-          updated: new Date().toISOString(),
-          batch_number: updatedOrder.batchNumber,
-          has_changes: updatedOrder.hasChanges,
-          picked_by: updatedOrder.pickedBy,
-          picked_at: updatedOrder.pickedAt,
-          picking_in_progress: updatedOrder.pickingInProgress,
-          invoiced: updatedOrder.invoiced,
-          invoice_number: updatedOrder.invoiceNumber,
-          invoice_date: updatedOrder.invoiceDate
-        })
-        .eq('id', updatedOrder.id);
-      
-      if (orderError) throw orderError;
-      
-      // Handle item updates if they exist
-      if (updatedOrder.items && updatedOrder.items.length > 0) {
-        // Get existing items for this order
-        const { data: existingItems, error: itemsError } = await supabase
-          .from('order_items')
-          .select('*')
-          .eq('order_id', updatedOrder.id);
-        
-        if (itemsError) throw itemsError;
-        
-        // Create map of existing items by id
-        const existingItemMap = new Map();
-        existingItems.forEach((item: any) => {
-          existingItemMap.set(item.id, item);
-        });
-        
-        // Process each updated item
-        for (const item of updatedOrder.items) {
-          if (item.id && existingItemMap.has(item.id)) {
-            // Update existing item
-            const { error: updateItemError } = await supabase
-              .from('order_items')
-              .update({
-                quantity: item.quantity,
-                unavailable_quantity: item.unavailableQuantity,
-                is_unavailable: item.isUnavailable,
-                blown_pouches: item.blownPouches,
-                batch_number: item.batchNumber,
-                checked: item.checked,
-                missing_quantity: item.missingQuantity,
-                picked_quantity: item.pickedQuantity,
-                picked_weight: item.pickedWeight,
-                original_quantity: item.originalQuantity,
-                box_number: item.boxNumber,
-                manual_weight: item.manualWeight
-              })
-              .eq('id', item.id);
-            
-            if (updateItemError) throw updateItemError;
-            
-            // Remove from map to track what's been processed
-            existingItemMap.delete(item.id);
-          } else {
-            // Insert new item
-            const { error: insertItemError } = await supabase
-              .from('order_items')
-              .insert({
-                order_id: updatedOrder.id,
-                product_id: item.productId,
-                quantity: item.quantity,
-                unavailable_quantity: item.unavailableQuantity,
-                is_unavailable: item.isUnavailable,
-                blown_pouches: item.blownPouches,
-                batch_number: item.batchNumber,
-                checked: item.checked,
-                missing_quantity: item.missingQuantity,
-                picked_quantity: item.pickedQuantity,
-                picked_weight: item.pickedWeight,
-                original_quantity: item.originalQuantity,
-                box_number: item.boxNumber,
-                manual_weight: item.manualWeight
-              });
-            
-            if (insertItemError) throw insertItemError;
-          }
-        }
-        
-        // Delete any items that were removed
-        if (existingItemMap.size > 0) {
-          const itemsToDelete = Array.from(existingItemMap.keys());
-          const { error: deleteItemsError } = await supabase
-            .from('order_items')
-            .delete()
-            .in('id', itemsToDelete);
-          
-          if (deleteItemsError) throw deleteItemsError;
-        }
-      }
-      
-      // Handle order changes if they exist
-      if (updatedOrder.changes && updatedOrder.changes.length > 0) {
-        const changesToInsert = updatedOrder.changes.map(change => ({
-          order_id: updatedOrder.id,
-          product_id: change.productId,
-          product_name: change.productName,
-          original_quantity: change.originalQuantity,
-          new_quantity: change.newQuantity,
-          date: change.date || new Date().toISOString()
-        }));
-        
-        const { error: changesError } = await supabase
-          .from('order_changes')
-          .insert(changesToInsert);
-        
-        if (changesError) throw changesError;
-      }
-      
-      // Update state based on whether it's a completed order or not
-      if (isCompletedOrder) {
-        setCompletedOrders(completedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-      } else {
-        setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Error updating order:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update order.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  // Delete order
-  const deleteOrder = async (orderId: string): Promise<boolean> => {
-    try {
-      // Delete order items first due to foreign key constraints
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .delete()
-        .eq('order_id', orderId);
-      
-      if (itemsError) throw itemsError;
-      
-      // Delete the order
-      const { error: orderError } = await supabase
-        .from('orders')
-        .delete()
-        .eq('id', orderId);
-      
-      if (orderError) throw orderError;
-      
-      setOrders(orders.filter(order => order.id !== orderId));
-      return true;
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete order.",
-        variant: "destructive",
-      });
-      return false;
-    }
-  };
-
-  // Complete order (move to completed orders)
-  const completeOrder = async (order: Order): Promise
+export default SupabaseDataProvider;
