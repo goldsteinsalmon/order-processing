@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -53,7 +52,7 @@ const ViewCompletedOrder: React.FC = () => {
       const product = products.find(p => p.id === productId);
       if (!product) return;
       
-      // Calculate weight based on provided explicit weight or product weight * quantity
+      // Use the provided explicit weight directly - this is critical for manual weights
       const productWeight = weight > 0 ? weight : (product.weight ? product.weight * quantity : 0);
       
       if (!summary[batchNumber]) {
@@ -86,20 +85,24 @@ const ViewCompletedOrder: React.FC = () => {
         (order.boxDistributions && order.boxDistributions.length > 0)) {
       
       const boxes = order.boxDistributions || order.boxes || [];
+      console.log(`[UI] Processing ${boxes.length} boxes for batch summary`);
       
-      boxes.forEach(box => {
+      boxes.forEach((box, index) => {
         if (!box.items || box.items.length === 0) return;
         
         const boxBatch = box.batchNumber || 
           order.batchNumber || 
           (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : "Unknown");
         
-        box.items.forEach(item => {
+        console.log(`[UI] Processing box #${box.boxNumber} with batch ${boxBatch}`);
+        
+        box.items.forEach((item, itemIndex) => {
           const batchToUse = item.batchNumber || boxBatch;
           
-          // IMPORTANT: Use the manually entered weight from box items
-          // The weight property in BoxItem represents the manually entered weight
-          const weight = item.weight || 0;
+          // CRITICAL: For box items, the weight property directly represents the manually entered weight
+          // Use it without additional conditions
+          const weight = item.weight;
+          console.log(`[UI] Box ${box.boxNumber}, item ${itemIndex}: Using weight ${weight}g`);
           
           addToBatch(batchToUse, item.productId, item.quantity, weight);
         });
@@ -107,10 +110,12 @@ const ViewCompletedOrder: React.FC = () => {
     } 
     // If no boxes, use order items directly
     else if (order.items && order.items.length > 0) {
+      console.log(`[UI] Processing ${order.items.length} items directly from order`);
+      
       const defaultBatch = order.batchNumber || 
         (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : "Unknown");
       
-      order.items.forEach(item => {
+      order.items.forEach((item, index) => {
         const batchToUse = item.batchNumber || defaultBatch;
         
         // Prioritize weights in this order: manualWeight > pickedWeight > product.weight * quantity
@@ -118,10 +123,13 @@ const ViewCompletedOrder: React.FC = () => {
         
         if (item.manualWeight !== undefined && item.manualWeight > 0) {
           weight = item.manualWeight;
+          console.log(`[UI] Item ${index}: Using manual weight ${weight}g`);
         } else if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
           weight = item.pickedWeight;
+          console.log(`[UI] Item ${index}: Using picked weight ${weight}g`);
         } else if (item.product.weight) {
           weight = item.product.weight * item.quantity;
+          console.log(`[UI] Item ${index}: Using calculated weight ${weight}g`);
         }
         
         addToBatch(batchToUse, item.productId, item.quantity, weight);

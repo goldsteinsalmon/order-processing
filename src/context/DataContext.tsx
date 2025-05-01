@@ -213,7 +213,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         (order.boxDistributions && order.boxDistributions.length > 0)) {
       
       const boxes = order.boxDistributions || order.boxes || [];
-      console.log(`Processing ${boxes.length} boxes`);
+      console.log(`Processing ${boxes.length} boxes for order ${order.id}`);
       
       boxes.forEach((box, boxIndex) => {
         if (!box.items || box.items.length === 0) return;
@@ -227,30 +227,37 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.warn(`No batch number found for box ${boxIndex} in order ${order.id}`);
           return;
         }
+
+        console.log(`Processing box #${box.boxNumber} with batch ${boxBatchNumber} - contains ${box.items.length} items`);
         
         // Process each item in the box
-        box.items.forEach(item => {
+        box.items.forEach((item, itemIndex) => {
           // Skip invalid items
           if (!item.productId) return;
           
           // Get product info
           const product = products.find(p => p.id === item.productId);
-          if (!product) return;
+          if (!product) {
+            console.warn(`Product not found for ID ${item.productId} in box ${box.boxNumber}`);
+            return;
+          }
           
           // Use item batch number if available, otherwise box batch number
           const batchNumber = item.batchNumber || boxBatchNumber;
           
-          // IMPORTANT: For box items, the weight property directly contains the manually entered weight
-          // Use this weight as is without additional logic
+          // CRITICAL FIX: For box items, use the weight property directly as the manual weight
+          // This is a key difference from regular order items
           let weight = 0;
           
-          // Check if manual weight was directly recorded in box item
-          if (item.weight !== undefined && item.weight > 0) {
+          // Check if weight is directly provided in the box item (this is the manually entered weight)
+          if (item.weight !== undefined) {
             weight = item.weight;
+            console.log(`Box ${box.boxNumber}, item ${itemIndex} (${product.name}): Using manual weight: ${weight}g`);
           } 
-          // If no manual weight, use the product's standard weight * quantity
+          // If no explicit weight provided, fall back to product standard weight
           else if (product.weight) {
             weight = product.weight * item.quantity;
+            console.log(`Box ${box.boxNumber}, item ${itemIndex} (${product.name}): Using standard weight: ${weight}g`);
           }
           
           // Store in our batch summary map
@@ -260,7 +267,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } 
     // Case 2: Fall back to order.items if no boxes are defined
     else if (order.items && order.items.length > 0) {
-      console.log(`Processing ${order.items.length} items directly from order`);
+      console.log(`Processing ${order.items.length} items directly from order ${order.id}`);
       
       // Default batch number for the order
       const defaultBatchNumber = 
@@ -273,13 +280,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       // Process each item
-      order.items.forEach(item => {
+      order.items.forEach((item, itemIndex) => {
         // Skip invalid items
         if (!item.productId) return;
         
         // Get product info
         const product = products.find(p => p.id === item.productId);
-        if (!product) return;
+        if (!product) {
+          console.warn(`Product not found for ID ${item.productId}`);
+          return;
+        }
         
         // Use item batch number if available, otherwise order batch number
         const batchNumber = item.batchNumber || defaultBatchNumber;
@@ -290,14 +300,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Check for manually entered weight first (highest priority)
         if (item.manualWeight !== undefined && item.manualWeight > 0) {
           weight = item.manualWeight;
+          console.log(`Item ${itemIndex} (${product.name}): Using manual weight: ${weight}g`);
         }
         // Then check for picked weight
         else if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
           weight = item.pickedWeight;
+          console.log(`Item ${itemIndex} (${product.name}): Using picked weight: ${weight}g`);
         }
         // Otherwise use the product's standard weight * quantity
         else if (product.weight) {
           weight = product.weight * item.quantity;
+          console.log(`Item ${itemIndex} (${product.name}): Using standard weight: ${weight}g`);
         }
         
         // Store in our batch summary map
@@ -313,6 +326,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       quantity: number,
       weight: number
     ) {
+      console.log(`Adding to batch ${batchNumber}: ${productName}, quantity: ${quantity}, weight: ${weight}g`);
+      
       if (!batchProductMap.has(batchNumber)) {
         batchProductMap.set(batchNumber, new Map());
       }
@@ -323,6 +338,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const existing = productMap.get(productId)!;
         existing.totalQuantity += quantity;
         existing.totalWeight += weight;
+        console.log(`Updated totals for ${productName} in batch ${batchNumber}: quantity=${existing.totalQuantity}, weight=${existing.totalWeight}g`);
       } else {
         productMap.set(productId, {
           productName: productName,
@@ -347,6 +363,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         batchNumber,
         products
       });
+      
+      console.log(`Final batch ${batchNumber} summary:`, products.map(p => 
+        `${p.productName}: ${p.totalQuantity} units, ${p.totalWeight}g`).join(', '));
     });
     
     return result;
