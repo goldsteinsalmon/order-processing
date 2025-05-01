@@ -1,9 +1,11 @@
+
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Eye, Edit, Printer, ArrowUp, ArrowDown } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import {
   Table,
   TableBody,
@@ -31,6 +33,8 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   const [filteredOrders, setFilteredOrders] = useState(completedOrders);
   const [searchParams] = useSearchParams();
   const batchFilterParam = searchParams.get('batch') || batchFilter;
+  const { currentUser } = useAuth(); // Get current user to check role
+  const isRegularUser = currentUser?.role === "User";
   
   // Add sorting state
   const [sortField, setSortField] = useState<SortableField>("completedDate");
@@ -402,14 +406,17 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => navigate(`/edit-completed-order/${order.id}`)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
+                          {/* Hide Edit button for regular users */}
+                          {!isRegularUser && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => navigate(`/edit-completed-order/${order.id}`)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 

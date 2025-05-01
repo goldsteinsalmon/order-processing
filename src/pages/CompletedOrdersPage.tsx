@@ -8,12 +8,15 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 
 const CompletedOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [batchFilter, setBatchFilter] = useState("");
   const navigate = useNavigate();
+  const { currentUser } = useAuth(); // Get current user to check role
+  const isRegularUser = currentUser?.role === "User";
   
   // Extract batch filter from URL if present
   useEffect(() => {
@@ -44,10 +47,13 @@ const CompletedOrdersPage: React.FC = () => {
         <div className="flex items-center">
           <h2 className="text-2xl font-bold">Completed Orders</h2>
         </div>
-        <Button onClick={handleExport}>
-          <FileText className="mr-2 h-4 w-4" />
-          Invoicing
-        </Button>
+        {/* Hide Invoicing button for regular users */}
+        {!isRegularUser && (
+          <Button onClick={handleExport}>
+            <FileText className="mr-2 h-4 w-4" />
+            Invoicing
+          </Button>
+        )}
       </div>
       
       <div className="mb-6">

@@ -80,6 +80,31 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           
+          {/* New: Allow access to picking list for regular users */}
+          <Route path="/picking-list" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PickingListPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/picking-list/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PickingListPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/print-box-label" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PrintBoxLabelPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/print-box-label/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PrintBoxLabelPage />
+            </ProtectedRoute>
+          } />
+          
           {/* Routes restricted to manager/admin only */}
           <Route path="/customers" element={
             <ProtectedRoute>
@@ -135,18 +160,6 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           
-          <Route path="/picking-list" element={
-            <ProtectedRoute>
-              <PickingListPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/picking-list/:id" element={
-            <ProtectedRoute>
-              <PickingListPage />
-            </ProtectedRoute>
-          } />
-          
           <Route path="/standing-orders" element={
             <ProtectedRoute>
               <StandingOrdersPage />
@@ -192,18 +205,6 @@ const App: React.FC = () => {
           <Route path="/missing-items" element={
             <ProtectedRoute>
               <MissingItemsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/print-box-label" element={
-            <ProtectedRoute>
-              <PrintBoxLabelPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/print-box-label/:id" element={
-            <ProtectedRoute>
-              <PrintBoxLabelPage />
             </ProtectedRoute>
           } />
           
