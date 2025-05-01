@@ -30,199 +30,204 @@ import ExportOrdersPage from "./pages/ExportOrdersPage";
 import ExportOrdersViewPage from "./pages/ExportOrdersViewPage";
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider } from "./context/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
+import SupabaseProtectedRoute from "./components/SupabaseProtectedRoute";
+import { SupabaseAuthProvider } from "./context/SupabaseAuthContext";
+import { Toaster } from "@/components/ui/toaster";
 
 const App: React.FC = () => {
   return (
-    <DataProvider>
-      <AuthProvider>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<LoginPage />} />
-          
-          {/* Default redirect to login */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          
-          {/* Routes accessible to all users, including regular users */}
-          <Route path="/orders" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <OrdersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/completed-orders" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <CompletedOrdersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/order-details/:id" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <OrderDetailsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/view-completed-order/:id" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <ViewCompletedOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/export-orders" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <ExportOrdersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/export-orders-view" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <ExportOrdersViewPage />
-            </ProtectedRoute>
-          } />
-          
-          {/* New: Allow access to picking list for regular users */}
-          <Route path="/picking-list" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <PickingListPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/picking-list/:id" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <PickingListPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/print-box-label" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <PrintBoxLabelPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/print-box-label/:id" element={
-            <ProtectedRoute allowUserAccess={true}>
-              <PrintBoxLabelPage />
-            </ProtectedRoute>
-          } />
-          
-          {/* Routes restricted to manager/admin only */}
-          <Route path="/customers" element={
-            <ProtectedRoute>
-              <CustomersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/customer-details/:id" element={
-            <ProtectedRoute>
-              <CustomerDetailsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/create-customer" element={
-            <ProtectedRoute>
-              <CreateCustomerPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/products" element={
-            <ProtectedRoute>
-              <ProductsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/product-details/:id" element={
-            <ProtectedRoute>
-              <ProductDetailsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/create-product" element={
-            <ProtectedRoute>
-              <CreateProductPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/create-order" element={
-            <ProtectedRoute>
-              <CreateOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/edit-order/:id" element={
-            <ProtectedRoute>
-              <EditCompletedOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/edit-completed-order/:id" element={
-            <ProtectedRoute>
-              <EditCompletedOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/standing-orders" element={
-            <ProtectedRoute>
-              <StandingOrdersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/standing-order-details/:id" element={
-            <ProtectedRoute>
-              <StandingOrderDetailsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/create-standing-order" element={
-            <ProtectedRoute>
-              <CreateStandingOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/edit-standing-order/:id" element={
-            <ProtectedRoute>
-              <EditStandingOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/standing-order-schedule/:id" element={
-            <ProtectedRoute>
-              <StandingOrderSchedulePage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/edit-standing-order-delivery/:id" element={
-            <ProtectedRoute>
-              <EditStandingOrderDeliveryPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/returns" element={
-            <ProtectedRoute>
-              <ReturnsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/missing-items" element={
-            <ProtectedRoute>
-              <MissingItemsPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/batch-tracking" element={
-            <ProtectedRoute>
-              <BatchTrackingPage />
-            </ProtectedRoute>
-          } />
-          
-          {/* Admin-only route */}
-          <Route path="/admin" element={
-            <ProtectedRoute requireAdmin={true}>
-              <AdminPage />
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </AuthProvider>
-    </DataProvider>
+    <SupabaseAuthProvider>
+      <DataProvider>
+        <AuthProvider>
+          <Routes>
+            {/* Public route */}
+            <Route path="/login" element={<LoginPage />} />
+            
+            {/* Default redirect to login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            
+            {/* Routes accessible to all users, including regular users */}
+            <Route path="/orders" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <OrdersPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/completed-orders" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <CompletedOrdersPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/order-details/:id" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <OrderDetailsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/view-completed-order/:id" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <ViewCompletedOrderPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/export-orders" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <ExportOrdersPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/export-orders-view" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <ExportOrdersViewPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            {/* New: Allow access to picking list for regular users */}
+            <Route path="/picking-list" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <PickingListPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/picking-list/:id" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <PickingListPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/print-box-label" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <PrintBoxLabelPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/print-box-label/:id" element={
+              <SupabaseProtectedRoute allowUserAccess={true}>
+                <PrintBoxLabelPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            {/* Routes restricted to manager/admin only */}
+            <Route path="/customers" element={
+              <SupabaseProtectedRoute>
+                <CustomersPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/customer-details/:id" element={
+              <SupabaseProtectedRoute>
+                <CustomerDetailsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/create-customer" element={
+              <SupabaseProtectedRoute>
+                <CreateCustomerPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/products" element={
+              <SupabaseProtectedRoute>
+                <ProductsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/product-details/:id" element={
+              <SupabaseProtectedRoute>
+                <ProductDetailsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/create-product" element={
+              <SupabaseProtectedRoute>
+                <CreateProductPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/create-order" element={
+              <SupabaseProtectedRoute>
+                <CreateOrderPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/edit-order/:id" element={
+              <SupabaseProtectedRoute>
+                <EditCompletedOrderPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/edit-completed-order/:id" element={
+              <SupabaseProtectedRoute>
+                <EditCompletedOrderPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/standing-orders" element={
+              <SupabaseProtectedRoute>
+                <StandingOrdersPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/standing-order-details/:id" element={
+              <SupabaseProtectedRoute>
+                <StandingOrderDetailsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/create-standing-order" element={
+              <SupabaseProtectedRoute>
+                <CreateStandingOrderPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/edit-standing-order/:id" element={
+              <SupabaseProtectedRoute>
+                <EditStandingOrderPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/standing-order-schedule/:id" element={
+              <SupabaseProtectedRoute>
+                <StandingOrderSchedulePage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/edit-standing-order-delivery/:id" element={
+              <SupabaseProtectedRoute>
+                <EditStandingOrderDeliveryPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/returns" element={
+              <SupabaseProtectedRoute>
+                <ReturnsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/missing-items" element={
+              <SupabaseProtectedRoute>
+                <MissingItemsPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            <Route path="/batch-tracking" element={
+              <SupabaseProtectedRoute>
+                <BatchTrackingPage />
+              </SupabaseProtectedRoute>
+            } />
+            
+            {/* Admin-only route */}
+            <Route path="/admin" element={
+              <SupabaseProtectedRoute requireAdmin={true}>
+                <AdminPage />
+              </SupabaseProtectedRoute>
+            } />
+          </Routes>
+          <Toaster />
+        </AuthProvider>
+      </DataProvider>
+    </SupabaseAuthProvider>
   );
 };
 
