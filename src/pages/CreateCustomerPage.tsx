@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ const CreateCustomerPage: React.FC = () => {
       email,
       phone,
       address: "", // Add empty address to satisfy the type requirement
-      type: "Private" as "Private" | "Trade",
+      type: "Trade" as "Trade", // Always set to Trade
       on_hold: false,
       needs_detailed_box_labels: needsDetailedBoxLabels
     };

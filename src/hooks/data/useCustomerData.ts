@@ -3,7 +3,6 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types";
 import { toast } from "@/hooks/use-toast";
-import { adaptCustomerToCamelCase, adaptCustomerToSnakeCase } from "@/utils/typeAdapters";
 
 export const useCustomerData = (toastHandler: any) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -38,11 +37,11 @@ export const useCustomerData = (toastHandler: any) => {
         email: data[0].email,
         phone: data[0].phone,
         address: data[0].address,
-        type: data[0].type as "Private" | "Trade",
-        account_number: data[0].account_number,
-        on_hold: data[0].on_hold,
+        type: data[0].type as "Trade", // Only Trade type is allowed
+        account_number: data[0].account_number || "", // Ensure account_number is not null
+        on_hold: data[0].on_hold || false,
         hold_reason: data[0].hold_reason,
-        needs_detailed_box_labels: data[0].needs_detailed_box_labels
+        needs_detailed_box_labels: data[0].needs_detailed_box_labels || false
       };
       
       setCustomers([...customers, newCustomer]);
