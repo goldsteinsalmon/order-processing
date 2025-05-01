@@ -16,10 +16,7 @@ const Navbar: React.FC = () => {
       <div className="container mx-auto">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <NavLink to="/orders" className="font-medium text-lg">
-              Order Management
-            </NavLink>
-            <nav className="hidden md:flex gap-4">
+            <nav className="flex gap-4">
               <NavLink
                 to="/orders"
                 className={({ isActive }) =>
