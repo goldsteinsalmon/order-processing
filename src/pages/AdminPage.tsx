@@ -18,7 +18,7 @@ const AdminPage: React.FC = () => {
           <TabsList className="w-full max-w-md mb-6 grid grid-cols-5">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="pickers">Pickers</TabsTrigger>
-            <TabsTrigger value="processor">Processor</TabsTrigger>
+            <TabsTrigger value="processor">S/O Processor</TabsTrigger>
             <TabsTrigger value="backup">Backup</TabsTrigger>
             <TabsTrigger value="import">Import</TabsTrigger>
           </TabsList>
