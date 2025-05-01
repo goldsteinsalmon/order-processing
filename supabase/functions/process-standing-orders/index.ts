@@ -68,10 +68,11 @@ serve(async (req) => {
     
     // Create Supabase client with service role key for full database access
     const supabaseUrl = 'https://qrchywnyoqcwwfkxzsja.supabase.co';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    // Use SERVICE_ROLE_KEY instead of SUPABASE_SERVICE_ROLE_KEY
+    const supabaseServiceKey = Deno.env.get('SERVICE_ROLE_KEY');
     
     if (!supabaseServiceKey) {
-      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+      throw new Error('Missing SERVICE_ROLE_KEY');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);

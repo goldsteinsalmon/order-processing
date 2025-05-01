@@ -11,35 +11,18 @@ export const useCustomerData = (toastHandler: any) => {
   // Add customer
   const addCustomer = async (customer: Customer): Promise<Customer | null> => {
     try {
+      // Convert customer from camelCase to snake_case for database
+      const customerForDb = adaptCustomerToSnakeCase(customer);
+      
       const { data, error } = await supabase
         .from('customers')
-        .insert({
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          address: customer.address,
-          type: customer.type,
-          account_number: customer.account_number,
-          on_hold: customer.on_hold || false,
-          hold_reason: customer.hold_reason,
-          needs_detailed_box_labels: customer.needs_detailed_box_labels || false
-        })
+        .insert(customerForDb)
         .select();
       
       if (error) throw error;
       
-      const newCustomer: Customer = {
-        id: data[0].id,
-        name: data[0].name,
-        email: data[0].email,
-        phone: data[0].phone,
-        address: data[0].address,
-        type: data[0].type as "Private" | "Trade",
-        account_number: data[0].account_number,
-        on_hold: data[0].on_hold,
-        hold_reason: data[0].hold_reason,
-        needs_detailed_box_labels: data[0].needs_detailed_box_labels
-      };
+      // Convert the returned data from snake_case to camelCase
+      const newCustomer = adaptCustomerToCamelCase(data[0]);
       
       setCustomers([...customers, newCustomer]);
       return newCustomer;
@@ -57,19 +40,12 @@ export const useCustomerData = (toastHandler: any) => {
   // Update customer
   const updateCustomer = async (customer: Customer): Promise<boolean> => {
     try {
+      // Convert customer from camelCase to snake_case for database
+      const customerForDb = adaptCustomerToSnakeCase(customer);
+      
       const { error } = await supabase
         .from('customers')
-        .update({
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          address: customer.address,
-          type: customer.type,
-          account_number: customer.account_number,
-          on_hold: customer.on_hold || false,
-          hold_reason: customer.hold_reason,
-          needs_detailed_box_labels: customer.needs_detailed_box_labels || false
-        })
+        .update(customerForDb)
         .eq('id', customer.id);
       
       if (error) throw error;

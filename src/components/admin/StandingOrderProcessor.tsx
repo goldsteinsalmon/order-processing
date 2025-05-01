@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, AlertTriangle } from "lucide-react";
 import { useData } from "@/context/DataContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const StandingOrderProcessor: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,15 +22,38 @@ const StandingOrderProcessor: React.FC = () => {
     setIsProcessing(true);
     
     try {
-      await processStandingOrders();
-      
-      const now = new Date();
-      setLastProcessed(now.toISOString());
-      
-      toast({
-        title: "Processing Complete",
-        description: "Standing orders have been processed successfully.",
-      });
+      // First try to use the edge function directly
+      try {
+        const { data, error } = await supabase.functions.invoke('process-standing-orders', {
+          body: { trigger: 'manual' }
+        });
+
+        if (error) throw error;
+        
+        console.log('Edge function response:', data);
+        
+        const now = new Date();
+        setLastProcessed(now.toISOString());
+        
+        toast({
+          title: "Processing Complete",
+          description: `Successfully processed ${data.processed} standing orders.`,
+        });
+      } catch (edgeError) {
+        console.error("Error calling edge function:", edgeError);
+        
+        // Fall back to client-side processing
+        console.log("Falling back to client-side processing");
+        await processStandingOrders();
+        
+        const now = new Date();
+        setLastProcessed(now.toISOString());
+        
+        toast({
+          title: "Processing Complete (Client-side)",
+          description: "Standing orders have been processed successfully.",
+        });
+      }
     } catch (error) {
       console.error("Error processing standing orders:", error);
       toast({
