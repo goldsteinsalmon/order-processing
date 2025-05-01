@@ -1,6 +1,7 @@
 
 import React from "react";
 import Navbar from "./Navbar";
+import { Toaster } from "@/components/ui/toaster";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="container mx-auto px-4 py-6">
         {children}
       </main>
+      <Toaster />
     </div>
   );
 };
