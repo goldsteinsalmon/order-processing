@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, PackagePlus, Save, Search } from "lucide-react";
+import { Eye, PackagePlus, Save, Search, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { format, addDays, startOfDay, isSameDay, parseISO } from "date-fns";
@@ -152,6 +151,20 @@ const ProductsPage: React.FC = () => {
     });
   };
 
+  // Handle duplicate product
+  const handleDuplicateProduct = (productId: string) => {
+    const productToDuplicate = products.find(p => p.id === productId);
+    if (!productToDuplicate) return;
+    
+    // Navigate to create product page with state containing the product to duplicate
+    navigate("/create-product", { 
+      state: { 
+        duplicateFrom: productToDuplicate,
+        isDuplicating: true
+      } 
+    });
+  };
+
   return (
     <Layout>
       <div className="flex justify-between mb-6">
@@ -234,13 +247,22 @@ const ProductsPage: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => navigate(`/product-details/${product.id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" /> View Details
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => navigate(`/product-details/${product.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" /> View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateProduct(product.id)}
+                        >
+                          <Copy className="h-4 w-4 mr-1" /> Duplicate
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

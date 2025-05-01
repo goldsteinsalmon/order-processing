@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Eye, UserPlus, Search, Package } from "lucide-react";
+import { Eye, UserPlus, Search, Package, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,6 +35,20 @@ const CustomersPage: React.FC = () => {
       return accountA.localeCompare(accountB);
     });
   }, [customers, searchTerm]);
+
+  // Handle duplicate customer
+  const handleDuplicateCustomer = (customerId: string) => {
+    const customerToDuplicate = customers.find(c => c.id === customerId);
+    if (!customerToDuplicate) return;
+    
+    // Navigate to create customer page with state containing the customer to duplicate
+    navigate("/create-customer", { 
+      state: { 
+        duplicateFrom: customerToDuplicate,
+        isDuplicating: true 
+      } 
+    });
+  };
 
   return (
     <Layout>
@@ -113,14 +127,24 @@ const CustomersPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => navigate(`/customer-details/${customer.id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => navigate(`/customer-details/${customer.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateCustomer(customer.id)}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Duplicate
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))

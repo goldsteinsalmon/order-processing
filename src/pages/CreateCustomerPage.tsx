@@ -1,26 +1,44 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from "uuid";
 import { Switch } from "@/components/ui/switch";
+import { Customer } from "@/types";
 
 const CreateCustomerPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addCustomer } = useData();
   const { toast } = useToast();
+  
+  // Get any duplicate customer data from location state
+  const duplicateCustomer = location.state?.duplicateFrom as Customer | undefined;
+  const isDuplicating = location.state?.isDuplicating as boolean | undefined;
   
   const [name, setName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [needsDetailedBoxLabels, setNeedsDetailedBoxLabels] = useState(false);
+
+  // Populate form with duplicate data if available
+  useEffect(() => {
+    if (duplicateCustomer && isDuplicating) {
+      setName(duplicateCustomer.name + " (Copy)");
+      // For account number, we'll suggest a modified version to avoid duplicate account numbers
+      setAccountNumber(duplicateCustomer.accountNumber + "-COPY");
+      setEmail(duplicateCustomer.email || "");
+      setPhone(duplicateCustomer.phone || "");
+      setNeedsDetailedBoxLabels(duplicateCustomer.needsDetailedBoxLabels || false);
+    }
+  }, [duplicateCustomer, isDuplicating]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,14 +62,14 @@ const CreateCustomerPage: React.FC = () => {
       type: "Private" as "Private" | "Trade",
       onHold: false,
       created: new Date().toISOString(),
-      needsDetailedBoxLabels // Add the new field
+      needsDetailedBoxLabels
     };
     
     addCustomer(newCustomer);
     
     toast({
       title: "Success",
-      description: "Customer created successfully."
+      description: isDuplicating ? "Customer duplicated successfully." : "Customer created successfully."
     });
     
     navigate("/customers");
@@ -60,7 +78,9 @@ const CreateCustomerPage: React.FC = () => {
   return (
     <Layout>
       <div className="flex justify-between mb-6">
-        <h2 className="text-2xl font-bold">New Customer</h2>
+        <h2 className="text-2xl font-bold">
+          {isDuplicating ? "Duplicate Customer" : "New Customer"}
+        </h2>
         <Button variant="outline" onClick={() => navigate("/customers")}>
           Back to Customers
         </Button>
@@ -69,7 +89,14 @@ const CreateCustomerPage: React.FC = () => {
       <Card>
         <form onSubmit={handleSubmit}>
           <CardHeader>
-            <CardTitle>Customer Information</CardTitle>
+            <CardTitle>
+              {isDuplicating ? "Duplicate Customer Information" : "Customer Information"}
+              {isDuplicating && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  You're creating a copy of an existing customer. Please adjust the details as needed.
+                </p>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -124,7 +151,9 @@ const CreateCustomerPage: React.FC = () => {
             <Button variant="outline" type="button" onClick={() => navigate("/customers")}>
               Cancel
             </Button>
-            <Button type="submit">Create Customer</Button>
+            <Button type="submit">
+              {isDuplicating ? "Create Duplicate" : "Create Customer"}
+            </Button>
           </CardFooter>
         </form>
       </Card>
