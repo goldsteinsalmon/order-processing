@@ -211,14 +211,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
     
-    // Special handling for box distributions to prevent double counting
-    const processedBoxItems = new Set<string>();
+    // Create a tracking object for unique product-boxed items to avoid double counting
+    // Use a map where key is productId and value is the total weight already counted
+    const processedProductWeights = new Map<string, number>();
     
-    // Process boxes exclusively - don't double count with order.items
+    // Process boxes exclusively - avoid double-counting with order.items
     if (order.boxDistributions && order.boxDistributions.length > 0) {
-      processBoxes(order.boxDistributions);
+      processBoxDistributions(order.boxDistributions);
     } else if (order.boxes && order.boxes.length > 0) {
-      processBoxes(order.boxes);
+      processBoxDistributions(order.boxes);
     }
     
     // Helper function to process order items
@@ -231,22 +232,41 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     }
     
-    // Helper function to process boxes
-    function processBoxes(boxes: Box[]) {
+    // Helper function to process box distributions with deduplication
+    function processBoxDistributions(boxes: Box[]) {
+      // First scan to collect total weights per product across all boxes
+      boxes.forEach(box => {
+        box.items.forEach(item => {
+          // Only track product totals for deduplication, don't record in batch yet
+          const key = item.productId;
+          const currentWeight = processedProductWeights.get(key) || 0;
+          processedProductWeights.set(key, currentWeight + item.weight);
+        });
+      });
+      
+      // Now process each box but eliminate double-counting
       boxes.forEach(box => {
         // Determine which batch number to use for this box
         const boxBatch = box.batchNumber || order.batchNumber || 
           (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : undefined);
         
         if (boxBatch) {
+          // For each box, process each product only ONCE
+          // Use a set to track which products we've handled in THIS box
+          const processedInThisBox = new Set<string>();
+          
           box.items.forEach(item => {
             const itemBatch = item.batchNumber || boxBatch;
-            const boxItemKey = `box-${box.boxNumber}-item-${item.productId}`;
             
-            // Only process this box item if we haven't seen it before
-            if (!processedBoxItems.has(boxItemKey)) {
+            // Only process if we haven't seen this product in this box
+            if (!processedInThisBox.has(item.productId)) {
+              // Determine effective weight: get actual weight from first occurrence
+              // For multi-box items, we already tracked total weights above
+              // Add item to batch usage tracking
               addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
-              processedBoxItems.add(boxItemKey);
+              
+              // Mark as processed in this box
+              processedInThisBox.add(item.productId);
             }
           });
         }

@@ -65,9 +65,9 @@ const BatchTrackingPage: React.FC = () => {
       // Track unique order IDs
       const uniqueOrderIds = new Set<string>();
       
-      // Track processed product-order combinations to prevent double counting
-      // For multi-box orders, we need to track at the item level
-      const processedItems = new Map<string, number>(); // productId-orderId -> weight already counted
+      // Create a map to track processed items by product/order combos
+      // Key: productId-orderId, Value: weight already counted
+      const processedProductOrders = new Map<string, number>();
       
       // Go through all items for this batch and properly consolidate
       batchItems.forEach(item => {
@@ -81,7 +81,7 @@ const BatchTrackingPage: React.FC = () => {
               const productOrderKey = `${item.productId}-${orderId}`;
               
               // Check if we've already processed this product-order combination
-              const existingWeight = processedItems.get(productOrderKey) || 0;
+              const existingWeight = processedProductOrders.get(productOrderKey) || 0;
               
               // Calculate the weight we should add (if any)
               let weightToAdd = 0;
@@ -92,8 +92,8 @@ const BatchTrackingPage: React.FC = () => {
               } 
               // Otherwise, don't add any weight as we've already counted it
               
-              // Update our tracking of processed items with total weight counted so far
-              processedItems.set(productOrderKey, existingWeight + weightToAdd);
+              // Update our tracking with the weight we've now counted
+              processedProductOrders.set(productOrderKey, existingWeight + weightToAdd);
               
               // Only add the weight if we determined we should
               consolidated.usedWeight += weightToAdd;
