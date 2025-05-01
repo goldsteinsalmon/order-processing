@@ -1,3 +1,4 @@
+
 import React, { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { Edit, FilePlus, ClipboardList } from "lucide-react";
@@ -6,6 +7,7 @@ import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
+import { getOrderDate, getHasChanges, getMissingItems, getCompletedBoxes, getBoxDistributions, getPickingInProgress } from "@/utils/propertyHelpers";
 
 interface OrdersListProps {
   searchTerm?: string;
@@ -32,8 +34,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
   const sortedOrders = useMemo(() => {
     const now = new Date().getTime();
     return [...filteredOrders].sort((a, b) => {
-      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : now;
-      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : now;
+      const dateA = getOrderDate(a) ? new Date(getOrderDate(a)).getTime() : now;
+      const dateB = getOrderDate(b) ? new Date(getOrderDate(b)).getTime() : now;
       
       // If either date is invalid (NaN), put it at the end
       if (isNaN(dateA)) return 1;
@@ -78,7 +80,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     }
     
     // Check for missing items
-    if (order.missingItems && order.missingItems.length > 0) {
+    const missingItemsList = getMissingItems(order);
+    if (missingItemsList && missingItemsList.length > 0) {
       return {
         label: "Missing Items",
         color: "bg-amber-100 text-amber-800"
@@ -86,10 +89,12 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     }
 
     // Check for partially picked boxes
-    if (order.boxDistributions && order.completedBoxes && 
-        order.boxDistributions.length > 0 && 
-        order.completedBoxes.length > 0 && 
-        order.completedBoxes.length < order.boxDistributions.length) {
+    const boxDistributions = getBoxDistributions(order);
+    const completedBoxes = getCompletedBoxes(order);
+    if (boxDistributions && completedBoxes && 
+        boxDistributions.length > 0 && 
+        completedBoxes.length > 0 && 
+        completedBoxes.length < boxDistributions.length) {
       return {
         label: "Partially Picked",
         color: "bg-purple-100 text-purple-800"
@@ -97,7 +102,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     }
 
     // Check for picking in progress
-    if (order.pickingInProgress) {
+    if (getPickingInProgress(order)) {
       return {
         label: "Picking In Progress",
         color: "bg-indigo-100 text-indigo-800"
@@ -120,7 +125,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
   // Determine if an order should be highlighted for changes
   const shouldHighlightChanges = (order) => {
     // Highlight orders with changes regardless of picking status
-    if (order.hasChanges) {
+    if (getHasChanges(order)) {
       return true;
     }
     return false;
@@ -180,9 +185,10 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                   let isNextDay = false;
                   
                   try {
-                    if (order.orderDate) {
-                      isSameDay = isSameDayOrder(order.orderDate);
-                      isNextDay = isNextWorkingDayOrder(order.orderDate);
+                    const orderDateStr = getOrderDate(order);
+                    if (orderDateStr) {
+                      isSameDay = isSameDayOrder(orderDateStr);
+                      isNextDay = isNextWorkingDayOrder(orderDateStr);
                     }
                   } catch (e) {
                     console.error("Error checking order dates:", e);
@@ -204,7 +210,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                       <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
                       <td className="px-4 py-3">{order.customer?.name || "Unknown Customer"}</td>
                       <td className="px-4 py-3">
-                        {safeFormatDate(order.orderDate)}
+                        {safeFormatDate(getOrderDate(order))}
                       </td>
                       <td className="px-4 py-3">{order.deliveryMethod || "N/A"}</td>
                       <td className="px-4 py-3">
@@ -218,15 +224,15 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                           </div>
                         )}
                         
-                        {statusDisplay.label === "Missing Items" && order.missingItems && (
+                        {statusDisplay.label === "Missing Items" && getMissingItems(order) && (
                           <div className="text-xs mt-1">
-                            {order.missingItems.length} item{order.missingItems.length > 1 ? 's' : ''} missing
+                            {getMissingItems(order).length} item{getMissingItems(order).length > 1 ? 's' : ''} missing
                           </div>
                         )}
                         
-                        {statusDisplay.label === "Partially Picked" && order.completedBoxes && (
+                        {statusDisplay.label === "Partially Picked" && getCompletedBoxes(order) && (
                           <div className="text-xs mt-1">
-                            {order.completedBoxes.length} of {order.boxDistributions.length} boxes picked
+                            {getCompletedBoxes(order).length} of {getBoxDistributions(order).length} boxes picked
                           </div>
                         )}
                       </td>

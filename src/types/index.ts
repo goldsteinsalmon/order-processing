@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string;
@@ -18,27 +19,55 @@ export interface Product {
   description: string;
   stock_level: number;
   weight?: number;
-  requires_weight_input?: boolean;
+  requiresWeightInput?: boolean;
   unit?: string;
   required?: boolean;
 }
 
 export interface Order {
   id: string;
-  customer_id: string;
+  customerId: string;
   customer?: Customer;
-  customer_order_number?: string;
-  order_date: string;
-  required_date: string;
-  delivery_method: 'Delivery' | 'Collection';
+  customerOrderNumber?: string;
+  orderDate: string;
+  requiredDate: string;
+  deliveryMethod: 'Delivery' | 'Collection';
   notes?: string;
   status: 'Pending' | 'Processing' | 'Completed' | 'Cancelled' | 'Missing Items' | 'Modified' | 'Partially Picked';
   items?: OrderItem[];
   created?: string;
   updated?: string;
   picker?: string;
-  picked_by?: string;
-  picked_at?: string;
+  pickedBy?: string;
+  pickedAt?: string;
+  isPicked?: boolean;
+  totalBlownPouches?: number;
+  isModified?: boolean;
+  batchNumber?: string;
+  batchNumbers?: string[];
+  hasChanges?: boolean;
+  fromStandingOrder?: string;
+  pickingInProgress?: boolean;
+  pickingProgress?: {
+    batchNumbers?: Record<string, string>;
+  };
+  boxDistributions?: Box[];
+  completedBoxes?: number[];
+  missingItems?: MissingItem[];
+  invoiced?: boolean;
+  invoiceNumber?: string;
+  invoiceDate?: string;
+  changes?: OrderChange[];
+  savedBoxes?: number[];
+  batchSummaries?: BatchSummary[];
+  
+  // Legacy properties for backward compatibility during transition
+  // These should be removed once all code is updated
+  customer_id?: string;
+  customer_order_number?: string;
+  order_date?: string;
+  required_date?: string;
+  delivery_method?: 'Delivery' | 'Collection';
   is_picked?: boolean;
   total_blown_pouches?: number;
   is_modified?: boolean;
@@ -47,35 +76,45 @@ export interface Order {
   has_changes?: boolean;
   from_standing_order?: string;
   picking_in_progress?: boolean;
-  picking_progress?: {
-    batchNumbers?: Record<string, string>;
-  };
-  box_distributions?: Box[];
+  picking_progress?: any;
+  box_distributions?: any[];
   completed_boxes?: number[];
-  missing_items?: MissingItem[];
-  invoiced?: boolean;
+  missing_items?: any[];
   invoice_number?: string;
   invoice_date?: string;
-  changes?: OrderChange[];
-  savedBoxes?: number[];
-  batchSummaries?: BatchSummary[];
+  picked_by?: string;
+  picked_at?: string;
 }
 
 export interface OrderItem {
   id: string;
-  order_id: string;
-  product_id: string;
+  orderId: string;
+  productId: string;
   quantity: number;
   product?: Product;
-  original_quantity?: number;
+  originalQuantity?: number;
+  unavailableQuantity?: number;
+  isUnavailable?: boolean;
+  blownPouches?: number;
+  batchNumber?: string;
+  checked?: boolean;
+  missingQuantity?: number;
+  pickedQuantity?: number;
+  pickedWeight?: number;
+  boxNumber?: number;
+  manualWeight?: number;
+  
+  // Legacy properties for backward compatibility during transition
+  order_id?: string;
+  product_id?: string;
   unavailable_quantity?: number;
   is_unavailable?: boolean;
   blown_pouches?: number;
   batch_number?: string;
-  checked?: boolean;
   missing_quantity?: number;
   picked_quantity?: number;
   picked_weight?: number;
+  original_quantity?: number;
   box_number?: number;
   manual_weight?: number;
 }
@@ -90,29 +129,40 @@ export interface OrderChange {
 
 export interface Box {
   id: string;
-  order_id: string;
-  box_number: number;
-  batch_number?: string;
+  orderId: string;
+  boxNumber: number;
+  batchNumber?: string;
   completed?: boolean;
   printed?: boolean;
   items: BoxItem[];
+  
+  // Legacy properties for backward compatibility during transition
+  order_id?: string;
+  box_number?: number;
+  batch_number?: string;
 }
 
 export interface BoxItem {
   id: string;
-  box_id: string;
-  product_id: string;
-  product_name: string;
+  boxId: string;
+  productId: string;
+  productName: string;
   quantity: number;
   weight?: number;
+  batchNumber?: string;
+  
+  // Legacy properties for backward compatibility during transition
+  box_id?: string;
+  product_id?: string;
+  product_name?: string;
   batch_number?: string;
 }
 
 export interface StandingOrder {
   id: string;
-  customer_id: string;
+  customerId: string;
   customer?: Customer;
-  customer_order_number?: string;
+  customerOrderNumber?: string;
   items: StandingOrderItem[];
   schedule: {
     frequency: 'Weekly' | 'Bi-Weekly' | 'Monthly';
@@ -132,18 +182,28 @@ export interface StandingOrder {
   };
   notes?: string;
   active: boolean;
-  next_processing_date?: string;
-  last_processed_date?: string;
+  nextProcessingDate?: string;
+  lastProcessedDate?: string;
   created?: string;
   updated?: string;
+  
+  // Legacy properties
+  customer_id?: string;
+  customer_order_number?: string;
+  next_processing_date?: string;
+  last_processed_date?: string;
 }
 
 export interface StandingOrderItem {
   id: string;
-  product_id: string;
-  standing_order_id?: string;
+  productId: string;
+  standingOrderId?: string;
   product?: Product;
   quantity: number;
+  
+  // Legacy properties
+  product_id?: string;
+  standing_order_id?: string;
 }
 
 export interface User {
@@ -163,15 +223,25 @@ export interface Picker {
 
 export interface BatchUsage {
   id: string;
-  batch_number: string;
-  product_id: string;
-  product_name: string;
-  total_weight: number;
-  used_weight: number;
-  orders_count: number;
-  first_used: string;
-  last_used: string;
-  usedBy?: string[]; // Added usedBy property
+  batchNumber: string;
+  productId: string;
+  productName: string;
+  totalWeight: number;
+  usedWeight: number;
+  ordersCount: number;
+  firstUsed: string;
+  lastUsed: string;
+  usedBy?: string[];
+  
+  // Legacy properties
+  batch_number?: string;
+  product_id?: string;
+  product_name?: string;
+  total_weight?: number;
+  used_weight?: number;
+  orders_count?: number;
+  first_used?: string;
+  last_used?: string;
 }
 
 export interface BatchSummary {
@@ -181,8 +251,8 @@ export interface BatchSummary {
 
 export interface MissingItem {
   id: string;
-  order_id: string;
-  product_id: string;
+  orderId: string;
+  productId: string;
   quantity: number;
   date: string;
   status?: 'Pending' | 'Processed';
@@ -191,50 +261,88 @@ export interface MissingItem {
     id: string;
     customer: Customer;
   };
+  
+  // Legacy properties
+  order_id?: string;
+  product_id?: string;
 }
 
 export interface Return {
   id: string;
-  customer_id?: string;
-  customer_name: string;
-  customer_type: 'Private' | 'Trade';
-  contact_email?: string;
-  contact_phone?: string;
-  date_returned: string;
-  order_number?: string;
-  invoice_number?: string;
-  product_id: string;
-  product_sku: string;
+  customerId?: string;
+  customerName: string;
+  customerType: 'Private' | 'Trade';
+  contactEmail?: string;
+  contactPhone?: string;
+  dateReturned: string;
+  orderNumber?: string;
+  invoiceNumber?: string;
+  productId: string;
+  productSku: string;
   product?: Product;
   quantity: number;
   reason?: string;
-  returns_required: 'Yes' | 'No';
-  return_status: 'Pending' | 'Processing' | 'Completed' | 'No Return Required';
-  resolution_status: 'Open' | 'In Progress' | 'Resolved';
-  resolution_notes?: string;
+  returnsRequired: 'Yes' | 'No';
+  returnStatus: 'Pending' | 'Processing' | 'Completed' | 'No Return Required';
+  resolutionStatus: 'Open' | 'In Progress' | 'Resolved';
+  resolutionNotes?: string;
   created: string;
   updated?: string;
-}
-
-export interface Complaint {
-  id: string;
+  
+  // Legacy properties
   customer_id?: string;
-  customer_name: string;
-  customer_type: 'Private' | 'Trade';
+  customer_name?: string;
+  customer_type?: 'Private' | 'Trade';
   contact_email?: string;
   contact_phone?: string;
-  date_submitted: string;
+  date_returned?: string;
   order_number?: string;
   invoice_number?: string;
   product_id?: string;
   product_sku?: string;
-  product?: Product;
-  complaint_type: string;
-  complaint_details: string;
-  returns_required: 'Yes' | 'No';
-  return_status: 'Pending' | 'Processing' | 'Completed' | 'No Return Required';
-  resolution_status: 'Open' | 'In Progress' | 'Resolved';
+  returns_required?: 'Yes' | 'No';
+  return_status?: 'Pending' | 'Processing' | 'Completed' | 'No Return Required';
+  resolution_status?: 'Open' | 'In Progress' | 'Resolved';
   resolution_notes?: string;
+}
+
+export interface Complaint {
+  id: string;
+  customerId?: string;
+  customerName: string;
+  customerType: 'Private' | 'Trade';
+  contactEmail?: string;
+  contactPhone?: string;
+  dateSubmitted: string;
+  orderNumber?: string;
+  invoiceNumber?: string;
+  productId?: string;
+  productSku?: string;
+  product?: Product;
+  complaintType: string;
+  complaintDetails: string;
+  returnsRequired: 'Yes' | 'No';
+  returnStatus: 'Pending' | 'Processing' | 'Completed' | 'No Return Required';
+  resolutionStatus: 'Open' | 'In Progress' | 'Resolved';
+  resolutionNotes?: string;
   created: string;
   updated?: string;
+  
+  // Legacy properties
+  customer_id?: string;
+  customer_name?: string;
+  customer_type?: 'Private' | 'Trade';
+  contact_email?: string;
+  contact_phone?: string;
+  date_submitted?: string;
+  order_number?: string;
+  invoice_number?: string;
+  product_id?: string;
+  product_sku?: string;
+  complaint_type?: string;
+  complaint_details?: string;
+  returns_required?: 'Yes' | 'No';
+  return_status?: 'Pending' | 'Processing' | 'Completed' | 'No Return Required';
+  resolution_status?: 'Open' | 'In Progress' | 'Resolved';
+  resolution_notes?: string;
 }

@@ -11,13 +11,21 @@ import {
   MissingItem,
   User,
   Picker,
-  BatchUsage
+  BatchUsage,
+  Box,
+  BoxItem
 } from "../types";
 import { 
   adaptOrderToCamelCase, 
   adaptOrderToSnakeCase, 
   adaptCustomerToCamelCase,
-  adaptCustomerToSnakeCase
+  adaptCustomerToSnakeCase,
+  adaptProductToCamelCase,
+  adaptProductToSnakeCase,
+  adaptBatchUsageToCamelCase,
+  adaptBatchUsageToSnakeCase,
+  adaptMissingItemToCamelCase,
+  adaptMissingItemToSnakeCase
 } from "@/utils/typeAdapters";
 
 // Interface for DataContext
@@ -84,32 +92,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Convert customers to camelCase for React components
   const adaptedCustomers = supabaseData.customers.map(customer => {
-    const adapted = adaptCustomerToCamelCase(customer);
-    // Debug adapted customer
-    console.log(`DataContext: Adapting customer ${customer.id}:`, {
-      original: customer,
-      adapted: adapted
-    });
-    return adapted;
+    return adaptCustomerToCamelCase(customer);
   });
   
   // Debug to check all customer data
   useEffect(() => {
     console.log("DataContext: All adapted customers:", adaptedCustomers);
-    if (adaptedCustomers.length > 0) {
-      adaptedCustomers.forEach(customer => {
-        console.log(`DataContext: Customer ${customer.id}:`, {
-          name: customer.name,
-          accountNumber: customer.accountNumber,
-          needsDetailedBoxLabels: customer.needsDetailedBoxLabels
-        });
-      });
-    }
   }, [adaptedCustomers]);
   
   // Convert orders to camelCase for React components
   const adaptedOrders = supabaseData.orders.map(order => adaptOrderToCamelCase(order));
   const adaptedCompletedOrders = supabaseData.completedOrders.map(order => adaptOrderToCamelCase(order));
+  
+  // Convert products to camelCase
+  const adaptedProducts = supabaseData.products.map(product => adaptProductToCamelCase(product));
+  
+  // Convert batch usages to camelCase
+  const adaptedBatchUsages = supabaseData.batchUsages.map(batchUsage => adaptBatchUsageToCamelCase(batchUsage));
+  
+  // Convert missing items to camelCase
+  const adaptedMissingItems = supabaseData.missingItems.map(item => adaptMissingItemToCamelCase(item));
   
   // Wrap the updateCustomer function to convert camelCase back to snake_case
   const updateCustomer = async (camelCaseCustomer: Customer): Promise<boolean> => {
@@ -133,6 +135,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   };
   
+  // Wrap the updateProduct function to convert camelCase back to snake_case
+  const updateProduct = async (camelCaseProduct: Product): Promise<boolean> => {
+    const snakeCaseProduct = adaptProductToSnakeCase(camelCaseProduct);
+    return await supabaseData.updateProduct(snakeCaseProduct);
+  };
+  
+  // Wrap the addProduct function to convert camelCase back to snake_case
+  const addProduct = async (camelCaseProduct: Product | Product[]): Promise<Product | Product[] | null> => {
+    if (Array.isArray(camelCaseProduct)) {
+      const snakeCaseProducts = camelCaseProduct.map(adaptProductToSnakeCase);
+      const result = await supabaseData.addProduct(snakeCaseProducts);
+      return result ? (Array.isArray(result) ? result.map(adaptProductToCamelCase) : adaptProductToCamelCase(result)) : null;
+    } else {
+      const snakeCaseProduct = adaptProductToSnakeCase(camelCaseProduct);
+      const result = await supabaseData.addProduct(snakeCaseProduct);
+      return result ? adaptProductToCamelCase(result) : null;
+    }
+  };
+  
   // Wrap the updateOrder function to convert camelCase back to snake_case
   const updateOrder = async (camelCaseOrder: Order): Promise<boolean> => {
     const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
@@ -145,16 +166,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const result = await supabaseData.addOrder(snakeCaseOrder);
     return result ? adaptOrderToCamelCase(result) : null;
   };
+
+  // Wrap the missing item functions to ensure proper conversion
+  const addMissingItem = async (camelCaseMissingItem: MissingItem): Promise<MissingItem | null> => {
+    const snakeCaseMissingItem = adaptMissingItemToSnakeCase(camelCaseMissingItem);
+    const result = await supabaseData.addMissingItem(snakeCaseMissingItem);
+    return result ? adaptMissingItemToCamelCase(result) : null;
+  };
   
   const value: DataContextType = {
     ...supabaseData,
     customers: adaptedCustomers,
+    products: adaptedProducts,
     orders: adaptedOrders,
     completedOrders: adaptedCompletedOrders,
+    batchUsages: adaptedBatchUsages,
+    missingItems: adaptedMissingItems,
     updateCustomer,
     addCustomer,
+    updateProduct,
+    addProduct,
     updateOrder,
-    addOrder
+    addOrder,
+    addMissingItem
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

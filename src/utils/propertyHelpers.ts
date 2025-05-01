@@ -46,6 +46,8 @@ export const getInvoiceNumber = (order: Order): string | undefined =>
   order.invoiceNumber || order.invoice_number;
 export const getInvoiceDate = (order: Order): string | undefined => 
   order.invoiceDate || order.invoice_date;
+export const getCustomerId = (order: Order): string =>
+  order.customerId || order.customer_id;
 
 // Order item related helpers
 export const getProductId = (item: OrderItem): string => 
@@ -68,10 +70,14 @@ export const getPickedWeight = (item: OrderItem): number | undefined =>
   item.pickedWeight || item.picked_weight;
 export const getOriginalQuantity = (item: OrderItem): number | undefined => 
   item.originalQuantity || item.original_quantity;
-export const getBoxNumber = (item: OrderItem): number | undefined => 
+export const getBoxNumberItem = (item: OrderItem): number | undefined => 
   item.boxNumber || item.box_number;
 export const getManualWeight = (item: OrderItem): number | undefined => 
   item.manualWeight || item.manual_weight;
+
+// Product related helpers
+export const getRequiresWeightInput = (product: any): boolean | undefined =>
+  product.requiresWeightInput || product.requires_weight_input;
 
 // Box related helpers
 export const getBoxNumber = (box: Box): number => 
@@ -86,3 +92,9 @@ export const getBoxItemBatchNumber = (boxItem: BoxItem): string | undefined =>
   boxItem.batchNumber || boxItem.batch_number;
 export const getBoxItemProductId = (boxItem: BoxItem): string => 
   boxItem.productId || boxItem.product_id;
+
+// MissingItem related helpers
+export const getMissingItemOrderId = (missingItem: any): string => 
+  missingItem.orderId || missingItem.order_id;
+export const getMissingItemProductId = (missingItem: any): string => 
+  missingItem.productId || missingItem.product_id;
