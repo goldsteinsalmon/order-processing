@@ -4,20 +4,13 @@ import { Order, OrderItem } from "@/types";
 import { format, parseISO } from "date-fns";
 
 interface ExportOrderRow {
-  orderId: string;
-  invoiced: string;
-  invoiceNumber: string;
-  invoiceDate: string;
-  orderDate: string;
-  customerAccountNumber: string;
+  accountNumber: string;
   customerName: string;
   customerOrderNumber: string;
   productSku: string;
   productName: string;
-  quantity: number;
+  quantity: number | string;
   weight: string;
-  batchNumbers: string;
-  notes: string;
 }
 
 export const exportOrdersToCsv = (orders: Order[], filename = "orders-export.csv"): void => {
@@ -25,28 +18,21 @@ export const exportOrdersToCsv = (orders: Order[], filename = "orders-export.csv
   const rows: ExportOrderRow[] = [];
   
   orders.forEach(order => {
-    // Get all batch numbers as a string
-    const allBatchNumbers = getBatchNumbersString(order);
-    
     // For each order, create a row for each product
     order.items.forEach(item => {
       const productWeight = getItemWeight(item);
       
+      // Determine if we should show quantity or not
+      const quantity = productWeight > 0 && item.manualWeight ? "" : item.quantity;
+      
       rows.push({
-        orderId: order.id.substring(0, 8),
-        invoiced: order.invoiced ? "Yes" : "No",
-        invoiceNumber: order.invoiceNumber || "",
-        invoiceDate: order.invoiceDate ? format(parseISO(order.invoiceDate), "dd/MM/yyyy") : "",
-        orderDate: format(parseISO(order.orderDate), "dd/MM/yyyy"),
-        customerAccountNumber: order.customer.accountNumber || "",
+        accountNumber: order.customer.accountNumber || "",
         customerName: order.customer.name,
         customerOrderNumber: order.customerOrderNumber || "",
         productSku: item.product.sku,
         productName: item.product.name,
-        quantity: item.quantity,
+        quantity: quantity,
         weight: productWeight > 0 ? `${(productWeight / 1000).toFixed(2)} kg` : "",
-        batchNumbers: allBatchNumbers,
-        notes: order.notes || ""
       });
     });
   });
