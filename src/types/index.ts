@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -215,6 +216,13 @@ export interface User {
   email: string; // This is used as the username
   password?: string; // Added password field
   role: "Admin" | "User" | "Manager";
+  active: boolean;
+}
+
+// Add the missing Picker interface
+export interface Picker {
+  id: string;
+  name: string;
   active: boolean;
 }
 
