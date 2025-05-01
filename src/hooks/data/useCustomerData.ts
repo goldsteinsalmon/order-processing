@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { adaptCustomerToSnakeCase } from "@/lib/utils";
+import { adaptCustomerToSnakeCase } from "@/utils/typeAdapters";
 
 export const useCustomerData = (toastHandler: any) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -11,15 +11,27 @@ export const useCustomerData = (toastHandler: any) => {
   // Add customer
   const addCustomer = async (customer: Customer): Promise<Customer | null> => {
     try {
+      console.log("Adding customer with data:", customer);
+      
       // Ensure proper type conversion before inserting into the database
       const customerForDb = adaptCustomerToSnakeCase(customer);
+      console.log("Converted customer for DB:", customerForDb);
       
       const { data, error } = await supabase
         .from('customers')
         .insert(customerForDb)
         .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      console.log("Supabase response:", data);
+      
+      if (!data || data.length === 0) {
+        throw new Error("No data returned from insert operation");
+      }
       
       // Create the new customer object with proper typing
       const newCustomer: Customer = {
@@ -35,6 +47,7 @@ export const useCustomerData = (toastHandler: any) => {
         needsDetailedBoxLabels: data[0].needs_detailed_box_labels || false
       };
       
+      console.log("Created new customer object:", newCustomer);
       setCustomers([...customers, newCustomer]);
       return newCustomer;
     } catch (error) {
@@ -51,15 +64,21 @@ export const useCustomerData = (toastHandler: any) => {
   // Update customer
   const updateCustomer = async (customer: Customer): Promise<boolean> => {
     try {
+      console.log("Updating customer with data:", customer);
+      
       // Ensure proper type conversion before updating the database
       const customerForDb = adaptCustomerToSnakeCase(customer);
+      console.log("Converted customer for DB update:", customerForDb);
       
       const { error } = await supabase
         .from('customers')
         .update(customerForDb)
         .eq('id', customer.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw error;
+      }
       
       setCustomers(customers.map(c => c.id === customer.id ? customer : c));
       return true;

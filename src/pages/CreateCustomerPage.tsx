@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -51,26 +52,33 @@ const CreateCustomerPage: React.FC = () => {
       return;
     }
     
-    const newCustomer = {
+    console.log("Creating customer with detailed box labels:", needsDetailedBoxLabels);
+    
+    const newCustomer: Customer = {
       id: uuidv4(),
-      accountNumber: accountNumber, // Use camelCase
+      accountNumber, 
       name,
       email,
       phone,
       address: "", // Add empty address to satisfy the type requirement
       type: "Trade" as "Trade", // Always set to Trade
       onHold: false,
-      needsDetailedBoxLabels: needsDetailedBoxLabels
+      needsDetailedBoxLabels // Make sure this is explicitly set
     };
     
-    addCustomer(newCustomer);
+    console.log("Submitting new customer:", newCustomer);
     
-    toast({
-      title: "Success",
-      description: isDuplicating ? "Customer duplicated successfully." : "Customer created successfully."
-    });
-    
-    navigate("/customers");
+    addCustomer(newCustomer)
+      .then(result => {
+        if (result) {
+          console.log("Customer created successfully:", result);
+          toast({
+            title: "Success",
+            description: isDuplicating ? "Customer duplicated successfully." : "Customer created successfully."
+          });
+          navigate("/customers");
+        }
+      });
   };
 
   return (

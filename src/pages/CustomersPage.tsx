@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,14 @@ const CustomersPage: React.FC = () => {
   const { customers } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Debug customer data
+  useEffect(() => {
+    console.log("Customers list:", customers);
+    if (customers.length > 0) {
+      console.log("Sample customer data:", customers[0]);
+    }
+  }, [customers]);
 
   // Filter and sort customers based on search term and account number
   const filteredCustomers = useMemo(() => {

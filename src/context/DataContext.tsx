@@ -1,4 +1,5 @@
-import React, { createContext, useContext } from "react";
+
+import React, { createContext, useContext, useEffect } from "react";
 import { useSupabaseData } from "./SupabaseDataContext";
 import { 
   Customer,
@@ -82,7 +83,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const supabaseData = useSupabaseData();
   
   // Convert customers to camelCase for React components
-  const adaptedCustomers = supabaseData.customers.map(customer => adaptCustomerToCamelCase(customer));
+  const adaptedCustomers = supabaseData.customers.map(customer => {
+    const adapted = adaptCustomerToCamelCase(customer);
+    // Debug adapted customer
+    console.log(`Adapting customer ${customer.id}:`, {
+      original: customer,
+      adapted: adapted
+    });
+    return adapted;
+  });
+  
+  // Debug to check all customer data
+  useEffect(() => {
+    console.log("All adapted customers:", adaptedCustomers);
+  }, [adaptedCustomers]);
   
   // Convert orders to camelCase for React components
   const adaptedOrders = supabaseData.orders.map(order => adaptOrderToCamelCase(order));
@@ -90,7 +104,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Wrap the updateCustomer function to convert camelCase back to snake_case
   const updateCustomer = async (camelCaseCustomer: any): Promise<boolean> => {
+    console.log("DataContext updateCustomer called with:", camelCaseCustomer);
     const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
+    console.log("Converted to snake_case:", snakeCaseCustomer);
     return await supabaseData.updateCustomer(snakeCaseCustomer);
   };
   
@@ -121,8 +137,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Wrap the addCustomer function to convert camelCase back to snake_case
   const addCustomer = async (camelCaseCustomer: any): Promise<Customer | null> => {
+    console.log("DataContext addCustomer called with:", camelCaseCustomer);
     const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
+    console.log("Converted to snake_case for DB:", snakeCaseCustomer);
     const result = await supabaseData.addCustomer(snakeCaseCustomer);
+    console.log("Add customer result:", result);
     return result ? adaptCustomerToCamelCase(result) : null;
   };
   

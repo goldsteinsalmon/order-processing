@@ -2,6 +2,8 @@ import { Customer, Order, Product, Return, BatchUsage } from "@/types";
 
 // Convert Customer from snake_case (database) to camelCase (UI)
 export const adaptCustomerToCamelCase = (customer: any): Customer => {
+  if (!customer) return null as any;
+  
   return {
     id: customer.id,
     name: customer.name,
@@ -9,15 +11,17 @@ export const adaptCustomerToCamelCase = (customer: any): Customer => {
     phone: customer.phone,
     address: customer.address,
     type: customer.type,
-    accountNumber: customer.account_number,
-    onHold: customer.on_hold,
+    accountNumber: customer.account_number || "",
+    onHold: customer.on_hold || false,
     holdReason: customer.hold_reason,
-    needsDetailedBoxLabels: customer.needs_detailed_box_labels
+    needsDetailedBoxLabels: customer.needs_detailed_box_labels || false
   };
 };
 
 // Convert Customer from camelCase (UI) to snake_case (database)
 export const adaptCustomerToSnakeCase = (customer: Customer): any => {
+  if (!customer) return null as any;
+  
   return {
     id: customer.id,
     name: customer.name,
@@ -25,10 +29,10 @@ export const adaptCustomerToSnakeCase = (customer: Customer): any => {
     phone: customer.phone,
     address: customer.address,
     type: customer.type,
-    account_number: customer.accountNumber,
-    on_hold: customer.onHold,
+    account_number: customer.accountNumber || "",
+    on_hold: customer.onHold || false,
     hold_reason: customer.holdReason,
-    needs_detailed_box_labels: customer.needsDetailedBoxLabels
+    needs_detailed_box_labels: customer.needsDetailedBoxLabels || false
   };
 };
 

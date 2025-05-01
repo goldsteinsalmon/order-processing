@@ -1,9 +1,8 @@
-
 import React, { useState, useMemo } from 'react';
 import { Package } from 'lucide-react';
 import { Customer } from '@/types';
 import { CommandInput, CommandItem, CommandList, CommandGroup, Command } from '@/components/ui/command';
-import { adaptCustomerToCamelCase } from '@/lib/utils';
+import { adaptCustomerToCamelCase } from '@/utils/typeAdapters';
 
 interface CustomerSelectionStepProps {
   customers: Customer[];
@@ -22,8 +21,28 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
 
   // Process customers to ensure camelCase properties
   const processedCustomers = useMemo(() => {
-    return customers.map(customer => adaptCustomerToCamelCase(customer));
+    return customers.map(customer => {
+      // If customer already has camelCase props, make sure they are properly set with defaults
+      if ('needsDetailedBoxLabels' in customer) {
+        return {
+          ...customer,
+          accountNumber: customer.accountNumber || "",
+          needsDetailedBoxLabels: customer.needsDetailedBoxLabels || false
+        };
+      }
+      // Otherwise assume it's coming from the database and needs adaptation
+      return adaptCustomerToCamelCase(customer);
+    });
   }, [customers]);
+
+  // Debug customer data
+  useMemo(() => {
+    console.log("Original customers:", customers);
+    console.log("Processed customers:", processedCustomers);
+    if (selectedCustomer) {
+      console.log("Selected customer:", selectedCustomer);
+    }
+  }, [customers, processedCustomers, selectedCustomer]);
 
   // Filter customers based on search term
   const filteredCustomers = useMemo(() => {
@@ -32,7 +51,7 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
     if (customerSearch.trim()) {
       const lowerSearch = customerSearch.toLowerCase();
       filtered = processedCustomers.filter(customer => {
-        const nameMatch = customer.name.toLowerCase().includes(lowerSearch);
+        const nameMatch = customer.name?.toLowerCase().includes(lowerSearch);
         const emailMatch = customer.email ? customer.email.toLowerCase().includes(lowerSearch) : false;
         const phoneMatch = customer.phone ? customer.phone.includes(customerSearch) : false;
         const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(lowerSearch) : false;

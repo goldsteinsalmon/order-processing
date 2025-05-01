@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { useParams, useNavigate } from "react-router-dom";
@@ -40,16 +40,41 @@ const CustomerDetailsPage: React.FC = () => {
   // Delete customer dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
+  // Debug log to check customer data
+  useEffect(() => {
+    if (customer) {
+      console.log("Customer details:", customer);
+      console.log("Account number:", customer.accountNumber);
+      console.log("Needs detailed box labels:", customer.needsDetailedBoxLabels);
+    }
+  }, [customer]);
+  
   const [formData, setFormData] = useState({
-    name: customer?.name || "",
-    accountNumber: customer?.accountNumber || "",
-    email: customer?.email || "",
-    phone: customer?.phone || "",
-    type: customer?.type || "Private" as "Private" | "Trade",
-    onHold: customer?.onHold || false,
-    holdReason: customer?.holdReason || "",
-    needsDetailedBoxLabels: customer?.needsDetailedBoxLabels || false
+    name: "",
+    accountNumber: "",
+    email: "",
+    phone: "",
+    type: "Private" as "Private" | "Trade",
+    onHold: false,
+    holdReason: "",
+    needsDetailedBoxLabels: false
   });
+
+  // Update form data when customer changes
+  useEffect(() => {
+    if (customer) {
+      setFormData({
+        name: customer.name || "",
+        accountNumber: customer.accountNumber || "",
+        email: customer.email || "",
+        phone: customer.phone || "",
+        type: customer.type || "Private",
+        onHold: customer.onHold || false,
+        holdReason: customer.holdReason || "",
+        needsDetailedBoxLabels: customer.needsDetailedBoxLabels || false
+      });
+    }
+  }, [customer]);
 
   // Get all orders for this customer
   const customerOrders = useMemo(() => {
@@ -106,6 +131,7 @@ const CustomerDetailsPage: React.FC = () => {
       updated: new Date().toISOString()
     };
     
+    console.log("Updating customer:", updatedCustomer);
     updateCustomer(updatedCustomer);
     
     toast({
@@ -331,7 +357,7 @@ const CustomerDetailsPage: React.FC = () => {
                     </RadioGroup>
                   </div>
                   
-                  {/* New - Detailed Box Labels setting */}
+                  {/* Detailed Box Labels setting */}
                   <div className="col-span-1 md:col-span-2 flex items-center justify-between py-2 border-t">
                     <div className="space-y-0.5">
                       <Label htmlFor="detailed-labels">Detailed Box Labels</Label>
