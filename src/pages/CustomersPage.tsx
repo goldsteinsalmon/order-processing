@@ -18,6 +18,8 @@ const CustomersPage: React.FC = () => {
     console.log("Customers list:", customers);
     if (customers.length > 0) {
       console.log("Sample customer data:", customers[0]);
+      console.log("First customer accountNumber:", customers[0].accountNumber);
+      console.log("First customer needsDetailedBoxLabels:", customers[0].needsDetailedBoxLabels);
     }
   }, [customers]);
 
@@ -101,61 +103,66 @@ const CustomersPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="border-b">
-                    <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center">
-                        {customer.name}
-                        {customer.needsDetailedBoxLabels && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Package className="h-4 w-4 ml-2 text-blue-500" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Requires detailed box labels</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                filteredCustomers.map((customer) => {
+                  // Debug this specific customer
+                  console.log(`Rendering customer: ${customer.name}, accountNumber: ${customer.accountNumber}, needsDetailedBoxLabels: ${customer.needsDetailedBoxLabels}`);
+                  
+                  return (
+                    <tr key={customer.id} className="border-b">
+                      <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center">
+                          {customer.name}
+                          {customer.needsDetailedBoxLabels && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Package className="h-4 w-4 ml-2 text-blue-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Requires detailed box labels</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">{customer.email || '-'}</td>
+                      <td className="px-4 py-3 w-24">{customer.phone || '-'}</td>
+                      <td className="px-4 py-3">
+                        {customer.onHold ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            On Hold
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Active
+                          </span>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{customer.email}</td>
-                    <td className="px-4 py-3 w-24">{customer.phone}</td>
-                    <td className="px-4 py-3">
-                      {customer.onHold ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          On Hold
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Active
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => navigate(`/customer-details/${customer.id}`)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View Details
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDuplicateCustomer(customer.id)}
-                        >
-                          <Copy className="h-4 w-4 mr-1" />
-                          Duplicate
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => navigate(`/customer-details/${customer.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Details
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicateCustomer(customer.id)}
+                          >
+                            <Copy className="h-4 w-4 mr-1" />
+                            Duplicate
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

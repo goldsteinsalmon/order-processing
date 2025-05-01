@@ -53,6 +53,7 @@ const CreateCustomerPage: React.FC = () => {
     }
     
     console.log("Creating customer with detailed box labels:", needsDetailedBoxLabels);
+    console.log("Creating customer with account number:", accountNumber);
     
     const newCustomer: Customer = {
       id: uuidv4(),
@@ -72,6 +73,8 @@ const CreateCustomerPage: React.FC = () => {
       .then(result => {
         if (result) {
           console.log("Customer created successfully:", result);
+          console.log("Returned customer accountNumber:", result.accountNumber);
+          console.log("Returned customer needsDetailedBoxLabels:", result.needsDetailedBoxLabels);
           toast({
             title: "Success",
             description: isDuplicating ? "Customer duplicated successfully." : "Customer created successfully."

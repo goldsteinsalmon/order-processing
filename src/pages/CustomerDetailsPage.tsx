@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -25,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
 
 const CustomerDetailsPage: React.FC = () => {
   const { customers, updateCustomer, deleteCustomer, orders, completedOrders } = useData();
@@ -32,7 +32,10 @@ const CustomerDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const customer = customers.find(customer => customer.id === id);
+  // Find customer and ensure it has all camelCase properties
+  const customer = customers.find(c => c.id === id);
+  const processedCustomer = customer ? adaptCustomerToCamelCase(customer) : null;
+  
   const [isEditing, setIsEditing] = useState(false);
   // Hold reason dialog state
   const [showHoldDialog, setShowHoldDialog] = useState(false);
@@ -42,12 +45,14 @@ const CustomerDetailsPage: React.FC = () => {
   
   // Debug log to check customer data
   useEffect(() => {
-    if (customer) {
-      console.log("Customer details:", customer);
-      console.log("Account number:", customer.accountNumber);
-      console.log("Needs detailed box labels:", customer.needsDetailedBoxLabels);
+    if (processedCustomer) {
+      console.log("CustomerDetailsPage - Customer details:", processedCustomer);
+      console.log("CustomerDetailsPage - Account number:", processedCustomer.accountNumber);
+      console.log("CustomerDetailsPage - Needs detailed box labels:", processedCustomer.needsDetailedBoxLabels);
+    } else if (customer) {
+      console.log("CustomerDetailsPage - Raw customer before processing:", customer);
     }
-  }, [customer]);
+  }, [processedCustomer, customer]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -62,27 +67,33 @@ const CustomerDetailsPage: React.FC = () => {
 
   // Update form data when customer changes
   useEffect(() => {
-    if (customer) {
+    if (processedCustomer) {
       setFormData({
-        name: customer.name || "",
-        accountNumber: customer.accountNumber || "",
-        email: customer.email || "",
-        phone: customer.phone || "",
-        type: customer.type || "Private",
-        onHold: customer.onHold || false,
-        holdReason: customer.holdReason || "",
-        needsDetailedBoxLabels: customer.needsDetailedBoxLabels || false
+        name: processedCustomer.name || "",
+        accountNumber: processedCustomer.accountNumber || "",
+        email: processedCustomer.email || "",
+        phone: processedCustomer.phone || "",
+        type: processedCustomer.type || "Private",
+        onHold: processedCustomer.onHold || false,
+        holdReason: processedCustomer.holdReason || "",
+        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels || false
+      });
+
+      console.log("CustomerDetailsPage - Form data set from customer:", {
+        name: processedCustomer.name,
+        accountNumber: processedCustomer.accountNumber,
+        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels
       });
     }
-  }, [customer]);
+  }, [processedCustomer]);
 
   // Get all orders for this customer
   const customerOrders = useMemo(() => {
-    if (!customer) return [];
+    if (!processedCustomer) return [];
     
     // Combine active and completed orders
     const allOrders = [...orders, ...completedOrders]
-      .filter(order => order.customerId === customer.id)
+      .filter(order => order.customerId === processedCustomer.id)
       .sort((a, b) => {
         const dateA = a.orderDate ? new Date(a.orderDate).getTime() : new Date(a.created).getTime();
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : new Date(b.created).getTime();
@@ -90,7 +101,7 @@ const CustomerDetailsPage: React.FC = () => {
       });
     
     return allOrders;
-  }, [customer, orders, completedOrders]);
+  }, [processedCustomer, orders, completedOrders]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -107,7 +118,7 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const handleSave = () => {
-    if (!customer) return;
+    if (!processedCustomer) return;
     
     if (!formData.name || !formData.accountNumber) {
       toast({
@@ -119,7 +130,7 @@ const CustomerDetailsPage: React.FC = () => {
     }
     
     const updatedCustomer = {
-      ...customer,
+      ...processedCustomer,
       name: formData.name,
       accountNumber: formData.accountNumber,
       email: formData.email,
@@ -131,24 +142,29 @@ const CustomerDetailsPage: React.FC = () => {
       updated: new Date().toISOString()
     };
     
-    console.log("Updating customer:", updatedCustomer);
-    updateCustomer(updatedCustomer);
+    console.log("CustomerDetailsPage - Updating customer:", updatedCustomer);
+    console.log("CustomerDetailsPage - With accountNumber:", updatedCustomer.accountNumber);
+    console.log("CustomerDetailsPage - With needsDetailedBoxLabels:", updatedCustomer.needsDetailedBoxLabels);
     
-    toast({
-      title: "Success",
-      description: "Customer updated successfully."
-    });
-    
-    setIsEditing(false);
+    updateCustomer(updatedCustomer)
+      .then(success => {
+        if (success) {
+          toast({
+            title: "Success",
+            description: "Customer updated successfully."
+          });
+          setIsEditing(false);
+        }
+      });
   };
   
   const toggleHoldStatus = () => {
-    if (!customer) return;
+    if (!processedCustomer) return;
     
-    if (customer.onHold) {
+    if (processedCustomer.onHold) {
       // Remove hold
       const updatedCustomer = {
-        ...customer,
+        ...processedCustomer,
         onHold: false,
         holdReason: undefined,
         updated: new Date().toISOString()
@@ -158,7 +174,7 @@ const CustomerDetailsPage: React.FC = () => {
       
       toast({
         title: "Hold removed",
-        description: `${customer.name}'s account is now active.`
+        description: `${processedCustomer.name}'s account is now active.`
       });
     } else {
       // Show dialog to get hold reason
@@ -168,10 +184,10 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const applyHold = () => {
-    if (!customer) return;
+    if (!processedCustomer) return;
     
     const updatedCustomer = {
-      ...customer,
+      ...processedCustomer,
       onHold: true,
       holdReason: holdReason,
       updated: new Date().toISOString()
@@ -182,15 +198,15 @@ const CustomerDetailsPage: React.FC = () => {
     
     toast({
       title: "Account on hold",
-      description: `${customer.name}'s account has been placed on hold.`
+      description: `${processedCustomer.name}'s account has been placed on hold.`
     });
   };
 
   const handleDeleteCustomer = async () => {
-    if (!customer) return;
+    if (!processedCustomer) return;
     
     // Check if customer has any orders
-    const customerOrders = [...orders, ...completedOrders].filter(order => order.customerId === customer.id);
+    const customerOrders = [...orders, ...completedOrders].filter(order => order.customerId === processedCustomer.id);
     
     if (customerOrders.length > 0) {
       toast({
@@ -202,7 +218,7 @@ const CustomerDetailsPage: React.FC = () => {
       return;
     }
     
-    const success = await deleteCustomer(customer.id);
+    const success = await deleteCustomer(processedCustomer.id);
     if (success) {
       toast({
         title: "Success",
@@ -212,7 +228,7 @@ const CustomerDetailsPage: React.FC = () => {
     }
   };
 
-  if (!customer) {
+  if (!processedCustomer) {
     return (
       <Layout>
         <div className="flex items-center mb-6">
@@ -235,8 +251,8 @@ const CustomerDetailsPage: React.FC = () => {
           <Button variant="ghost" onClick={() => navigate("/customers")} className="mr-4">
             <ArrowLeft className="mr-2" /> Back
           </Button>
-          <h2 className="text-2xl font-bold">{customer.name}</h2>
-          {customer.onHold && (
+          <h2 className="text-2xl font-bold">{processedCustomer.name}</h2>
+          {processedCustomer.onHold && (
             <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
               On Hold
             </span>
@@ -244,10 +260,10 @@ const CustomerDetailsPage: React.FC = () => {
         </div>
         <div className="flex space-x-2">
           <Button 
-            variant={customer.onHold ? "outline" : "destructive"}
+            variant={processedCustomer.onHold ? "outline" : "destructive"}
             onClick={toggleHoldStatus}
           >
-            {customer.onHold ? "Remove Hold" : (
+            {processedCustomer.onHold ? "Remove Hold" : (
               <>
                 <AlertTriangle className="mr-2 h-4 w-4" />
                 Place on Hold
@@ -368,7 +384,10 @@ const CustomerDetailsPage: React.FC = () => {
                     <Switch
                       id="detailed-labels"
                       checked={formData.needsDetailedBoxLabels}
-                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, needsDetailedBoxLabels: checked }))}
+                      onCheckedChange={(checked) => {
+                        console.log("Switch toggled to:", checked);
+                        setFormData(prev => ({ ...prev, needsDetailedBoxLabels: checked }));
+                      }}
                     />
                   </div>
                   
@@ -405,28 +424,28 @@ const CustomerDetailsPage: React.FC = () => {
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Account Number:</span>
-                      <span className="col-span-2 font-medium">{customer.accountNumber || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{processedCustomer.accountNumber || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Name:</span>
-                      <span className="col-span-2 font-medium">{customer.name}</span>
+                      <span className="col-span-2 font-medium">{processedCustomer.name}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Type:</span>
-                      <span className="col-span-2 font-medium">{customer.type}</span>
+                      <span className="col-span-2 font-medium">{processedCustomer.type}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Email:</span>
-                      <span className="col-span-2 font-medium">{customer.email || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{processedCustomer.email || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Phone:</span>
-                      <span className="col-span-2 font-medium">{customer.phone || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{processedCustomer.phone || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Detailed Box Labels:</span>
                       <span className="col-span-2 font-medium flex items-center">
-                        {customer.needsDetailedBoxLabels ? (
+                        {processedCustomer.needsDetailedBoxLabels ? (
                           <>
                             <Package className="h-4 w-4 mr-1 text-green-600" />
                             <span className="text-green-600">Enabled</span>
@@ -437,11 +456,11 @@ const CustomerDetailsPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  {customer.onHold && (
+                  {processedCustomer.onHold && (
                     <div className="mt-6">
                       <h3 className="text-lg font-semibold text-red-700 mb-2">Account on Hold</h3>
-                      {customer.holdReason && (
-                        <p className="text-gray-700">{customer.holdReason}</p>
+                      {processedCustomer.holdReason && (
+                        <p className="text-gray-700">{processedCustomer.holdReason}</p>
                       )}
                     </div>
                   )}
@@ -547,9 +566,9 @@ const CustomerDetailsPage: React.FC = () => {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the customer 
-              "{customer?.name}" and remove it from our database.
+              "{processedCustomer?.name}" and remove it from our database.
               
-              {customer && (
+              {processedCustomer && (
                 <p className="mt-2 font-semibold">
                   Note: Customers with existing orders cannot be deleted.
                 </p>

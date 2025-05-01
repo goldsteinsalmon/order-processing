@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { adaptCustomerToSnakeCase } from "@/utils/typeAdapters";
+import { adaptCustomerToSnakeCase, adaptCustomerToCamelCase } from "@/utils/typeAdapters";
 
 export const useCustomerData = (toastHandler: any) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -12,10 +12,14 @@ export const useCustomerData = (toastHandler: any) => {
   const addCustomer = async (customer: Customer): Promise<Customer | null> => {
     try {
       console.log("Adding customer with data:", customer);
+      console.log("Account number:", customer.accountNumber);
+      console.log("Needs detailed box labels:", customer.needsDetailedBoxLabels);
       
       // Ensure proper type conversion before inserting into the database
       const customerForDb = adaptCustomerToSnakeCase(customer);
       console.log("Converted customer for DB:", customerForDb);
+      console.log("DB account_number:", customerForDb.account_number);
+      console.log("DB needs_detailed_box_labels:", customerForDb.needs_detailed_box_labels);
       
       const { data, error } = await supabase
         .from('customers')
@@ -34,20 +38,12 @@ export const useCustomerData = (toastHandler: any) => {
       }
       
       // Create the new customer object with proper typing
-      const newCustomer: Customer = {
-        id: data[0].id,
-        name: data[0].name,
-        email: data[0].email,
-        phone: data[0].phone,
-        address: data[0].address,
-        type: data[0].type as "Trade" | "Private",
-        accountNumber: data[0].account_number || "",
-        onHold: data[0].on_hold || false,
-        holdReason: data[0].hold_reason,
-        needsDetailedBoxLabels: data[0].needs_detailed_box_labels || false
-      };
+      const newCustomer = adaptCustomerToCamelCase(data[0]);
       
       console.log("Created new customer object:", newCustomer);
+      console.log("New customer accountNumber:", newCustomer.accountNumber);
+      console.log("New customer needsDetailedBoxLabels:", newCustomer.needsDetailedBoxLabels);
+      
       setCustomers([...customers, newCustomer]);
       return newCustomer;
     } catch (error) {
@@ -65,10 +61,14 @@ export const useCustomerData = (toastHandler: any) => {
   const updateCustomer = async (customer: Customer): Promise<boolean> => {
     try {
       console.log("Updating customer with data:", customer);
+      console.log("Account number:", customer.accountNumber);
+      console.log("Needs detailed box labels:", customer.needsDetailedBoxLabels);
       
       // Ensure proper type conversion before updating the database
       const customerForDb = adaptCustomerToSnakeCase(customer);
       console.log("Converted customer for DB update:", customerForDb);
+      console.log("DB account_number:", customerForDb.account_number);
+      console.log("DB needs_detailed_box_labels:", customerForDb.needs_detailed_box_labels);
       
       const { error } = await supabase
         .from('customers')
@@ -80,7 +80,11 @@ export const useCustomerData = (toastHandler: any) => {
         throw error;
       }
       
-      setCustomers(customers.map(c => c.id === customer.id ? customer : c));
+      // Update the local state with the updated customer
+      const updatedCustomer = adaptCustomerToCamelCase({...customerForDb, id: customer.id});
+      setCustomers(customers.map(c => c.id === customer.id ? updatedCustomer : c));
+      
+      console.log("Updated customer in state:", updatedCustomer);
       return true;
     } catch (error) {
       console.error('Error updating customer:', error);

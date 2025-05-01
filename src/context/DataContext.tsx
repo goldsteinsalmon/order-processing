@@ -22,10 +22,10 @@ import {
 
 // Interface for DataContext
 interface DataContextType {
-  customers: any[]; // Using any for customers to allow camelCase properties
+  customers: Customer[]; // Changed from any[] to Customer[]
   products: Product[];
-  orders: any[]; // Using any for orders to allow camelCase properties
-  completedOrders: any[]; // Using any for orders to allow camelCase properties
+  orders: Order[]; // Changed from any[] to Order[]
+  completedOrders: Order[]; // Changed from any[] to Order[]
   standingOrders: StandingOrder[];
   returns: Return[];
   complaints: Complaint[];
@@ -39,10 +39,10 @@ interface DataContextType {
   addProduct: (product: Product | Product[]) => Promise<Product | Product[] | null>;
   updateProduct: (product: Product) => Promise<boolean>;
   deleteProduct: (productId: string) => Promise<boolean>;
-  addOrder: (order: any) => Promise<any | null>; // Using any for orders
-  updateOrder: (order: any) => Promise<boolean>; // Using any for orders
+  addOrder: (order: Order) => Promise<Order | null>; // Changed from any to Order
+  updateOrder: (order: Order) => Promise<boolean>; // Changed from any to Order
   deleteOrder: (orderId: string) => Promise<boolean>;
-  completeOrder: (order: any) => Promise<boolean>; // Using any for orders
+  completeOrder: (order: Order) => Promise<boolean>; // Changed from any to Order
   addStandingOrder: (standingOrder: StandingOrder) => Promise<StandingOrder | null>;
   updateStandingOrder: (standingOrder: StandingOrder) => Promise<boolean>;
   processStandingOrders: () => Promise<void>;
@@ -61,7 +61,7 @@ interface DataContextType {
   getBatchUsages: () => BatchUsage[];
   getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
-  recordAllBatchUsagesForOrder: (order: any) => void;
+  recordAllBatchUsagesForOrder: (order: Order) => void;
   refreshData: () => Promise<void>;
   isLoading: boolean;
 }
@@ -86,7 +86,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const adaptedCustomers = supabaseData.customers.map(customer => {
     const adapted = adaptCustomerToCamelCase(customer);
     // Debug adapted customer
-    console.log(`Adapting customer ${customer.id}:`, {
+    console.log(`DataContext: Adapting customer ${customer.id}:`, {
       original: customer,
       adapted: adapted
     });
@@ -95,7 +95,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Debug to check all customer data
   useEffect(() => {
-    console.log("All adapted customers:", adaptedCustomers);
+    console.log("DataContext: All adapted customers:", adaptedCustomers);
+    if (adaptedCustomers.length > 0) {
+      adaptedCustomers.forEach(customer => {
+        console.log(`DataContext: Customer ${customer.id}:`, {
+          name: customer.name,
+          accountNumber: customer.accountNumber,
+          needsDetailedBoxLabels: customer.needsDetailedBoxLabels
+        });
+      });
+    }
   }, [adaptedCustomers]);
   
   // Convert orders to camelCase for React components
@@ -103,64 +112,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const adaptedCompletedOrders = supabaseData.completedOrders.map(order => adaptOrderToCamelCase(order));
   
   // Wrap the updateCustomer function to convert camelCase back to snake_case
-  const updateCustomer = async (camelCaseCustomer: any): Promise<boolean> => {
+  const updateCustomer = async (camelCaseCustomer: Customer): Promise<boolean> => {
     console.log("DataContext updateCustomer called with:", camelCaseCustomer);
     const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
     console.log("Converted to snake_case:", snakeCaseCustomer);
     return await supabaseData.updateCustomer(snakeCaseCustomer);
   };
   
+  // Wrap the addCustomer function to ensure proper data handling
+  const addCustomer = async (camelCaseCustomer: Customer): Promise<Customer | null> => {
+    console.log("DataContext addCustomer called with:", camelCaseCustomer);
+    const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
+    console.log("Converted to snake_case for add:", snakeCaseCustomer);
+    const result = await supabaseData.addCustomer(snakeCaseCustomer);
+    if (result) {
+      const adaptedResult = adaptCustomerToCamelCase(result);
+      console.log("Result after adapting back to camelCase:", adaptedResult);
+      return adaptedResult;
+    }
+    return null;
+  };
+  
   // Wrap the updateOrder function to convert camelCase back to snake_case
-  const updateOrder = async (camelCaseOrder: any): Promise<boolean> => {
+  const updateOrder = async (camelCaseOrder: Order): Promise<boolean> => {
     const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
     return await supabaseData.updateOrder(snakeCaseOrder);
   };
   
   // Wrap the addOrder function to convert camelCase back to snake_case
-  const addOrder = async (camelCaseOrder: any): Promise<any | null> => {
+  const addOrder = async (camelCaseOrder: Order): Promise<Order | null> => {
     const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
     const result = await supabaseData.addOrder(snakeCaseOrder);
     return result ? adaptOrderToCamelCase(result) : null;
   };
   
-  // Wrap the completeOrder function to convert camelCase back to snake_case
-  const completeOrder = async (camelCaseOrder: any): Promise<boolean> => {
-    const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
-    return await supabaseData.completeOrder(snakeCaseOrder);
-  };
-  
-  // Wrap the recordAllBatchUsagesForOrder function to convert camelCase back to snake_case
-  const recordAllBatchUsagesForOrder = (camelCaseOrder: any): void => {
-    const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
-    supabaseData.recordAllBatchUsagesForOrder(snakeCaseOrder);
-  };
-  
-  // Wrap the addCustomer function to convert camelCase back to snake_case
-  const addCustomer = async (camelCaseCustomer: any): Promise<Customer | null> => {
-    console.log("DataContext addCustomer called with:", camelCaseCustomer);
-    const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
-    console.log("Converted to snake_case for DB:", snakeCaseCustomer);
-    const result = await supabaseData.addCustomer(snakeCaseCustomer);
-    console.log("Add customer result:", result);
-    return result ? adaptCustomerToCamelCase(result) : null;
-  };
-  
-  // Return the context value
   const value: DataContextType = {
     ...supabaseData,
     customers: adaptedCustomers,
     orders: adaptedOrders,
     completedOrders: adaptedCompletedOrders,
-    updateOrder,
-    addOrder,
-    completeOrder,
-    recordAllBatchUsagesForOrder,
     updateCustomer,
     addCustomer,
-    deleteCustomer: supabaseData.deleteCustomer,
-    deleteProduct: supabaseData.deleteProduct
+    updateOrder,
+    addOrder
   };
-  
+
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Package } from 'lucide-react';
 import { Customer } from '@/types';
@@ -22,25 +23,27 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
   // Process customers to ensure camelCase properties
   const processedCustomers = useMemo(() => {
     return customers.map(customer => {
-      // If customer already has camelCase props, make sure they are properly set with defaults
-      if ('needsDetailedBoxLabels' in customer) {
-        return {
-          ...customer,
-          accountNumber: customer.accountNumber || "",
-          needsDetailedBoxLabels: customer.needsDetailedBoxLabels || false
-        };
-      }
-      // Otherwise assume it's coming from the database and needs adaptation
-      return adaptCustomerToCamelCase(customer);
+      // Convert to camelCase to ensure all properties exist
+      const processed = adaptCustomerToCamelCase(customer);
+      
+      console.log("Processing customer in CustomerSelectionStep:", {
+        name: processed.name,
+        accountNumber: processed.accountNumber,
+        needsDetailedBoxLabels: processed.needsDetailedBoxLabels
+      });
+      
+      return processed;
     });
   }, [customers]);
 
   // Debug customer data
   useMemo(() => {
-    console.log("Original customers:", customers);
-    console.log("Processed customers:", processedCustomers);
+    console.log("CustomerSelectionStep - Original customers:", customers);
+    console.log("CustomerSelectionStep - Processed customers:", processedCustomers);
     if (selectedCustomer) {
-      console.log("Selected customer:", selectedCustomer);
+      console.log("CustomerSelectionStep - Selected customer:", selectedCustomer);
+      console.log("CustomerSelectionStep - Selected customer accountNumber:", selectedCustomer.accountNumber);
+      console.log("CustomerSelectionStep - Selected customer needsDetailedBoxLabels:", selectedCustomer.needsDetailedBoxLabels);
     }
   }, [customers, processedCustomers, selectedCustomer]);
 
@@ -73,8 +76,10 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
     onCustomerSelect(customerId);
   };
 
-  // Process selected customer
-  const processedSelectedCustomer = selectedCustomer ? adaptCustomerToCamelCase(selectedCustomer) : null;
+  // Process selected customer to ensure all properties exist
+  const processedSelectedCustomer = selectedCustomer 
+    ? adaptCustomerToCamelCase(selectedCustomer) 
+    : null;
 
   return (
     <div className="space-y-4">
