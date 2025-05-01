@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -53,7 +52,7 @@ const ViewCompletedOrder: React.FC = () => {
       const product = products.find(p => p.id === productId);
       if (!product) return;
       
-      // Calculate weight if not provided
+      // Calculate weight if not provided, prioritizing manual weights
       const productWeight = weight > 0 ? weight : (product.weight ? product.weight * quantity : 0);
       
       if (!summary[batchNumber]) {
@@ -96,7 +95,9 @@ const ViewCompletedOrder: React.FC = () => {
         
         box.items.forEach(item => {
           const batchToUse = item.batchNumber || boxBatch;
-          const weight = item.weight || 0;
+          
+          // Prioritize manually entered weights when available
+          const weight = item.weight || 0; // This will capture manually entered weights first
           
           addToBatch(batchToUse, item.productId, item.quantity, weight);
         });
@@ -109,7 +110,14 @@ const ViewCompletedOrder: React.FC = () => {
       
       order.items.forEach(item => {
         const batchToUse = item.batchNumber || defaultBatch;
-        const weight = item.pickedWeight || 0;
+        
+        // Prioritize manually entered weights when available
+        let weight = 0;
+        if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
+          weight = item.pickedWeight;
+        } else if (item.manualWeight !== undefined && item.manualWeight > 0) {
+          weight = item.manualWeight;
+        }
         
         addToBatch(batchToUse, item.productId, item.quantity, weight);
       });

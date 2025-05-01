@@ -195,7 +195,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCompletedOrders([...completedOrders, updatedOrder]);
   };
 
-  // New function to create a consolidated batch summary from an order
+  // Updated function to create a consolidated batch summary from an order
   const createConsolidatedBatchSummary = (order: Order): ConsolidatedBatchSummary[] => {
     console.log("Creating consolidated batch summary for order:", order.id);
     
@@ -240,11 +240,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Use item batch number if available, otherwise box batch number
           const batchNumber = item.batchNumber || boxBatchNumber;
           
-          // Calculate weight - use explicit item weight if provided, otherwise calculate from product
+          // Calculate weight - IMPORTANT: prioritize manual weight inputs
           let weight = 0;
+          
+          // Check if manual weight was entered (this is the primary source)
           if (item.weight !== undefined && item.weight > 0) {
             weight = item.weight;
-          } else if (product.weight) {
+          } 
+          // If no manual weight, use the product's standard weight * quantity
+          else if (product.weight) {
             weight = product.weight * item.quantity;
           }
           
@@ -279,11 +283,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Use item batch number if available, otherwise order batch number
         const batchNumber = item.batchNumber || defaultBatchNumber;
         
-        // Calculate weight - use explicit item weight if provided, otherwise calculate from product
+        // Calculate weight - IMPORTANT: prioritize manual weight inputs
         let weight = 0;
+        
+        // Check for manually entered picked weight first
         if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
           weight = item.pickedWeight;
-        } else if (product.weight) {
+        } 
+        // If no picked weight but product requires weight input, use manualWeight if available
+        else if (product.requiresWeightInput && item.manualWeight !== undefined && item.manualWeight > 0) {
+          weight = item.manualWeight;
+        }
+        // Otherwise use the product's standard weight * quantity
+        else if (product.weight) {
           weight = product.weight * item.quantity;
         }
         
@@ -395,7 +407,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     recordBatchUsagesFromSummary(batchSummary, order.id);
   };
 
-  // Updated recordBatchUsage function to correctly calculate weights and avoid double counting
+  // Updated recordBatchUsage function to correctly handle manual weight inputs
   const recordBatchUsage = (
     batchNumber: string, 
     productId: string, 
@@ -416,11 +428,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Calculate weight in grams - ensure we're getting the correct weight
     let totalWeight = 0;
     
+    // Prioritize manual weight input for products that require it
     if (manualWeight !== undefined && manualWeight > 0) {
-      // Use the manually entered weight for products that require weight input
       totalWeight = manualWeight;
     } else if (product.weight) {
-      // Use calculated weight based on quantity and product's weight
       totalWeight = product.weight * quantity;
     } else {
       console.warn(`No weight available for product ${product.name}. Using quantity as fallback for batch tracking.`);
