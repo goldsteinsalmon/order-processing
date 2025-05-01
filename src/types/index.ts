@@ -29,6 +29,7 @@ export interface BoxItem {
   productName: string;
   quantity: number;
   weight: number;
+  batchNumber?: string;
 }
 
 export interface Box {
@@ -36,6 +37,7 @@ export interface Box {
   items: BoxItem[];
   completed: boolean;
   printed: boolean;
+  batchNumber?: string;
 }
 
 export interface OrderItem {
@@ -117,6 +119,7 @@ export interface Order {
   boxDistributions?: Box[]; // Added for box distribution information
   completedBoxes?: number[]; // Added to track which box labels have been printed
   savedBoxes?: number[]; // Added to track which boxes have been saved
+  boxes?: Box[]; // Added to match usage in DataContext.tsx
 }
 
 export interface StandingOrder {

@@ -235,8 +235,45 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Process multi-box orders
-    if (order.boxes && order.boxes.length > 0) {
+    if (order.boxDistributions && order.boxDistributions.length > 0) {
       // Get the batch number for each box if specified
+      order.boxDistributions.forEach(box => {
+        // If box has a specific batch number
+        if (box.batchNumber) {
+          box.items.forEach(item => {
+            addToBatchProductMap(box.batchNumber!, item.productId, item.quantity, item.weight);
+          });
+        } else if (order.batchNumber) {
+          // Use the order's batch number if the box doesn't have one
+          box.items.forEach(item => {
+            // Only if item doesn't have its own batch
+            if (!item.batchNumber) {
+              addToBatchProductMap(order.batchNumber, item.productId, item.quantity, item.weight);
+            }
+          });
+        } else if (order.batchNumbers && order.batchNumbers.length > 0) {
+          // Use the first batch number from order.batchNumbers array
+          const defaultBatch = order.batchNumbers[0];
+          box.items.forEach(item => {
+            // Only if item doesn't have its own batch
+            if (!item.batchNumber) {
+              addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.weight);
+            }
+          });
+        }
+        
+        // Item-specific batch numbers in boxes
+        box.items.forEach(item => {
+          if (item.batchNumber) {
+            addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.weight);
+          }
+        });
+      });
+    }
+    
+    // For backward compatibility, also check the boxes property
+    if (order.boxes && order.boxes.length > 0) {
+      // Handle the boxes property similarly to boxDistributions
       order.boxes.forEach(box => {
         // If box has a specific batch number
         if (box.batchNumber) {
@@ -668,3 +705,5 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
+
+export default DataProvider;
