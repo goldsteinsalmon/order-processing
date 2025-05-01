@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, User, Mail } from "lucide-react";
 import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
+import { useUserData } from "@/hooks/data/useUserData";
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -16,6 +17,7 @@ const LoginPage: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState("");
   const { signIn, signUp, session } = useSupabaseAuth();
+  const { createPredefinedUsers } = useUserData(useToast());
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -95,6 +97,18 @@ const LoginPage: React.FC = () => {
     setName("");
   };
 
+  const handleCreatePredefinedUsers = async () => {
+    setIsLoading(true);
+    const success = await createPredefinedUsers();
+    if (success) {
+      toast({
+        title: "Users Created",
+        description: "Admin and regular users have been created successfully.",
+      });
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
@@ -167,6 +181,20 @@ const LoginPage: React.FC = () => {
                 {isLoading ? "Processing..." : isSignUp ? "Sign Up" : "Log In"}
               </Button>
             </form>
+            
+            <div className="mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleCreatePredefinedUsers}
+                disabled={isLoading}
+              >
+                {isLoading ? "Creating Users..." : "Create Admin & Regular Users"}
+              </Button>
+              <p className="text-xs text-center mt-2 text-gray-500">
+                This will create the predefined admin and regular users.
+              </p>
+            </div>
           </CardContent>
           <CardFooter className="flex justify-center">
             <Button variant="ghost" onClick={toggleMode}>

@@ -96,11 +96,102 @@ export const useUserData = (toast: any) => {
     }
   };
 
+  // Create specific users
+  const createPredefinedUsers = async (): Promise<boolean> => {
+    try {
+      // Create admin user
+      const { data: adminData, error: adminError } = await supabase.auth.signUp({
+        email: 'nick@goldsteinsalmon.co.uk',
+        password: 'Bigfish1!',
+        options: {
+          data: {
+            name: 'Nick',
+            role: 'Admin'
+          }
+        }
+      });
+      
+      if (adminError) throw adminError;
+      
+      // Create regular user
+      const { data: userDate, error: userError } = await supabase.auth.signUp({
+        email: 'factory@goldsteinsalmon.co.uk',
+        password: 'password',
+        options: {
+          data: {
+            name: 'Factory User',
+            role: 'User'
+          }
+        }
+      });
+      
+      if (userError) throw userError;
+      
+      // Add these users to our users table as well
+      await supabase.from('users').insert([
+        {
+          id: adminData.user?.id,
+          name: 'Nick',
+          email: 'nick@goldsteinsalmon.co.uk',
+          role: 'Admin',
+          active: true
+        }
+      ]);
+      
+      await supabase.from('users').insert([
+        {
+          id: userDate.user?.id,
+          name: 'Factory User',
+          email: 'factory@goldsteinsalmon.co.uk',
+          role: 'User',
+          active: true
+        }
+      ]);
+      
+      // Update the local state
+      await fetchUsers();
+      
+      return true;
+    } catch (error) {
+      console.error('Error creating predefined users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create predefined users.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Fetch all users
+  const fetchUsers = async (): Promise<User[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
+      
+      if (error) throw error;
+      
+      setUsers(data as User[]);
+      return data as User[];
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch users.",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
   return {
     users,
     setUsers,
     addUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    createPredefinedUsers,
+    fetchUsers
   };
 };
