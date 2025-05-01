@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types";
@@ -119,10 +118,34 @@ export const useProductData = (toast: any) => {
     }
   };
 
+  // Delete product
+  const deleteProduct = async (productId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+      
+      if (error) throw error;
+      
+      setProducts(products.filter(p => p.id !== productId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete product.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     products,
     setProducts,
     addProduct,
-    updateProduct
+    updateProduct,
+    deleteProduct
   };
 };

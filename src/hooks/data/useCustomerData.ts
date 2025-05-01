@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 export const useCustomerData = (toastHandler: any) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -93,10 +92,34 @@ export const useCustomerData = (toastHandler: any) => {
     }
   };
 
+  // Delete customer
+  const deleteCustomer = async (customerId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+      
+      if (error) throw error;
+      
+      setCustomers(customers.filter(c => c.id !== customerId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toastHandler({
+        title: "Error",
+        description: "Failed to delete customer.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     customers,
     setCustomers,
     addCustomer,
-    updateCustomer
+    updateCustomer,
+    deleteCustomer
   };
 };

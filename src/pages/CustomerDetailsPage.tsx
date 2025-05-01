@@ -7,16 +7,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Save, AlertTriangle, Package } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, Package, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const CustomerDetailsPage: React.FC = () => {
-  const { customers, updateCustomer, orders, completedOrders } = useData();
+  const { customers, updateCustomer, deleteCustomer, orders, completedOrders } = useData();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -26,6 +36,8 @@ const CustomerDetailsPage: React.FC = () => {
   // Hold reason dialog state
   const [showHoldDialog, setShowHoldDialog] = useState(false);
   const [holdReason, setHoldReason] = useState("");
+  // Delete customer dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const [formData, setFormData] = useState({
     name: customer?.name || "",
@@ -147,6 +159,32 @@ const CustomerDetailsPage: React.FC = () => {
     });
   };
 
+  const handleDeleteCustomer = async () => {
+    if (!customer) return;
+    
+    // Check if customer has any orders
+    const customerOrders = [...orders, ...completedOrders].filter(order => order.customerId === customer.id);
+    
+    if (customerOrders.length > 0) {
+      toast({
+        title: "Cannot Delete",
+        description: "This customer has existing orders. Please delete those orders first.",
+        variant: "destructive"
+      });
+      setShowDeleteDialog(false);
+      return;
+    }
+    
+    const success = await deleteCustomer(customer.id);
+    if (success) {
+      toast({
+        title: "Success",
+        description: "Customer deleted successfully."
+      });
+      navigate("/customers");
+    }
+  };
+
   if (!customer) {
     return (
       <Layout>
@@ -190,9 +228,14 @@ const CustomerDetailsPage: React.FC = () => {
             )}
           </Button>
           {!isEditing && (
-            <Button onClick={() => setIsEditing(true)}>
-              Edit Customer
-            </Button>
+            <>
+              <Button onClick={() => setIsEditing(true)}>
+                Edit Customer
+              </Button>
+              <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -469,6 +512,31 @@ const CustomerDetailsPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the customer 
+              "{customer?.name}" and remove it from our database.
+              
+              {customer && (
+                <p className="mt-2 font-semibold">
+                  Note: Customers with existing orders cannot be deleted.
+                </p>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCustomer} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

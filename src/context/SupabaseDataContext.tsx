@@ -45,8 +45,10 @@ interface DataContextType {
   batchUsages: BatchUsage[];
   addCustomer: (customer: Customer) => Promise<Customer | null>;
   updateCustomer: (customer: Customer) => Promise<boolean>;
+  deleteCustomer: (customerId: string) => Promise<boolean>;
   addProduct: (product: Product | Product[]) => Promise<Product | Product[] | null>;
   updateProduct: (product: Product) => Promise<boolean>;
+  deleteProduct: (productId: string) => Promise<boolean>;
   addOrder: (order: Order) => Promise<Order | null>;
   updateOrder: (order: Order) => Promise<boolean>;
   deleteOrder: (orderId: string) => Promise<boolean>;
@@ -91,18 +93,20 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
   
   // Use our refactored data hooks
   const {
-    customers,
-    setCustomers,
-    addCustomer,
-    updateCustomer
-  } = useCustomerData(toast);
-
-  const {
     products,
     setProducts,
     addProduct,
-    updateProduct
+    updateProduct,
+    deleteProduct
   } = useProductData(toast);
+
+  const {
+    customers,
+    setCustomers,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer
+  } = useCustomerData(toast);
 
   const {
     orders,
@@ -603,8 +607,10 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     batchUsages,
     addCustomer,
     updateCustomer,
+    deleteCustomer,
     addProduct,
     updateProduct,
+    deleteProduct,
     addOrder,
     updateOrder,
     deleteOrder,

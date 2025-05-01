@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
-import { ArrowLeft, Edit, Save } from "lucide-react";
+import { ArrowLeft, Edit, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,16 +12,27 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Product } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ProductDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { products, updateProduct } = useData();
+  const { products, updateProduct, deleteProduct } = useData();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProduct, setEditedProduct] = useState<Product | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   // Load product data
   useEffect(() => {
@@ -69,6 +79,19 @@ const ProductDetailsPage = () => {
     });
   };
   
+  const handleDeleteProduct = async () => {
+    if (!id) return;
+    
+    const success = await deleteProduct(id);
+    if (success) {
+      toast({
+        title: "Success",
+        description: "Product deleted successfully."
+      });
+      navigate("/products");
+    }
+  };
+  
   if (!product) {
     return (
       <Layout>
@@ -89,7 +112,7 @@ const ProductDetailsPage = () => {
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <h2 className="text-2xl font-bold">Product Details</h2>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
           <Button onClick={handleEditToggle}>
             {isEditing ? (
               <>
@@ -100,6 +123,9 @@ const ProductDetailsPage = () => {
                 <Edit className="mr-2 h-4 w-4" /> Edit
               </>
             )}
+          </Button>
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
@@ -211,6 +237,25 @@ const ProductDetailsPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the product 
+              "{product?.name}" and remove it from our database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 };

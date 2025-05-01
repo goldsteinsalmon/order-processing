@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext } from "react";
 import { useSupabaseData } from "./SupabaseDataContext";
 import { 
@@ -35,8 +34,10 @@ interface DataContextType {
   batchUsages: BatchUsage[];
   addCustomer: (customer: Customer) => Promise<Customer | null>;
   updateCustomer: (customer: Customer) => Promise<boolean>;
+  deleteCustomer: (customerId: string) => Promise<boolean>;
   addProduct: (product: Product | Product[]) => Promise<Product | Product[] | null>;
   updateProduct: (product: Product) => Promise<boolean>;
+  deleteProduct: (productId: string) => Promise<boolean>;
   addOrder: (order: any) => Promise<any | null>; // Using any for orders
   updateOrder: (order: any) => Promise<boolean>; // Using any for orders
   deleteOrder: (orderId: string) => Promise<boolean>;
@@ -136,7 +137,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     completeOrder,
     recordAllBatchUsagesForOrder,
     updateCustomer,
-    addCustomer
+    addCustomer,
+    deleteCustomer: supabaseData.deleteCustomer,
+    deleteProduct: supabaseData.deleteProduct
   };
   
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
