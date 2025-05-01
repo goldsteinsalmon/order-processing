@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -68,7 +67,7 @@ const ViewCompletedOrder: React.FC = () => {
       const product = products.find(p => p.id === item.productId);
       if (!product) return;
       
-      // Get all weights across boxes for this product
+      // Calculate total weight for this product
       let totalProductWeight = 0;
       
       // Check if boxes/boxDistributions exist and contain this product
@@ -81,7 +80,7 @@ const ViewCompletedOrder: React.FC = () => {
             // Use boxItem.weight as it's the manual weight
             const weight = boxItem.weight || 0;
             totalProductWeight += weight;
-            console.log(`[Debug] Product ${product.name} in box ${box.boxNumber}: weight=${weight}g`);
+            console.log(`Product ${product.name} in box ${box.boxNumber}: weight=${weight}g`);
           });
         });
       }
@@ -90,13 +89,13 @@ const ViewCompletedOrder: React.FC = () => {
       if (totalProductWeight === 0) {
         if (item.manualWeight && item.manualWeight > 0) {
           totalProductWeight = item.manualWeight;
-          console.log(`[Debug] Using manual weight for ${product.name}: ${totalProductWeight}g`);
+          console.log(`Using manual weight for ${product.name}: ${totalProductWeight}g`);
         } else if (item.pickedWeight && item.pickedWeight > 0) {
           totalProductWeight = item.pickedWeight;
-          console.log(`[Debug] Using picked weight for ${product.name}: ${totalProductWeight}g`);
+          console.log(`Using picked weight for ${product.name}: ${totalProductWeight}g`);
         } else if (product.weight) {
           totalProductWeight = product.weight * item.quantity;
-          console.log(`[Debug] Using calculated weight for ${product.name}: ${totalProductWeight}g`);
+          console.log(`Using calculated weight for ${product.name}: ${totalProductWeight}g`);
         }
       }
       
@@ -129,113 +128,125 @@ const ViewCompletedOrder: React.FC = () => {
   // Calculate total items
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
 
-  // Create batch summaries - simplified to show only batch number and total weight
+  // Create batch summaries - IMPROVED to show only batch number and total weight
   const createBatchSummaries = (): BatchSummary[] => {
     const batchMap: Record<string, BatchSummary> = {};
     
-    // If we have box distributions with batch numbers, use those first
+    // First check if we have box distributions with batch numbers
     if (order.boxDistributions && order.boxDistributions.length > 0) {
+      console.log("Processing boxes for batch summary");
+      
+      // Process each box
       order.boxDistributions.forEach(box => {
-        // Get all distinct batch numbers from the box and its items
-        const boxBatchNumbers = new Set<string>();
+        // Get batch number from box, or use individual item batch numbers
+        const boxBatchNumber = box.batchNumber || "Unknown";
+        console.log(`Processing box #${box.boxNumber} with batch ${boxBatchNumber}`);
         
-        // Add box's batch number if it exists
-        if (box.batchNumber) {
-          boxBatchNumbers.add(box.batchNumber);
+        // Initialize the batch if not exists
+        if (!batchMap[boxBatchNumber]) {
+          batchMap[boxBatchNumber] = {
+            batchNumber: boxBatchNumber,
+            totalWeight: 0
+          };
         }
         
-        // Add batch numbers from box items
+        // Process items in this box with this batch number
+        let boxItemsWeight = 0;
         box.items.forEach(item => {
-          if (item.batchNumber) {
-            boxBatchNumbers.add(item.batchNumber);
+          // Use item specific batch number if available, otherwise use box batch number
+          const itemBatchNumber = item.batchNumber || boxBatchNumber;
+          
+          // If this item has a different batch than the box, handle separately
+          if (itemBatchNumber !== boxBatchNumber) {
+            if (!batchMap[itemBatchNumber]) {
+              batchMap[itemBatchNumber] = {
+                batchNumber: itemBatchNumber,
+                totalWeight: 0
+              };
+            }
+            // Add this item's weight to its specific batch
+            const itemWeight = item.weight || 0;
+            batchMap[itemBatchNumber].totalWeight += itemWeight;
+            console.log(`Item with batch ${itemBatchNumber} in box #${box.boxNumber}: added ${itemWeight}g`);
+          } else {
+            // Add to box total for the box's batch number
+            const itemWeight = item.weight || 0;
+            boxItemsWeight += itemWeight;
           }
         });
         
-        // If no batch numbers found, use "Unknown"
-        if (boxBatchNumbers.size === 0) {
-          boxBatchNumbers.add("Unknown");
-        }
-        
-        // Process each batch number
-        boxBatchNumbers.forEach(batchNumber => {
-          if (!batchMap[batchNumber]) {
-            batchMap[batchNumber] = {
-              batchNumber,
-              totalWeight: 0
-            };
-          }
-          
-          // Calculate weight for this batch in this box
-          let batchWeight = 0;
-          
-          // If this is the box's main batch number, add weights of items without specific batch numbers
-          if (batchNumber === box.batchNumber) {
-            box.items
-              .filter(item => !item.batchNumber)
-              .forEach(item => {
-                batchWeight += item.weight || 0;
-              });
-          }
-          
-          // Add weights of items with this specific batch number
-          box.items
-            .filter(item => item.batchNumber === batchNumber)
-            .forEach(item => {
-              batchWeight += item.weight || 0;
-            });
-          
-          // Update batch total weight
-          batchMap[batchNumber].totalWeight += batchWeight;
-          
-          console.log(`[Debug] Batch ${batchNumber}: Added ${batchWeight}g from box #${box.boxNumber}`);
-        });
+        // Add all items that have the box's batch number
+        batchMap[boxBatchNumber].totalWeight += boxItemsWeight;
+        console.log(`Added ${boxItemsWeight}g to batch ${boxBatchNumber} from box #${box.boxNumber}`);
       });
     } 
-    // Fall back to order-level batch numbers if no boxes defined
+    // If no box distributions, fall back to order-level and item-level batch information
     else {
-      // Get all batch numbers from the order
-      const orderBatchNumbers = order.batchNumbers || 
-        (order.batchNumber ? [order.batchNumber] : ["Unknown"]);
+      console.log("No boxes found, falling back to order-level batch information");
       
-      // Process weights for each batch number
-      orderBatchNumbers.forEach(batchNumber => {
-        let batchWeight = 0;
+      // First look for batch numbers at the order level
+      const orderBatchNumbers: string[] = [];
+      
+      // Add order.batchNumbers array if exists
+      if (order.batchNumbers && order.batchNumbers.length > 0) {
+        orderBatchNumbers.push(...order.batchNumbers);
+        console.log(`Found order batch numbers: ${orderBatchNumbers.join(', ')}`);
+      }
+      // Otherwise add single batchNumber if exists
+      else if (order.batchNumber) {
+        orderBatchNumbers.push(order.batchNumber);
+        console.log(`Found single order batch number: ${order.batchNumber}`);
+      }
+      
+      // If no batch numbers at order level, use "Unknown"
+      if (orderBatchNumbers.length === 0) {
+        orderBatchNumbers.push("Unknown");
+        console.log("No batch numbers found, using 'Unknown'");
+      }
+      
+      // Process each item and assign to appropriate batch
+      order.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (!product) return;
         
-        // Get weights from order items
-        order.items.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (!product) return;
-          
-          // Check if this item belongs to this batch
-          const itemBatchNumber = item.batchNumber || batchNumber;
-          if (itemBatchNumber !== batchNumber) return;
-          
-          // Get weight from item
-          if (item.manualWeight && item.manualWeight > 0) {
-            batchWeight += item.manualWeight;
-          } else if (item.pickedWeight && item.pickedWeight > 0) {
-            batchWeight += item.pickedWeight;
-          } else if (product.weight) {
-            batchWeight += product.weight * item.quantity;
-          }
-        });
+        // Get the item's batch number, or fall back to the first order batch number
+        const itemBatchNumber = item.batchNumber || orderBatchNumbers[0];
         
-        // Create or update batch summary
-        batchMap[batchNumber] = {
-          batchNumber,
-          totalWeight: batchWeight
-        };
+        // Initialize batch if not exists
+        if (!batchMap[itemBatchNumber]) {
+          batchMap[itemBatchNumber] = {
+            batchNumber: itemBatchNumber,
+            totalWeight: 0
+          };
+        }
         
-        console.log(`[Debug] Batch ${batchNumber}: total weight ${batchWeight}g (from order items)`);
+        // Calculate item weight
+        let itemWeight = 0;
+        if (item.manualWeight && item.manualWeight > 0) {
+          itemWeight = item.manualWeight;
+          console.log(`Using manual weight for ${product.name} in batch ${itemBatchNumber}: ${itemWeight}g`);
+        } else if (item.pickedWeight && item.pickedWeight > 0) {
+          itemWeight = item.pickedWeight;
+          console.log(`Using picked weight for ${product.name} in batch ${itemBatchNumber}: ${itemWeight}g`);
+        } else if (product.weight) {
+          itemWeight = product.weight * item.quantity;
+          console.log(`Using calculated weight for ${product.name} in batch ${itemBatchNumber}: ${itemWeight}g`);
+        }
+        
+        // Add to batch total
+        batchMap[itemBatchNumber].totalWeight += itemWeight;
       });
     }
+    
+    // Log the final batch summaries
+    Object.entries(batchMap).forEach(([batchNumber, summary]) => {
+      console.log(`Batch ${batchNumber}: total weight ${summary.totalWeight}g`);
+    });
     
     return Object.values(batchMap);
   };
   
   const batchSummaries = createBatchSummaries();
-  console.log(`[Debug] Created ${batchSummaries.length} batch summaries:`, 
-    batchSummaries.map(b => `Batch ${b.batchNumber}: ${b.totalWeight}g`).join(', '));
 
   // Calculate box weights
   const calculateBoxWeight = (box: any): number => {
