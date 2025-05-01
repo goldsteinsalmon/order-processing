@@ -212,11 +212,12 @@ export interface Picker {
 export interface BatchUsage {
   id: string;
   batchNumber: string;
-  productId: string; // Keep for backend reference but don't display
-  productName: string; // Keep for backend reference but don't display
-  totalWeight: number; // Total weight assigned to this batch (grams)
-  usedWeight: number;  // Weight used from this batch (grams)
-  ordersCount: number; // Number of orders using this batch
-  firstUsed: string;   // First date the batch was used
-  lastUsed: string;    // Last date the batch was used
+  productId: string;
+  productName: string;
+  totalWeight: number;
+  usedWeight: number;
+  ordersCount: number;
+  firstUsed: string;
+  lastUsed: string;
+  usedBy?: string[]; // Add this to track which orders have used this batch
 }

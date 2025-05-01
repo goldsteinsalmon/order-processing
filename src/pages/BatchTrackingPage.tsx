@@ -93,12 +93,15 @@ const BatchTrackingPage: React.FC = () => {
         const lastUsedDate = new Date(usage.lastUsed) > new Date(existingUsage.lastUsed)
           ? usage.lastUsed : existingUsage.lastUsed;
           
-        // Update batch usage record - make sure we're not double counting weights
+        // Update batch usage record without double counting weights
+        // If the same batch appears multiple times, we should NOT sum the weights
+        // Instead, we want to take the highest weight recorded for this batch
         batchUsageMap.set(key, {
           ...existingUsage,
-          usedWeight: existingUsage.usedWeight + usage.usedWeight,
           firstUsed: firstUsedDate,
           lastUsed: lastUsedDate,
+          // Take the highest order count (not the sum)
+          ordersCount: Math.max(existingUsage.ordersCount, usage.ordersCount)
         });
       } else {
         // Add new entry
