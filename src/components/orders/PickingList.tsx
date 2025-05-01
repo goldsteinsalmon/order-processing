@@ -594,8 +594,12 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     // Close dialog and reset state
     setShowCompletionDialog(false);
     
-    // Navigate to orders page now instead of print box label
-    navigate("/orders");
+    // Navigate to print box label page instead of orders page
+    if (selectedOrderId) {
+      navigate(`/print-box-label/${selectedOrderId}`);
+    } else {
+      navigate("/orders");
+    }
   };
 
   // Go back to orders page
