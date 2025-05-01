@@ -13,6 +13,7 @@ import OrderDetailsCard from "./picking/OrderDetailsCard";
 import ItemsTable from "./picking/ItemsTable";
 import CompletionDialog from "./picking/CompletionDialog";
 import PrintablePickingList from "./picking/PrintablePickingList";
+import { getBoxDistributions, getBatchNumber, getBatchNumbers } from "@/utils/propertyHelpers";
 
 // Extended OrderItem type to include UI state properties
 interface ExtendedOrderItem extends OrderItem {
@@ -24,6 +25,15 @@ interface ExtendedOrderItem extends OrderItem {
   boxNumber?: number;
   pickedWeight?: number;
   missingQuantity?: number;
+}
+
+// Define MissingItem interface for state
+interface MissingItemState {
+  id: string;
+  quantity: number;
+  order_id?: string;
+  product_id?: string;
+  date?: string;
 }
 
 interface PickingListProps {
@@ -44,8 +54,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [selectedPickerId, setSelectedPickerId] = useState<string>("");
   const [allItems, setAllItems] = useState<ExtendedOrderItem[]>([]);
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
-  const [missingItems, setMissingItems<{id: string, quantity: number}[]>([]);
-  const [resolvedMissingItems, setResolvedMissingItems<{id: string, quantity: number}[]>([]);
+  const [missingItems, setMissingItems] = useState<MissingItemState[]>([]);
+  const [resolvedMissingItems, setResolvedMissingItems] = useState<MissingItemState[]>([]);
   const [completedBoxes, setCompletedBoxes] = useState<number[]>([]);
   const [printBoxNumber, setPrintBoxNumber] = useState<number | null>(null);
   const [savedBoxes, setSavedBoxes] = useState<number[]>([]);
@@ -146,9 +156,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   
   // Add effect to focus on the specified box when nextBoxToFocus is provided
   useEffect(() => {
-    if (nextBoxToFocus && selectedOrder && selectedOrder.box_distributions) {
+    if (nextBoxToFocus && selectedOrder && getBoxDistributions(selectedOrder)) {
       // Check if this box exists in the order
-      const boxExists = selectedOrder.box_distributions.some(box => box.box_number === nextBoxToFocus);
+      const boxExists = getBoxDistributions(selectedOrder).some(box => box.box_number === nextBoxToFocus);
       
       if (boxExists) {
         // Scroll to the box - this could be improved with a ref, but for now we'll use the box ID
@@ -174,7 +184,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const needsDetailedBoxLabels = selectedOrder?.customer.needsDetailedBoxLabels || false;
   
   // Check if the order has box distributions
-  const hasBoxDistributions = selectedOrder?.box_distributions && selectedOrder.box_distributions.length > 0;
+  const hasBoxDistributions = getBoxDistributions(selectedOrder) && getBoxDistributions(selectedOrder).length > 0;
   
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
@@ -463,8 +473,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     }
     
     // For orders with box distributions, check if all box labels have been printed
-    if (needsDetailedBoxLabels && hasBoxDistributions && selectedOrder.box_distributions) {
-      const boxNumbers = selectedOrder.box_distributions
+    if (needsDetailedBoxLabels && hasBoxDistributions && getBoxDistributions(selectedOrder)) {
+      const boxNumbers = getBoxDistributions(selectedOrder)
         .map(box => box.box_number)
         .filter(num => num > 0); // Exclude unassigned box (0)
       
@@ -514,8 +524,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     });
     
     // If we have box distributions, use them to get more accurate batch information
-    if (selectedOrder.box_distributions) {
-      selectedOrder.box_distributions.forEach(box => {
+    if (getBoxDistributions(selectedOrder)) {
+      getBoxDistributions(selectedOrder).forEach(box => {
         // Get box batch number (if it exists)
         const boxBatchNumber = box.batch_number;
         
@@ -624,7 +634,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   
   // Calculate total weight for all boxes by product
   const calculateTotalWeightByProduct = () => {
-    if (!selectedOrder || !selectedOrder.box_distributions || !allItems.length) {
+    if (!selectedOrder || !getBoxDistributions(selectedOrder) || !allItems.length) {
       return [];
     }
     
