@@ -35,11 +35,13 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // Check if admin access is required but user is not an admin
   if (requireAdmin && userRole !== 'Admin') {
+    console.log('Access denied: Admin access required but user role is', userRole);
     return <Navigate to="/orders" replace />;
   }
   
   // Check if regular user is accessing a restricted route
   if (!allowUserAccess && userRole === 'User') {
+    console.log('Access denied: Regular user accessing restricted route');
     return <Navigate to="/orders" replace />;
   }
   

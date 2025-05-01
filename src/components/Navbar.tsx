@@ -4,12 +4,23 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
+import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 
 const Navbar: React.FC = () => {
   const { currentUser, logout, isAdmin } = useAuth();
+  const { user, signOut } = useSupabaseAuth();
+  
+  // Get user role from Supabase metadata
+  const userRole = user?.user_metadata?.role || "User";
+  const isAdminUser = userRole === "Admin";
   
   // Determine if user is a regular user (not admin or manager)
-  const isRegularUser = currentUser && currentUser.role === "User";
+  const isRegularUser = userRole === "User";
+
+  // Handle logout with Supabase
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <div className="px-4 py-2 bg-zinc-100 border-b">
@@ -77,7 +88,7 @@ const Navbar: React.FC = () => {
                   >
                     Batch Tracking
                   </NavLink>
-                  {isAdmin() && (
+                  {isAdminUser && (
                     <NavLink
                       to="/admin"
                       className={({ isActive }) =>
@@ -93,19 +104,19 @@ const Navbar: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            {currentUser && (
+            {user && (
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2 text-sm bg-white rounded-full px-3 py-1 border">
                   <User size={16} />
-                  <span>{currentUser.name}</span>
+                  <span>{user.user_metadata?.name || user.email}</span>
                   <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                    {currentUser.role}
+                    {user.user_metadata?.role || "User"}
                   </span>
                 </div>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={logout}
+                  onClick={handleLogout}
                   title="Logout"
                 >
                   <LogOut size={18} />
