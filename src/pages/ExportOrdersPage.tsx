@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -37,7 +38,7 @@ const ExportOrdersPage: React.FC = () => {
   
   // New state for search and filter
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterMode, setFilterMode] = useState<"all" | "not-invoiced">("all");
+  const [filterMode, setFilterMode] = useState<"all" | "not-invoiced">("not-invoiced");
   
   // Handle navigation to the view page
   const handleViewExport = () => {
