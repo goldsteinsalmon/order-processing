@@ -41,12 +41,12 @@ const OrderDetailsCard: React.FC<OrderDetailsCardProps> = ({
             
             <div>
               <Label>Order Date</Label>
-              <div>{format(new Date(selectedOrder.orderDate), "MMM d, yyyy")}</div>
+              <div>{format(new Date(selectedOrder.order_date), "MMM d, yyyy")}</div>
             </div>
             
             <div>
               <Label>Delivery Method</Label>
-              <div>{selectedOrder.deliveryMethod}</div>
+              <div>{selectedOrder.delivery_method}</div>
             </div>
           </div>
           
