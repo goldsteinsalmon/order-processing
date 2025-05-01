@@ -108,13 +108,12 @@ const ExportOrdersViewPage: React.FC = () => {
           
           {selectedOrders.map(order => (
             <div key={order.id} className="mb-8 pb-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold mb-2">
-                Order #{order.id.substring(0, 8)}
+              {/* Customer name now bigger and more prominent */}
+              <h2 className="text-2xl font-bold mb-2 text-primary">
+                {order.customer.name}
               </h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <p className="text-gray-500">Customer</p>
-                  <p className="font-medium">{order.customer.name}</p>
                   {order.customer.accountNumber && (
                     <p className="text-sm text-gray-600">Account #: {order.customer.accountNumber}</p>
                   )}

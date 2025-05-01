@@ -396,6 +396,21 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       return;
     }
     
+    // Check if any required items are missing
+    const requiredMissing = allItems.some(item => 
+      item.product.required && 
+      missingItems.some(mi => mi.id === item.id && mi.quantity === item.quantity)
+    );
+    
+    if (requiredMissing) {
+      toast({
+        title: "Required items missing",
+        description: "There are required items marked as missing. Please ensure all required items are picked.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Check if all items have batch numbers
     const allHaveBatchNumbers = allItems.every(item => item.batchNumber);
     
