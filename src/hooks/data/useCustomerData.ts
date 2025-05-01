@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types";
-import { Toast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 
-export const useCustomerData = (toast: any) => {
+export const useCustomerData = (toastHandler: any) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
 
   // Add customer
@@ -27,19 +27,25 @@ export const useCustomerData = (toast: any) => {
       
       if (error) throw error;
       
-      const newCustomer = {
-        ...data[0],
+      const newCustomer: Customer = {
+        id: data[0].id,
+        name: data[0].name,
+        email: data[0].email,
+        phone: data[0].phone,
+        address: data[0].address,
+        type: data[0].type as "Private" | "Trade",
         accountNumber: data[0].account_number,
         onHold: data[0].on_hold,
         holdReason: data[0].hold_reason,
-        needsDetailedBoxLabels: data[0].needs_detailed_box_labels
+        needsDetailedBoxLabels: data[0].needs_detailed_box_labels,
+        created: data[0].created
       };
       
       setCustomers([...customers, newCustomer]);
       return newCustomer;
     } catch (error) {
       console.error('Error adding customer:', error);
-      toast({
+      toastHandler({
         title: "Error",
         description: "Failed to add customer.",
         variant: "destructive",
@@ -72,7 +78,7 @@ export const useCustomerData = (toast: any) => {
       return true;
     } catch (error) {
       console.error('Error updating customer:', error);
-      toast({
+      toastHandler({
         title: "Error",
         description: "Failed to update customer.",
         variant: "destructive",

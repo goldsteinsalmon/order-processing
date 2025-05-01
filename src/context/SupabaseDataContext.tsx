@@ -311,18 +311,101 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
       
       if (batchUsageOrdersError) throw batchUsageOrdersError;
       
-      // Process and set data
-      setCustomers(customerData as Customer[]);
-      setProducts(productData as Product[]);
+      // Process and set data with proper typing
+      const mappedCustomers: Customer[] = customerData.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        email: item.email,
+        phone: item.phone,
+        address: item.address,
+        type: item.type as "Private" | "Trade",
+        accountNumber: item.account_number,
+        onHold: item.on_hold,
+        holdReason: item.hold_reason,
+        created: item.created,
+        needsDetailedBoxLabels: item.needs_detailed_box_labels
+      }));
       
+      const mappedProducts: Product[] = productData.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        description: item.description,
+        stockLevel: item.stock_level,
+        weight: item.weight,
+        created: item.created,
+        requiresWeightInput: item.requires_weight_input,
+        unit: item.unit,
+        required: item.required
+      }));
+
+      // Helper function to map customer data
+      const mapCustomer = (customerData: any): Customer => ({
+        id: customerData.id,
+        name: customerData.name,
+        email: customerData.email,
+        phone: customerData.phone,
+        address: customerData.address,
+        type: customerData.type as "Private" | "Trade",
+        accountNumber: customerData.account_number,
+        onHold: customerData.on_hold,
+        holdReason: customerData.hold_reason,
+        created: customerData.created,
+        needsDetailedBoxLabels: customerData.needs_detailed_box_labels
+      });
+
+      // Helper function to map product data
+      const mapProduct = (productData: any): Product => ({
+        id: productData.id,
+        name: productData.name,
+        sku: productData.sku,
+        description: productData.description,
+        stockLevel: productData.stock_level,
+        weight: productData.weight,
+        created: productData.created,
+        requiresWeightInput: productData.requires_weight_input,
+        unit: productData.unit,
+        required: productData.required
+      });
+
       // Process orders with their items
       const processedOrders = orderData.map((order: any) => {
         const orderItems = orderItemsData.filter((item: any) => item.order_id === order.id);
         return {
           ...order,
+          customerId: order.customer_id,
+          customerOrderNumber: order.customer_order_number,
+          orderDate: order.order_date,
+          requiredDate: order.required_date,
+          deliveryMethod: order.delivery_method as "Delivery" | "Collection",
+          isPicked: order.is_picked,
+          totalBlownPouches: order.total_blown_pouches,
+          isModified: order.is_modified,
+          fromStandingOrder: order.from_standing_order,
+          hasChanges: order.has_changes,
+          pickedBy: order.picked_by,
+          pickedAt: order.picked_at,
+          pickingInProgress: order.picking_in_progress,
+          invoiced: order.invoiced,
+          invoiceNumber: order.invoice_number,
+          invoiceDate: order.invoice_date,
+          customer: mapCustomer(order.customer),
           items: orderItems.map((item: any) => ({
-            ...item,
-            product: item.product
+            id: item.id,
+            productId: item.product_id,
+            product: mapProduct(item.product),
+            quantity: item.quantity,
+            unavailableQuantity: item.unavailable_quantity,
+            isUnavailable: item.is_unavailable,
+            blownPouches: item.blown_pouches,
+            batchNumber: item.batch_number,
+            checked: item.checked,
+            missingQuantity: item.missing_quantity,
+            pickedQuantity: item.picked_quantity,
+            pickedWeight: item.picked_weight,
+            originalQuantity: item.original_quantity,
+            boxNumber: item.box_number,
+            manualWeight: item.manual_weight
           }))
         };
       });
@@ -332,15 +415,42 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         const orderItems = orderItemsData.filter((item: any) => item.order_id === order.id);
         return {
           ...order,
+          customerId: order.customer_id,
+          customerOrderNumber: order.customer_order_number,
+          orderDate: order.order_date,
+          requiredDate: order.required_date,
+          deliveryMethod: order.delivery_method as "Delivery" | "Collection",
+          isPicked: order.is_picked,
+          totalBlownPouches: order.total_blown_pouches,
+          isModified: order.is_modified,
+          fromStandingOrder: order.from_standing_order,
+          hasChanges: order.has_changes,
+          pickedBy: order.picked_by,
+          pickedAt: order.picked_at,
+          pickingInProgress: order.picking_in_progress,
+          invoiced: order.invoiced,
+          invoiceNumber: order.invoice_number,
+          invoiceDate: order.invoice_date,
+          customer: mapCustomer(order.customer),
           items: orderItems.map((item: any) => ({
-            ...item,
-            product: item.product
+            id: item.id,
+            productId: item.product_id,
+            product: mapProduct(item.product),
+            quantity: item.quantity,
+            unavailableQuantity: item.unavailable_quantity,
+            isUnavailable: item.is_unavailable,
+            blownPouches: item.blown_pouches,
+            batchNumber: item.batch_number,
+            checked: item.checked,
+            missingQuantity: item.missing_quantity,
+            pickedQuantity: item.picked_quantity,
+            pickedWeight: item.picked_weight,
+            originalQuantity: item.original_quantity,
+            boxNumber: item.box_number,
+            manualWeight: item.manual_weight
           }))
         };
       });
-      
-      setOrders(processedOrders);
-      setCompletedOrders(processedCompletedOrders);
       
       // Process standing orders with their items
       const processedStandingOrders = standingOrderData.map((standingOrder: any) => {
@@ -350,47 +460,125 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         
         return {
           ...standingOrder,
+          customerId: standingOrder.customer_id,
+          customerOrderNumber: standingOrder.customer_order_number,
+          lastProcessedDate: standingOrder.last_processed_date,
+          nextProcessingDate: standingOrder.next_processing_date,
+          customer: mapCustomer(standingOrder.customer),
           items: standingOrderItems.map((item: any) => ({
-            ...item,
-            product: item.product
+            id: item.id,
+            productId: item.product_id,
+            product: mapProduct(item.product),
+            quantity: item.quantity
           })),
           schedule: {
-            frequency: standingOrder.frequency,
+            frequency: standingOrder.frequency as "Weekly" | "Bi-Weekly" | "Monthly",
             dayOfWeek: standingOrder.day_of_week,
             dayOfMonth: standingOrder.day_of_month,
-            deliveryMethod: standingOrder.delivery_method,
+            deliveryMethod: standingOrder.delivery_method as "Delivery" | "Collection",
             nextDeliveryDate: standingOrder.next_delivery_date
           }
         };
       });
       
-      setStandingOrders(processedStandingOrders);
-      setReturns(returnsData as Return[]);
-      setComplaints(complaintsData as Complaint[]);
-      
-      // Process missing items
-      const processedMissingItems = missingItemsData.map((item: any) => ({
-        ...item,
-        order: item.order
+      // Process returns
+      const processedReturns: Return[] = returnsData.map((item: any) => ({
+        id: item.id,
+        customerId: item.customer_id,
+        customerType: item.customer_type as "Private" | "Trade",
+        customerName: item.customer_name,
+        contactEmail: item.contact_email,
+        contactPhone: item.contact_phone,
+        dateReturned: item.date_returned,
+        orderNumber: item.order_number,
+        invoiceNumber: item.invoice_number,
+        productSku: item.product_sku,
+        product: mapProduct(item.product),
+        quantity: item.quantity,
+        reason: item.reason,
+        returnsRequired: item.returns_required as "Yes" | "No",
+        returnStatus: item.return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
+        resolutionStatus: item.resolution_status as "Open" | "In Progress" | "Resolved",
+        resolutionNotes: item.resolution_notes,
+        created: item.created,
+        updated: item.updated
       }));
       
-      setMissingItems(processedMissingItems);
-      setUsers(usersData as User[]);
-      setPickers(pickersData as Picker[]);
+      // Process complaints
+      const processedComplaints: Complaint[] = complaintsData.map((item: any) => ({
+        id: item.id,
+        customerType: item.customer_type as "Private" | "Trade",
+        customerName: item.customer_name,
+        customerId: item.customer_id,
+        contactEmail: item.contact_email,
+        contactPhone: item.contact_phone,
+        dateSubmitted: item.date_submitted,
+        orderNumber: item.order_number,
+        invoiceNumber: item.invoice_number,
+        productSku: item.product_sku,
+        product: item.product ? mapProduct(item.product) : undefined,
+        complaintType: item.complaint_type,
+        complaintDetails: item.complaint_details,
+        returnsRequired: item.returns_required as "Yes" | "No",
+        returnStatus: item.return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
+        resolutionStatus: item.resolution_status as "Open" | "In Progress" | "Resolved",
+        resolutionNotes: item.resolution_notes,
+        created: item.created,
+        updated: item.updated
+      }));
       
-      // Process batch usages with their order references
-      const processedBatchUsages = batchUsagesData.map((batchUsage: any) => {
+      // Process missing items
+      const processedMissingItems: MissingItem[] = missingItemsData.map((item: any) => {
+        const customerData = item.order?.customer;
+        const customer = customerData ? mapCustomer(customerData) : undefined;
+        
+        return {
+          id: item.id,
+          orderId: item.order_id,
+          productId: item.product_id,
+          product: mapProduct(item.product),
+          quantity: item.quantity,
+          date: item.date,
+          status: item.status as "Pending" | "Processed" | undefined,
+          order: {
+            id: item.order?.id,
+            customer: customer!
+          }
+        };
+      });
+      
+      // Process batch usages
+      const processedBatchUsages: BatchUsage[] = batchUsagesData.map((batchUsage: any) => {
         const usedBy = batchUsageOrdersData
           .filter((item: any) => item.batch_usage_id === batchUsage.id)
           .map((item: any) => item.order_identifier);
         
         return {
-          ...batchUsage,
+          id: batchUsage.id,
+          batchNumber: batchUsage.batch_number,
+          productId: batchUsage.product_id,
+          productName: batchUsage.product_name,
+          totalWeight: batchUsage.total_weight,
+          usedWeight: batchUsage.used_weight,
+          ordersCount: batchUsage.orders_count,
+          firstUsed: batchUsage.first_used,
+          lastUsed: batchUsage.last_used,
           usedBy: usedBy
         };
       });
       
+      setCustomers(mappedCustomers);
+      setProducts(mappedProducts);
+      setOrders(processedOrders);
+      setCompletedOrders(processedCompletedOrders);
+      setStandingOrders(processedStandingOrders);
+      setReturns(processedReturns);
+      setComplaints(processedComplaints);
+      setMissingItems(processedMissingItems);
+      setUsers(usersData as User[]);
+      setPickers(pickersData as Picker[]);
       setBatchUsages(processedBatchUsages);
+      
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({

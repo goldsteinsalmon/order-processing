@@ -43,14 +43,25 @@ export const useComplaintData = (toast: any) => {
           .eq('id', complaint.product.id)
           .single();
         
-        if (!productError) {
-          productData = product;
+        if (!productError && product) {
+          productData = {
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            description: product.description,
+            stockLevel: product.stock_level,
+            weight: product.weight,
+            created: product.created,
+            requiresWeightInput: product.requires_weight_input,
+            unit: product.unit,
+            required: product.required
+          };
         }
       }
       
-      const newComplaint = {
-        ...data[0],
-        customerType: data[0].customer_type,
+      const newComplaint: Complaint = {
+        id: data[0].id,
+        customerType: data[0].customer_type as "Private" | "Trade",
         customerName: data[0].customer_name,
         customerId: data[0].customer_id,
         contactEmail: data[0].contact_email,
@@ -62,11 +73,12 @@ export const useComplaintData = (toast: any) => {
         product: productData,
         complaintType: data[0].complaint_type,
         complaintDetails: data[0].complaint_details,
-        returnsRequired: data[0].returns_required,
-        returnStatus: data[0].return_status,
-        resolutionStatus: data[0].resolution_status,
+        returnsRequired: data[0].returns_required as "Yes" | "No",
+        returnStatus: data[0].return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
+        resolutionStatus: data[0].resolution_status as "Open" | "In Progress" | "Resolved",
         resolutionNotes: data[0].resolution_notes,
-        created: data[0].created
+        created: data[0].created,
+        updated: data[0].updated
       };
       
       setComplaints([...complaints, newComplaint]);

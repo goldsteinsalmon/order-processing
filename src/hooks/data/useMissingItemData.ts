@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MissingItem } from "@/types";
+import { MissingItem, Customer, Product } from "@/types";
 
 export const useMissingItemData = (toast: any) => {
   const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
@@ -39,12 +39,46 @@ export const useMissingItemData = (toast: any) => {
       
       if (orderError) throw orderError;
       
-      const newMissingItem = {
-        ...data[0],
+      // Map to our model types
+      const product: Product = {
+        id: productData.id,
+        name: productData.name,
+        sku: productData.sku,
+        description: productData.description,
+        stockLevel: productData.stock_level,
+        weight: productData.weight,
+        created: productData.created,
+        requiresWeightInput: productData.requires_weight_input,
+        unit: productData.unit,
+        required: productData.required
+      };
+      
+      const customer: Customer = {
+        id: orderData.customer.id,
+        name: orderData.customer.name,
+        email: orderData.customer.email,
+        phone: orderData.customer.phone,
+        address: orderData.customer.address,
+        type: orderData.customer.type as "Private" | "Trade",
+        accountNumber: orderData.customer.account_number,
+        onHold: orderData.customer.on_hold,
+        holdReason: orderData.customer.hold_reason,
+        needsDetailedBoxLabels: orderData.customer.needs_detailed_box_labels,
+        created: orderData.customer.created
+      };
+      
+      const newMissingItem: MissingItem = {
+        id: data[0].id,
         orderId: data[0].order_id,
         productId: data[0].product_id,
-        product: productData,
-        order: orderData
+        product: product,
+        order: {
+          id: orderData.id,
+          customer: customer
+        },
+        quantity: data[0].quantity,
+        date: data[0].date,
+        status: data[0].status as "Pending" | "Processed" | undefined
       };
       
       setMissingItems([...missingItems, newMissingItem]);

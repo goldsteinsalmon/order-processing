@@ -29,10 +29,17 @@ export const useProductData = (toast: any) => {
         
         if (error) throw error;
         
-        const newProducts = data.map((p: any) => ({
-          ...p,
+        const newProducts: Product[] = data.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          description: p.description,
           stockLevel: p.stock_level,
-          requiresWeightInput: p.requires_weight_input
+          weight: p.weight,
+          created: p.created,
+          requiresWeightInput: p.requires_weight_input,
+          unit: p.unit,
+          required: p.required
         }));
         
         setProducts([...products, ...newProducts]);
@@ -55,10 +62,17 @@ export const useProductData = (toast: any) => {
         
         if (error) throw error;
         
-        const newProduct = {
-          ...data[0],
+        const newProduct: Product = {
+          id: data[0].id,
+          name: data[0].name,
+          sku: data[0].sku,
+          description: data[0].description,
           stockLevel: data[0].stock_level,
-          requiresWeightInput: data[0].requires_weight_input
+          weight: data[0].weight,
+          created: data[0].created,
+          requiresWeightInput: data[0].requires_weight_input,
+          unit: data[0].unit,
+          required: data[0].required
         };
         
         setProducts([...products, newProduct]);

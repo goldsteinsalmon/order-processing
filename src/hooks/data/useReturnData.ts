@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Return } from "@/types";
+import { Return, Product } from "@/types";
 
 export const useReturnData = (toast: any) => {
   const [returns, setReturns] = useState<Return[]>([]);
@@ -43,23 +43,40 @@ export const useReturnData = (toast: any) => {
       
       if (productError) throw productError;
       
-      const newReturn = {
-        ...data[0],
-        customerType: data[0].customer_type,
-        customerName: data[0].customer_name,
+      // Map to our Product model
+      const product: Product = {
+        id: productData.id,
+        name: productData.name,
+        sku: productData.sku,
+        description: productData.description,
+        stockLevel: productData.stock_level,
+        weight: productData.weight,
+        created: productData.created,
+        requiresWeightInput: productData.requires_weight_input,
+        unit: productData.unit,
+        required: productData.required
+      };
+      
+      const newReturn: Return = {
+        id: data[0].id,
         customerId: data[0].customer_id,
+        customerType: data[0].customer_type as "Private" | "Trade",
+        customerName: data[0].customer_name,
         contactEmail: data[0].contact_email,
         contactPhone: data[0].contact_phone,
         dateReturned: data[0].date_returned,
         orderNumber: data[0].order_number,
         invoiceNumber: data[0].invoice_number,
         productSku: data[0].product_sku,
-        product: productData,
-        returnsRequired: data[0].returns_required,
-        returnStatus: data[0].return_status,
-        resolutionStatus: data[0].resolution_status,
+        product: product,
+        quantity: data[0].quantity,
+        reason: data[0].reason,
+        returnsRequired: data[0].returns_required as "Yes" | "No",
+        returnStatus: data[0].return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
+        resolutionStatus: data[0].resolution_status as "Open" | "In Progress" | "Resolved",
         resolutionNotes: data[0].resolution_notes,
-        created: data[0].created
+        created: data[0].created,
+        updated: data[0].updated
       };
       
       setReturns([...returns, newReturn]);
