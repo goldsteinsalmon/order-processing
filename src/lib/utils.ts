@@ -12,7 +12,7 @@ export const adaptCustomerToCamelCase = (customer: any) => {
   
   return {
     ...customer,
-    accountNumber: customer.account_number || undefined,
+    accountNumber: customer.account_number || "",
     onHold: customer.on_hold || false,
     holdReason: customer.hold_reason || undefined,
     needsDetailedBoxLabels: customer.needs_detailed_box_labels || false,
@@ -24,7 +24,7 @@ export const adaptCustomerToSnakeCase = (customer: any) => {
   
   const result: any = {
     ...customer,
-    account_number: customer.accountNumber || undefined,
+    account_number: customer.accountNumber || "",
     on_hold: customer.onHold || false,
     hold_reason: customer.holdReason || undefined,
     needs_detailed_box_labels: customer.needsDetailedBoxLabels || false,

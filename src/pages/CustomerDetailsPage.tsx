@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -390,11 +391,11 @@ const CustomerDetailsPage: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Email:</span>
-                      <span className="col-span-2 font-medium">{customer.email}</span>
+                      <span className="col-span-2 font-medium">{customer.email || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Phone:</span>
-                      <span className="col-span-2 font-medium">{customer.phone}</span>
+                      <span className="col-span-2 font-medium">{customer.phone || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Detailed Box Labels:</span>

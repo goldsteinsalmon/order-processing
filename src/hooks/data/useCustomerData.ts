@@ -28,8 +28,8 @@ export const useCustomerData = (toastHandler: any) => {
         email: data[0].email,
         phone: data[0].phone,
         address: data[0].address,
-        type: data[0].type as "Trade", // Only Trade type is allowed
-        accountNumber: data[0].account_number || "", // Convert to camelCase
+        type: data[0].type as "Trade" | "Private",
+        accountNumber: data[0].account_number || "",
         onHold: data[0].on_hold || false,
         holdReason: data[0].hold_reason,
         needsDetailedBoxLabels: data[0].needs_detailed_box_labels || false
