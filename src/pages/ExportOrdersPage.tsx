@@ -37,7 +37,6 @@ import {
 
 const ExportOrdersPage: React.FC = () => {
   const { completedOrders, updateOrder } = useData();
-  const { toast } = useToast();
   const navigate = useNavigate();
   
   // Set default fromDate and toDate to the next working day
