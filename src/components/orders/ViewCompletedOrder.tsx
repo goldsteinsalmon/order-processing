@@ -212,13 +212,42 @@ const ViewCompletedOrder: React.FC = () => {
   const batchSummaries = getBatchSummaries();
   console.log("Final batch summaries:", batchSummaries);
 
-  // Calculate box weights by directly summing item weights
+  // Improved function to get weight from box items, considering all sources of weight data
+  const getItemWeight = (boxItem: any): number => {
+    // If the boxItem has a weight directly assigned, use it
+    if (boxItem.weight !== undefined && boxItem.weight > 0) {
+      return boxItem.weight;
+    }
+    
+    // Try to find the corresponding order item
+    const orderItem = order.items.find(item => item.productId === boxItem.productId);
+    if (orderItem) {
+      // Check for manual or picked weights in the order item
+      if (orderItem.manualWeight && orderItem.manualWeight > 0) {
+        return orderItem.manualWeight;
+      }
+      if (orderItem.pickedWeight && orderItem.pickedWeight > 0) {
+        return orderItem.pickedWeight;
+      }
+    }
+    
+    // If no weight found so far, use product default weight if applicable
+    const product = products.find(p => p.id === boxItem.productId);
+    if (product && product.weight) {
+      return product.weight * boxItem.quantity;
+    }
+    
+    // No weight information found
+    return 0;
+  };
+
+  // Calculate box weights by properly handling all potential weight sources
   const calculateBoxWeight = (box: any): number => {
     if (!box.items || !Array.isArray(box.items)) return 0;
     
-    // Directly sum the weight property from each box item
+    // Sum weights from all items, using our improved weight retrieval function
     return box.items.reduce((total: number, item: any) => {
-      const itemWeight = Number(item.weight) || 0;
+      const itemWeight = getItemWeight(item);
       return total + itemWeight;
     }, 0);
   };
@@ -442,9 +471,8 @@ const ViewCompletedOrder: React.FC = () => {
               <CardContent>
                 <div className="space-y-6">
                   {(order.boxDistributions || order.boxes || []).map((box, index) => {
-                    // Ensure we're correctly calculating the box weight
+                    // Use our improved function to calculate box weight
                     const boxTotalWeight = calculateBoxWeight(box);
-                    console.log(`Box ${box.boxNumber} calculated weight: ${boxTotalWeight}g`);
                     
                     return (
                       <div key={index} className="border rounded-md p-4">
@@ -479,23 +507,22 @@ const ViewCompletedOrder: React.FC = () => {
                             <TableBody>
                               {box.items.map((item, itemIndex) => {
                                 const product = products.find(p => p.id === item.productId);
-                                console.log(`Box ${box.boxNumber}, Item ${itemIndex} weight: ${item.weight}g`);
+                                const itemWeight = getItemWeight(item);
+                                const isWeighted = isWeightedProduct(item.productId);
                                 
                                 return (
                                   <TableRow key={itemIndex}>
                                     <TableCell>
                                       {product?.name || "Unknown Product"}
-                                      {isWeightedProduct(item.productId) && (
+                                      {isWeighted && (
                                         <span className="text-xs text-gray-500 ml-1">(Weighed)</span>
                                       )}
                                     </TableCell>
                                     <TableCell className="text-right">{item.quantity}</TableCell>
                                     <TableCell className="text-right">
-                                      {item.weight > 0 
-                                        ? `${(item.weight / 1000).toFixed(2)} kg` 
-                                        : isWeightedProduct(item.productId) 
-                                          ? "Missing weight" 
-                                          : "-"}
+                                      {itemWeight > 0 
+                                        ? `${(itemWeight / 1000).toFixed(2)} kg` 
+                                        : "-"}
                                     </TableCell>
                                     {box.items.some(item => item.batchNumber) && (
                                       <TableCell className="text-right">
