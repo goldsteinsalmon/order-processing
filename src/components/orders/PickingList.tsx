@@ -19,6 +19,11 @@ interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
   batchNumber: string;
   originalQuantity?: number; // Added for tracking changes
+  // Add camelCase properties that will be used in the UI
+  productId: string;
+  boxNumber?: number;
+  pickedWeight?: number;
+  missingQuantity?: number;
 }
 
 interface PickingListProps {
@@ -71,11 +76,11 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Create a flat list of all items from the order
       const items = selectedOrder.items.map(item => {
         // Check if this item has changes by looking at the order's changes array
-        let originalQty = item.originalQuantity;
+        let originalQty = item.original_quantity;
         
         // If no originalQuantity exists but the order has changes, try to find it in the changes array
         if (originalQty === undefined && selectedOrder.changes && selectedOrder.changes.length > 0) {
-          const itemChange = selectedOrder.changes.find(change => change.productId === item.productId);
+          const itemChange = selectedOrder.changes.find(change => change.productId === item.product_id);
           if (itemChange) {
             originalQty = itemChange.originalQuantity;
           }
@@ -88,24 +93,28 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           ...item,
           // If quantity has changed, ensure item is not checked
           checked: hasQuantityChanged ? false : (item.checked || false),
-          batchNumber: item.batchNumber || "",
-          pickedWeight: item.pickedWeight || 0,
+          batchNumber: item.batch_number || "",
+          pickedWeight: item.picked_weight || 0,
           originalQuantity: originalQty,
+          // Add the camelCase versions that will be used in the UI
+          productId: item.product_id,
+          boxNumber: item.box_number,
+          missingQuantity: item.missing_quantity
         };
       });
       
       setAllItems(items);
       
       // If the order has previously recorded missing items, set them
-      if (selectedOrder.missingItems) {
-        setMissingItems(selectedOrder.missingItems);
+      if (selectedOrder.missing_items) {
+        setMissingItems(selectedOrder.missing_items);
       } else {
         setMissingItems([]);
       }
 
       // If the order has a picker assigned, set it
-      if (selectedOrder.pickedBy) {
-        setSelectedPickerId(selectedOrder.pickedBy);
+      if (selectedOrder.picked_by) {
+        setSelectedPickerId(selectedOrder.picked_by);
       } else {
         setSelectedPickerId("");
       }
@@ -114,8 +123,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       setResolvedMissingItems([]);
       
       // Reset or load saved and completed boxes from order state
-      if (selectedOrder.completedBoxes && selectedOrder.completedBoxes.length > 0) {
-        setCompletedBoxes(selectedOrder.completedBoxes);
+      if (selectedOrder.completed_boxes && selectedOrder.completed_boxes.length > 0) {
+        setCompletedBoxes(selectedOrder.completed_boxes);
       } else {
         setCompletedBoxes([]);
       }
@@ -212,8 +221,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       ...selectedOrder,
       savedBoxes: newSavedBoxes,
       completedBoxes: newCompletedBoxes,
-      pickedBy: selectedPickerId,
-      pickingInProgress: true
+      picked_by: selectedPickerId,
+      picking_in_progress: true
     });
     
     // Save overall progress to ensure everything is preserved
@@ -326,18 +335,18 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         
         return {
           ...item,
-          batchNumber: updatedItem.batchNumber || item.batchNumber,
+          batch_number: updatedItem.batchNumber || item.batch_number,
           checked: updatedItem.checked,
-          missingQuantity: missingQuantity,
-          pickedWeight: updatedItem.pickedWeight || item.pickedWeight
+          missing_quantity: missingQuantity,
+          picked_weight: updatedItem.pickedWeight || item.picked_weight
         };
       }),
-      pickingInProgress: true,
+      picking_in_progress: true,
       status: missingItems.length > 0 ? "Partially Picked" : "Pending",
-      pickedBy: selectedPickerId || undefined,
+      picked_by: selectedPickerId || undefined,
       picker: selectedPickerId ? pickers.find(p => p.id === selectedPickerId)?.name : undefined, // Save the picker name
-      missingItems: missingItems,
-      completedBoxes: completedBoxes, // Save the printed boxes state
+      missing_items: missingItems,
+      completed_boxes: completedBoxes, // Save the printed boxes state
       savedBoxes: savedBoxes // Save the saved boxes state
     };
     
@@ -355,8 +364,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           // Add to missing items collection for tracking
           const missingItemEntry = {
             id: `${selectedOrderId}-${item.id}`,
-            orderId: selectedOrderId,
-            productId: item.productId,
+            order_id: selectedOrderId,
+            product_id: item.productId,
             product: product,
             quantity: missingItem.quantity,
             date: new Date().toISOString(),
@@ -425,7 +434,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     
     // Check if all items that require weight input have a weight entered
     const weightInputMissing = allItems
-      .filter(item => item.product.requiresWeightInput)
+      .filter(item => item.product.requires_weight_input)
       .some(item => !item.pickedWeight || item.pickedWeight <= 0);
     
     if (weightInputMissing) {
@@ -450,7 +459,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     // For orders with box distributions, check if all box labels have been printed
     if (needsDetailedBoxLabels && hasBoxDistributions && selectedOrder.boxDistributions) {
       const boxNumbers = selectedOrder.boxDistributions
-        .map(box => box.boxNumber)
+        .map(box => box.box_number)
         .filter(num => num > 0); // Exclude unassigned box (0)
       
       const allBoxesPrinted = boxNumbers.every(boxNum => completedBoxes.includes(boxNum));
@@ -502,12 +511,12 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     if (selectedOrder.boxDistributions) {
       selectedOrder.boxDistributions.forEach(box => {
         // Get box batch number (if it exists)
-        const boxBatchNumber = box.batchNumber;
+        const boxBatchNumber = box.batch_number;
         
         // Process items in this box
         box.items.forEach(boxItem => {
           // Use item-specific batch or box batch
-          const batchNumber = boxItem.batchNumber || boxBatchNumber;
+          const batchNumber = boxItem.batch_number || boxBatchNumber;
           if (!batchNumber) return;
           
           // Use manually entered weight
@@ -546,18 +555,18 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         
         return {
           ...item,
-          batchNumber: item.batchNumber,
-          missingQuantity: missingQuantity,
-          pickedQuantity: item.quantity - missingQuantity,
-          pickedWeight: item.pickedWeight
+          batch_number: item.batchNumber,
+          missing_quantity: missingQuantity,
+          picked_quantity: item.quantity - missingQuantity,
+          picked_weight: item.pickedWeight
         };
       }),
-      pickedBy: selectedPickerId,
+      picked_by: selectedPickerId,
       picker: pickerName, // Save the picker name
-      pickedAt: new Date().toISOString(),
-      batchNumbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
+      picked_at: new Date().toISOString(),
+      batch_numbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
       status: "Completed" as const,
-      completedBoxes: completedBoxes, // Save the list of completed boxes
+      completed_boxes: completedBoxes, // Save the list of completed boxes
       batchSummaries: batchSummaries // Save the batch summaries
     };
     
@@ -567,7 +576,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     // Now record batch usage for each item
     allItems.forEach(item => {
       if (item.batchNumber && selectedOrderId) {
-        if (item.product.requiresWeightInput && item.pickedWeight) {
+        if (item.product.requires_weight_input && item.pickedWeight) {
           // For weight-based products, use the entered weight
           recordBatchUsage(item.batchNumber, item.productId, 0, selectedOrderId, item.pickedWeight);
         } else {
@@ -622,7 +631,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       const productName = item.product.name;
       
       // For weight-based products, use picked weight
-      if (item.product.requiresWeightInput && item.pickedWeight) {
+      if (item.product.requires_weight_input && item.pickedWeight) {
         const currentWeight = weightByProduct.get(productId) || { 
           id: productId, 
           name: productName, 
@@ -652,7 +661,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const totalWeightByProduct = calculateTotalWeightByProduct();
   
   // Determine if we should display the modified order indicator
-  const shouldShowModifiedIndicator = selectedOrder?.hasChanges && selectedOrder?.pickingInProgress;
+  const shouldShowModifiedIndicator = selectedOrder?.has_changes && selectedOrder?.picking_in_progress;
   
   return (
     <div className="space-y-6">

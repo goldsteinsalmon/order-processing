@@ -24,6 +24,24 @@ interface BoxDistributionStepProps {
   onSubmit: () => void;
 }
 
+// Define a client-side BoxItem that uses camelCase properties
+interface ClientBoxItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  weight: number;
+  batch_number?: string;
+}
+
+// Define a client-side Box that uses camelCase properties
+interface ClientBox {
+  box_number: number;
+  items: ClientBoxItem[];
+  completed?: boolean;
+  printed?: boolean;
+  batch_number?: string;
+}
+
 const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   boxDistributions,
   setBoxDistributions,
@@ -64,13 +82,13 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
 
   const handleAddBox = () => {
     const newBoxNumber = boxDistributions.length > 0 
-      ? Math.max(...boxDistributions.map(box => box.boxNumber)) + 1 
+      ? Math.max(...boxDistributions.map(box => box.box_number)) + 1 
       : 1;
       
     setBoxDistributions([
       ...boxDistributions, 
       { 
-        boxNumber: newBoxNumber, 
+        box_number: newBoxNumber, 
         items: [], 
         completed: false,
         printed: false
@@ -80,7 +98,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   
   const handleRemoveBox = (boxNumber: number) => {
     // Get items from the box being removed
-    const boxToRemove = boxDistributions.find(box => box.boxNumber === boxNumber);
+    const boxToRemove = boxDistributions.find(box => box.box_number === boxNumber);
     if (!boxToRemove) return;
     
     // Return items to unassigned
@@ -88,14 +106,14 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     const updatedUnassignedItems = [...unassignedItems];
     
     itemsToReturn.forEach(item => {
-      const existingItem = updatedUnassignedItems.find(uItem => uItem.productId === item.productId);
+      const existingItem = updatedUnassignedItems.find(uItem => uItem.productId === item.product_id);
       if (existingItem) {
         existingItem.quantity += item.quantity;
       } else {
-        const product = products.find(p => p.id === item.productId);
+        const product = products.find(p => p.id === item.product_id);
         updatedUnassignedItems.push({
           id: crypto.randomUUID(),
-          productId: item.productId,
+          productId: item.product_id,
           productName: product ? product.name : "Unknown Product",
           quantity: item.quantity
         });
@@ -103,7 +121,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     });
     
     setUnassignedItems(updatedUnassignedItems);
-    setBoxDistributions(boxDistributions.filter(box => box.boxNumber !== boxNumber));
+    setBoxDistributions(boxDistributions.filter(box => box.box_number !== boxNumber));
   };
   
   const handleAddItemToBox = (boxNumber: number, item: typeof unassignedItems[0], quantity: number) => {
@@ -111,14 +129,14 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     
     // Add item to box
     setBoxDistributions(boxDistributions.map(box => {
-      if (box.boxNumber === boxNumber) {
-        const existingItem = box.items.find(i => i.productId === item.productId);
+      if (box.box_number === boxNumber) {
+        const existingItem = box.items.find(i => i.product_id === item.productId);
         if (existingItem) {
           // Increment existing item quantity
           return {
             ...box,
             items: box.items.map(i => 
-              i.productId === item.productId 
+              i.product_id === item.productId 
                 ? { ...i, quantity: i.quantity + quantity }
                 : i
             )
@@ -131,8 +149,8 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
             items: [
               ...box.items, 
               { 
-                productId: item.productId, 
-                productName: product ? product.name : "Unknown Product",
+                product_id: item.productId, 
+                product_name: product ? product.name : "Unknown Product",
                 quantity,
                 weight: 0
               }
@@ -176,13 +194,13 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     if (existingBoxCount < boxCount) {
       // Create additional boxes as needed
       let highestBoxNumber = existingBoxCount > 0 
-        ? Math.max(...boxDistributions.map(box => box.boxNumber))
+        ? Math.max(...boxDistributions.map(box => box.box_number))
         : 0;
         
       for (let i = existingBoxCount; i < boxCount; i++) {
         highestBoxNumber++;
         newBoxes.push({
-          boxNumber: highestBoxNumber,
+          box_number: highestBoxNumber,
           items: [],
           completed: false,
           printed: false
@@ -206,12 +224,12 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     const allBoxes = [...boxDistributions, ...newBoxes];
     
     // Sort boxes by box number to ensure consistent order
-    allBoxes.sort((a, b) => a.boxNumber - b.boxNumber);
+    allBoxes.sort((a, b) => a.box_number - b.box_number);
     
     // Get the target boxes we'll distribute to
     const targetBoxes = allBoxes.slice(0, boxCount);
     
-    console.log("Target box numbers:", targetBoxes.map(box => box.boxNumber));
+    console.log("Target box numbers:", targetBoxes.map(box => box.box_number));
     
     // Create a deep copy of the box distributions to modify
     const updatedBoxes = targetBoxes.map((box, index) => {
@@ -220,10 +238,10 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       
       if (adjustedQuantity <= 0) return box;
       
-      console.log(`Adding ${adjustedQuantity} items to box ${box.boxNumber}`);
+      console.log(`Adding ${adjustedQuantity} items to box ${box.box_number}`);
       
       // Check if item already exists in box
-      const existingItemIndex = box.items.findIndex(item => item.productId === currentItem.productId);
+      const existingItemIndex = box.items.findIndex(item => item.product_id === currentItem.productId);
       
       let updatedItems;
       if (existingItemIndex !== -1) {
@@ -239,8 +257,8 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
         updatedItems = [
           ...box.items,
           {
-            productId: currentItem.productId,
-            productName: currentItem.productName,
+            product_id: currentItem.productId,
+            product_name: currentItem.productName,
             quantity: adjustedQuantity,
             weight: 0
           }
@@ -255,7 +273,7 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
     
     // Merge updated boxes with any boxes that weren't targeted
     const finalBoxDistributions = allBoxes.map(box => {
-      const updatedBox = updatedBoxes.find(updatedBox => updatedBox.boxNumber === box.boxNumber);
+      const updatedBox = updatedBoxes.find(updatedBox => updatedBox.box_number === box.box_number);
       return updatedBox || box;
     });
     
@@ -303,22 +321,22 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   
   const handleRemoveItemFromBox = (boxNumber: number, productId: string, quantity?: number) => {
     // Find the box and item
-    const box = boxDistributions.find(b => b.boxNumber === boxNumber);
+    const box = boxDistributions.find(b => b.box_number === boxNumber);
     if (!box) return;
     
-    const itemInBox = box.items.find(i => i.productId === productId);
+    const itemInBox = box.items.find(i => i.product_id === productId);
     if (!itemInBox) return;
     
     const amountToRemove = quantity || itemInBox.quantity;
     
     // Update box by removing or decreasing the item
     setBoxDistributions(boxDistributions.map(b => {
-      if (b.boxNumber === boxNumber) {
+      if (b.box_number === boxNumber) {
         return {
           ...b,
           items: b.items
             .map(i => {
-              if (i.productId === productId) {
+              if (i.product_id === productId) {
                 return { ...i, quantity: i.quantity - amountToRemove };
               }
               return i;
@@ -383,10 +401,10 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                       <DropdownMenuContent align="end">
                         {boxDistributions.map(box => (
                           <DropdownMenuItem 
-                            key={box.boxNumber}
-                            onClick={() => handleAddItemToBox(box.boxNumber, item, item.quantity)}
+                            key={box.box_number}
+                            onClick={() => handleAddItemToBox(box.box_number, item, item.quantity)}
                           >
-                            Add all to Box {box.boxNumber}
+                            Add all to Box {box.box_number}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -411,10 +429,10 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                       <DropdownMenuContent align="end">
                         {boxDistributions.map(box => (
                           <DropdownMenuItem 
-                            key={box.boxNumber}
-                            onClick={(e) => handleOpenSplitDialog(e, item, box.boxNumber)}
+                            key={box.box_number}
+                            onClick={(e) => handleOpenSplitDialog(e, item, box.box_number)}
                           >
-                            Split into Box {box.boxNumber}
+                            Split into Box {box.box_number}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -442,14 +460,14 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
           
           <div className="space-y-4">
             {boxDistributions.map(box => (
-              <div key={box.boxNumber} className="border rounded-md p-3">
+              <div key={box.box_number} className="border rounded-md p-3">
                 <div className="flex justify-between items-center mb-2">
-                  <h5 className="font-medium">Box {box.boxNumber}</h5>
+                  <h5 className="font-medium">Box {box.box_number}</h5>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleRemoveBox(box.boxNumber)}
+                    onClick={() => handleRemoveBox(box.box_number)}
                     disabled={boxDistributions.length <= 1}
                   >
                     <X className="h-4 w-4 text-red-500" />
@@ -463,16 +481,16 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                 ) : (
                   <div className="space-y-2">
                     {box.items.map(item => (
-                      <div key={item.productId} className="flex justify-between items-center text-sm border-b pb-1">
+                      <div key={item.product_id} className="flex justify-between items-center text-sm border-b pb-1">
                         <div className="flex-1">
-                          <div>{item.productName}</div>
+                          <div>{item.product_name}</div>
                           <div className="text-gray-500">Qty: {item.quantity}</div>
                         </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveItemFromBox(box.boxNumber, item.productId)}
+                          onClick={() => handleRemoveItemFromBox(box.box_number, item.product_id)}
                         >
                           <X className="h-3 w-3" />
                         </Button>
