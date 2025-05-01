@@ -1,4 +1,3 @@
-
 import React from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -66,10 +65,12 @@ const StandingOrderDetailsPage: React.FC = () => {
                 <dt className="font-medium">Order ID:</dt>
                 <dd className="col-span-2">{order.id}</dd>
               </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Created:</dt>
-                <dd className="col-span-2">{format(parseISO(order.created), "MMMM d, yyyy")}</dd>
-              </div>
+              {order.created && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Created:</dt>
+                  <dd className="col-span-2">{format(parseISO(order.created), "MMMM d, yyyy")}</dd>
+                </div>
+              )}
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Status:</dt>
                 <dd className="col-span-2">
@@ -92,10 +93,10 @@ const StandingOrderDetailsPage: React.FC = () => {
                 <dt className="font-medium">Delivery Method:</dt>
                 <dd className="col-span-2">{order.schedule.deliveryMethod}</dd>
               </div>
-              {order.customerOrderNumber && (
+              {order.customer_order_number && (
                 <div className="grid grid-cols-3">
                   <dt className="font-medium">Customer Order #:</dt>
-                  <dd className="col-span-2">{order.customerOrderNumber}</dd>
+                  <dd className="col-span-2">{order.customer_order_number}</dd>
                 </div>
               )}
               {order.notes && (

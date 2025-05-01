@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getOrderProcessingDate } from "@/utils/dateUtils";
-import { OrderItem, Product } from "@/types";
+import { StandingOrderItem, Product } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
 const EditStandingOrderPage: React.FC = () => {
@@ -29,7 +30,7 @@ const EditStandingOrderPage: React.FC = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
   const [active, setActive] = useState(true);
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<OrderItem[]>([]);
+  const [items, setItems] = useState<StandingOrderItem[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
@@ -37,7 +38,7 @@ const EditStandingOrderPage: React.FC = () => {
   
   // Available products (excluding those already in the order)
   const availableProducts = products.filter(
-    product => !items.some(item => item.product.id === product.id)
+    product => !items.some(item => item.product_id === product.id)
   );
   
   // Load initial values
@@ -107,9 +108,9 @@ const EditStandingOrderPage: React.FC = () => {
     const product = products.find(p => p.id === selectedProduct);
     if (!product) return;
     
-    const newItem: OrderItem = {
+    const newItem: StandingOrderItem = {
       id: uuidv4(),
-      productId: product.id,
+      product_id: product.id,
       product,
       quantity: productQuantity
     };
@@ -172,7 +173,7 @@ const EditStandingOrderPage: React.FC = () => {
       items: items,
       active,
       notes: notes || undefined,
-      nextProcessingDate: nextProcessingDate.toISOString(),
+      next_processing_date: nextProcessingDate.toISOString(),
       updated: new Date().toISOString()
     };
     
@@ -180,7 +181,7 @@ const EditStandingOrderPage: React.FC = () => {
     
     toast({
       title: "Standing Order Updated",
-      description: `Changes to standing order for ${order.customer.name} have been saved.`
+      description: `Changes to standing order for ${order.customer?.name} have been saved.`
     });
     
     navigate(`/standing-order-details/${order.id}`);
@@ -204,16 +205,16 @@ const EditStandingOrderPage: React.FC = () => {
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div className="flex space-x-2">
                 <dt className="font-medium">Customer:</dt>
-                <dd>{order.customer.name}</dd>
+                <dd>{order.customer?.name}</dd>
               </div>
               <div className="flex space-x-2">
                 <dt className="font-medium">Order ID:</dt>
                 <dd>{order.id}</dd>
               </div>
-              {order.customerOrderNumber && (
+              {order.customer_order_number && (
                 <div className="flex space-x-2">
                   <dt className="font-medium">Customer Order #:</dt>
-                  <dd>{order.customerOrderNumber}</dd>
+                  <dd>{order.customer_order_number}</dd>
                 </div>
               )}
             </dl>

@@ -121,11 +121,14 @@ export interface StandingOrder {
     dayOfMonth?: number;
     deliveryMethod: 'Delivery' | 'Collection';
     nextDeliveryDate: string;
+    processedDates?: string[];
   };
   notes?: string;
   active: boolean;
   next_processing_date?: string;
   last_processed_date?: string;
+  created?: string;
+  updated?: string;
 }
 
 export interface StandingOrderItem {

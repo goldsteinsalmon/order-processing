@@ -115,22 +115,22 @@ const ReturnsPage: React.FC = () => {
                             {item.type === "return" ? "Return" : "Complaint"}
                           </span>
                         </TableCell>
-                        <TableCell>{item.customerName}</TableCell>
-                        <TableCell>{item.product?.name || item.productSku || "N/A"}</TableCell>
+                        <TableCell>{item.customer_name}</TableCell>
+                        <TableCell>{item.product?.name || item.product_sku || "N/A"}</TableCell>
                         <TableCell>
                           {item.type === "return" 
                             ? `Qty: ${(item as any).quantity || 1} - ${(item as any).reason || "Not specified"}` 
-                            : (item as any).complaintType || "Not specified"}
+                            : (item as any).complaint_type || "Not specified"}
                         </TableCell>
                         <TableCell>
                           <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                            item.resolutionStatus === "Resolved" 
+                            item.resolution_status === "Resolved" 
                               ? "bg-green-100 text-green-800" 
-                              : item.resolutionStatus === "In Progress" 
+                              : item.resolution_status === "In Progress" 
                                 ? "bg-blue-100 text-blue-800" 
                                 : "bg-amber-100 text-amber-800"
                           }`}>
-                            {item.resolutionStatus}
+                            {item.resolution_status}
                           </span>
                         </TableCell>
                       </TableRow>

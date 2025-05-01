@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { OrderItem } from "@/types";
+import { OrderItem, StandingOrderItem } from "@/types";
 import { ArrowLeft, Plus, Minus, Save } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { Calendar } from "@/components/ui/calendar";
@@ -45,8 +45,9 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   const [notes, setNotes] = useState("");
   const [orderItems, setOrderItems] = useState<{ 
     id: string; 
-    productId: string; 
+    product_id: string; 
     quantity: number;
+    product?: any;
   }[]>([]);
   
   // Product addition state
@@ -60,19 +61,20 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       const parsedDate = new Date(deliveryDateParam);
       
       // Set up form with standing order data
-      setCustomerId(standingOrder.customerId);
-      setCustomerName(standingOrder.customer.name);
+      setCustomerId(standingOrder.customer_id);
+      setCustomerName(standingOrder.customer?.name || "");
       setOrderDate(parsedDate);
       setDeliveryMethod(standingOrder.schedule.deliveryMethod);
-      setCustomerOrderNumber(standingOrder.customerOrderNumber || "");
+      setCustomerOrderNumber(standingOrder.customer_order_number || "");
       setNotes(standingOrder.notes || "");
       
       // Convert order items for the form
       setOrderItems(
         standingOrder.items.map(item => ({
           id: uuidv4(),
-          productId: item.productId,
-          quantity: item.quantity
+          product_id: item.product_id,
+          quantity: item.quantity,
+          product: item.product
         }))
       );
     }
@@ -101,10 +103,13 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       return;
     }
 
+    const product = products.find(p => p.id === selectedProductId);
+
     const newItem = {
       id: uuidv4(),
-      productId: selectedProductId,
-      quantity: selectedQuantity
+      product_id: selectedProductId,
+      quantity: selectedQuantity,
+      product: product
     };
 
     setOrderItems([...orderItems, newItem]);
@@ -122,11 +127,15 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     setOrderItems(orderItems.filter(item => item.id !== itemId));
   };
 
-  const handleItemChange = (id: string, field: "productId" | "quantity", value: string | number) => {
+  const handleItemChange = (id: string, field: "product_id" | "quantity", value: string | number) => {
     setOrderItems(
       orderItems.map(item => {
         if (item.id === id) {
-          return { ...item, [field]: value };
+          const updatedItem = { ...item, [field]: value };
+          if (field === 'product_id') {
+            updatedItem.product = products.find(p => p.id === value);
+          }
+          return updatedItem;
         }
         return item;
       })
@@ -147,16 +156,13 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
 
     // Create full order items with product data
     const fullOrderItems: OrderItem[] = orderItems
-      .filter(item => item.productId && item.quantity > 0)
+      .filter(item => item.product_id && item.quantity > 0)
       .map(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (!product) {
-          throw new Error(`Product with ID ${item.productId} not found`);
-        }
         return {
           id: item.id,
-          productId: item.productId,
-          product: product,
+          product_id: item.product_id,
+          order_id: "",
+          product: item.product,
           quantity: item.quantity,
         };
       });
@@ -173,19 +179,19 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     // Create the new order using the scheduled delivery date
     const newOrder = {
       id: uuidv4(),
-      customerId: standingOrder.customerId,
+      customer_id: standingOrder.customer_id,
       customer: standingOrder.customer,
-      customerOrderNumber: customerOrderNumber,
-      orderDate: orderDate.toISOString(), // Use the scheduled date from the standing order
-      requiredDate: orderDate.toISOString(),
-      deliveryMethod: deliveryMethod,
+      customer_order_number: customerOrderNumber,
+      order_date: orderDate.toISOString(), // Use the scheduled date from the standing order
+      required_date: orderDate.toISOString(),
+      delivery_method: deliveryMethod,
       items: fullOrderItems,
       notes: notes ? 
         `${notes} (Processed from Standing Order #${standingOrder.id.substring(0, 8)})` : 
         `Processed from Standing Order #${standingOrder.id.substring(0, 8)}`,
       status: "Pending" as const,
       created: new Date().toISOString(),
-      fromStandingOrder: standingOrder.id,
+      from_standing_order: standingOrder.id,
     };
     
     // Mark the date as processed in the standing order

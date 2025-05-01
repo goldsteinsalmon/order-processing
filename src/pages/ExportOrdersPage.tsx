@@ -197,7 +197,7 @@ const ExportOrdersPage: React.FC = () => {
                 <h3 className="text-sm font-medium">Filter by</h3>
                 <RadioGroup 
                   value={invoiceFilter} 
-                  onValueChange={setInvoiceFilter}
+                  onValueChange={(value: any) => setInvoiceFilter(value)}
                   className="flex space-x-4"
                 >
                   <div className="flex items-center space-x-2">
