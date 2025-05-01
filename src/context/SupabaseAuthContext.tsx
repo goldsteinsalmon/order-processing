@@ -102,6 +102,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
             name,
             role
           },
+          emailRedirectTo: window.location.origin,
+          // Don't require email verification
+          emailConfirm: false
         },
       });
 

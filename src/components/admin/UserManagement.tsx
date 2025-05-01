@@ -13,11 +13,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
-import { Loader, RefreshCw, UserPlus, UserCog, UserX } from "lucide-react";
+import { Loader, RefreshCw, UserPlus, UserCog, UserX, Trash2 } from "lucide-react";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -32,6 +43,8 @@ const UserManagement: React.FC = () => {
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,7 +96,7 @@ const UserManagement: React.FC = () => {
         {
           name: newUser.name,
           email: newUser.email,
-          password: newUser.password, // In a real app, you should hash this password
+          password: newUser.password,
           role: newUser.role,
           active: newUser.active,
         },
@@ -222,6 +235,46 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", userToDelete.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Remove user from state
+      setUsers(users.filter(user => user.id !== userToDelete.id));
+      
+      // Reset selected user and close dialog
+      setUserToDelete(null);
+      setDeleteDialogOpen(false);
+      
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "User deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (editingUser) {
@@ -236,7 +289,7 @@ const UserManagement: React.FC = () => {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>User Management</CardTitle>
-          <CardDescription>Add, edit, and deactivate users.</CardDescription>
+          <CardDescription>Add, edit, and manage users.</CardDescription>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" size="icon" onClick={fetchUsers} disabled={refreshing}>
@@ -403,6 +456,38 @@ const UserManagement: React.FC = () => {
                         >
                           <UserX className="h-4 w-4" />
                         </Button>
+                        <AlertDialog open={deleteDialogOpen && userToDelete?.id === user.id} onOpenChange={(open) => {
+                          if (!open) setUserToDelete(null);
+                          setDeleteDialogOpen(open);
+                        }}>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setUserToDelete(user)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete User</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {user.name}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={handleDeleteUser}
+                                className="bg-red-500 hover:bg-red-600"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </td>
                   </tr>
