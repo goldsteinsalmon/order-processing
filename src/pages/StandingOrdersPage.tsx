@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -112,13 +111,13 @@ const StandingOrdersPage: React.FC = () => {
     
     // Filter by selected customer
     if (selectedCustomerId) {
-      filtered = filtered.filter(order => order.customerId === selectedCustomerId);
+      filtered = filtered.filter(order => order.customer_id === selectedCustomerId);
     }
     
     // Filter by selected product
     if (selectedProductId) {
       filtered = filtered.filter(order => 
-        order.items.some(item => item.productId === selectedProductId)
+        order.items.some(item => item.product_id === selectedProductId)
       );
     }
     
@@ -128,7 +127,7 @@ const StandingOrdersPage: React.FC = () => {
       filtered = filtered.filter(order => 
         order.customer.name.toLowerCase().includes(searchLower) ||
         order.id.toLowerCase().includes(searchLower) ||
-        (order.customerOrderNumber?.toLowerCase().includes(searchLower) || false) ||
+        (order.customer_order_number?.toLowerCase().includes(searchLower) || false) ||
         order.schedule.frequency.toLowerCase().includes(searchLower) ||
         order.schedule.deliveryMethod.toLowerCase().includes(searchLower) ||
         order.items.some(item => 

@@ -1,14 +1,15 @@
+
 import { Order, OrderItem } from "@/types";
 
 // Helper function to get the weight of an item, considering all weight sources
 // and prioritizing manual weight if available
 export const getItemWeight = (item: OrderItem): number => {
-  if (item.manualWeight && item.manualWeight > 0) {
-    return item.manualWeight;
+  if (item.manual_weight && item.manual_weight > 0) {
+    return item.manual_weight;
   }
   
-  if (item.pickedWeight && item.pickedWeight > 0) {
-    return item.pickedWeight;
+  if (item.picked_weight && item.picked_weight > 0) {
+    return item.picked_weight;
   }
   
   return 0;

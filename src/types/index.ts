@@ -122,6 +122,14 @@ export interface StandingOrder {
     deliveryMethod: 'Delivery' | 'Collection';
     nextDeliveryDate: string;
     processedDates?: string[];
+    skippedDates?: string[];
+    modifiedDeliveries?: { 
+      date: string; 
+      modifications?: { 
+        items?: boolean; 
+        notes?: boolean; 
+      }
+    }[];
   };
   notes?: string;
   active: boolean;

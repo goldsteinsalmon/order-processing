@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -381,13 +380,13 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
                     </tr>
                   ) : (
                     orderItems.map((item) => {
-                      const product = products.find(p => p.id === item.productId);
+                      const product = products.find(p => p.id === item.product_id);
                       return (
                         <tr key={item.id} className="border-b">
                           <td className="py-3">
                             <Select 
-                              value={item.productId} 
-                              onValueChange={(value) => handleItemChange(item.id, "productId", value)}
+                              value={item.product_id} 
+                              onValueChange={(value) => handleItemChange(item.id, "product_id", value)}
                             >
                               <SelectTrigger>
                                 <SelectValue>
