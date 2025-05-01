@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -63,9 +62,12 @@ const BatchTrackingPage: React.FC = () => {
         usedBy: [] // We'll collect all unique order IDs
       };
       
-      // Track unique order IDs and product-order-boxNumber combinations to avoid double counting
+      // Track unique order IDs
       const uniqueOrderIds = new Set<string>();
-      const processedItems = new Set<string>();
+      
+      // Track processed product-order combinations to prevent double counting
+      // For multi-box orders, we need to track at the item level
+      const processedItems = new Map<string, number>(); // productId-orderId -> weight already counted
       
       // Go through all items for this batch and properly consolidate
       batchItems.forEach(item => {
@@ -75,19 +77,29 @@ const BatchTrackingPage: React.FC = () => {
             if (orderKey.startsWith('order-')) {
               const orderId = orderKey.substring(6); // Remove 'order-' prefix
               
-              // Find the corresponding order to check for box distributions
-              const order = completedOrders.find(o => o.id === orderId);
-              
               // Create a unique key for this product-order combination
-              // If we have box info, include it to properly handle multi-box orders
-              let productOrderKey = `${item.productId}-${orderId}`;
+              const productOrderKey = `${item.productId}-${orderId}`;
               
-              // Only add weight if we haven't processed this specific item yet
-              if (!processedItems.has(productOrderKey)) {
-                consolidated.usedWeight += item.usedWeight;
-                processedItems.add(productOrderKey);
-                uniqueOrderIds.add(orderId);
-              }
+              // Check if we've already processed this product-order combination
+              const existingWeight = processedItems.get(productOrderKey) || 0;
+              
+              // Calculate the weight we should add (if any)
+              let weightToAdd = 0;
+              
+              // If this is the first time we're seeing this combination, add the full weight
+              if (existingWeight === 0) {
+                weightToAdd = item.usedWeight;
+              } 
+              // Otherwise, don't add any weight as we've already counted it
+              
+              // Update our tracking of processed items with total weight counted so far
+              processedItems.set(productOrderKey, existingWeight + weightToAdd);
+              
+              // Only add the weight if we determined we should
+              consolidated.usedWeight += weightToAdd;
+              
+              // Always track unique orders
+              uniqueOrderIds.add(orderId);
             }
           });
         }
