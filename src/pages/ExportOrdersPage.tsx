@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
 import { Order } from "@/types";
-import { ArrowLeft, FileDown, Calendar, Check, Undo } from "lucide-react";
+import { ArrowLeft, FileDown, Calendar, Check, Undo, Search, Filter } from "lucide-react";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -23,6 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const ExportOrdersPage: React.FC = () => {
   const { completedOrders, updateOrder } = useData();
@@ -37,17 +39,38 @@ const ExportOrdersPage: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   
-  // Filter orders based on date range
+  // New state for search and filter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "not-invoiced">("all");
+  
+  // Filter orders based on search, filter mode and date range
   useEffect(() => {
-    if (!fromDate || !toDate) return;
+    let filtered = [...completedOrders];
     
-    const filtered = completedOrders.filter(order => {
-      const orderDate = parseISO(order.orderDate);
-      return isWithinInterval(orderDate, {
-        start: startOfDay(fromDate),
-        end: endOfDay(toDate)
+    // Apply filter mode
+    if (filterMode === "not-invoiced") {
+      filtered = filtered.filter(order => !order.invoiced);
+    } else if (filterMode === "all" && fromDate && toDate) {
+      // Apply date range only if we're not filtering by not-invoiced
+      filtered = filtered.filter(order => {
+        const orderDate = parseISO(order.orderDate);
+        return isWithinInterval(orderDate, {
+          start: startOfDay(fromDate),
+          end: endOfDay(toDate)
+        });
       });
-    });
+    }
+    
+    // Apply search term
+    if (searchTerm.trim() !== "") {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.id.toLowerCase().includes(searchLower) ||
+        order.customer.name.toLowerCase().includes(searchLower) ||
+        (order.customer.accountNumber && order.customer.accountNumber.toLowerCase().includes(searchLower)) ||
+        (order.customerOrderNumber && order.customerOrderNumber.toLowerCase().includes(searchLower))
+      );
+    }
     
     // Sort by date (newest first)
     const sorted = [...filtered].sort((a, b) => {
@@ -60,7 +83,7 @@ const ExportOrdersPage: React.FC = () => {
     // Clear selections when filter changes
     setSelectedOrders(new Set());
     setSelectAll(false);
-  }, [fromDate, toDate, completedOrders]);
+  }, [fromDate, toDate, completedOrders, searchTerm, filterMode]);
   
   // Handle individual order selection
   const handleOrderSelect = (orderId: string) => {
@@ -193,65 +216,102 @@ const ExportOrdersPage: React.FC = () => {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Date Range Filter */}
+        {/* Search and Filter */}
         <Card>
           <CardHeader>
-            <CardTitle>Date Range</CardTitle>
+            <CardTitle>Search & Filter</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col space-y-2">
-              <div className="flex flex-col space-y-2">
-                <span className="text-sm font-medium">From</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !fromDate && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {fromDate ? format(fromDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={fromDate}
-                      onSelect={setFromDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              <div className="flex flex-col space-y-2">
-                <span className="text-sm font-medium">To</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !toDate && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={toDate}
-                      onSelect={setToDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+            {/* Search bar */}
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-grow">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  type="text"
+                  placeholder="Search by ID, customer, account..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
+            
+            {/* Filter options */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Filter by</h3>
+              <RadioGroup 
+                value={filterMode} 
+                onValueChange={(value) => setFilterMode(value as "all" | "not-invoiced")}
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="all" id="all" />
+                  <label htmlFor="all" className="text-sm">All orders</label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="not-invoiced" id="not-invoiced" />
+                  <label htmlFor="not-invoiced" className="text-sm">Not invoiced</label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {/* Date range - only shown when filter mode is "all" */}
+            {filterMode === "all" && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Date Range</h3>
+                <div className="flex flex-col space-y-2">
+                  <span className="text-sm font-medium">From</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !fromDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {fromDate ? format(fromDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={fromDate}
+                        onSelect={setFromDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="flex flex-col space-y-2">
+                  <span className="text-sm font-medium">To</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !toDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={toDate}
+                        onSelect={setToDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
         
@@ -296,7 +356,7 @@ const ExportOrdersPage: React.FC = () => {
       {/* Orders Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Orders</CardTitle>
+          <CardTitle>Orders ({filteredOrders.length})</CardTitle>
           {filteredOrders.length > 0 && (
             <Button 
               variant="outline" 
@@ -330,7 +390,7 @@ const ExportOrdersPage: React.FC = () => {
                 {filteredOrders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
-                      No orders found for the selected date range
+                      No orders found for the selected filters
                     </TableCell>
                   </TableRow>
                 ) : (
