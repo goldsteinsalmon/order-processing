@@ -77,39 +77,6 @@ const getItemWeight = (item: OrderItem): number => {
   return 0;
 };
 
-// Helper to get batch numbers as a formatted string
-const getBatchNumbersString = (order: Order): string => {
-  if (order.batchNumbers && order.batchNumbers.length > 0) {
-    return order.batchNumbers.join(", ");
-  }
-  
-  if (order.batchNumber) {
-    return order.batchNumber;
-  }
-  
-  // Check boxes for batch numbers
-  if (order.boxDistributions) {
-    const batchSet = new Set<string>();
-    order.boxDistributions.forEach(box => {
-      if (box.batchNumber) {
-        batchSet.add(box.batchNumber);
-      }
-      
-      box.items.forEach(item => {
-        if (item.batchNumber) {
-          batchSet.add(item.batchNumber);
-        }
-      });
-    });
-    
-    if (batchSet.size > 0) {
-      return Array.from(batchSet).join(", ");
-    }
-  }
-  
-  return "";
-};
-
 export const generateCsvFilename = (): string => {
   const date = format(new Date(), "yyyy-MM-dd_HH-mm");
   return `orders-export_${date}.csv`;
