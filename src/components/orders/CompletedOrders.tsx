@@ -52,6 +52,14 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         if (order.pickingProgress?.batchNumbers) {
           return Object.values(order.pickingProgress.batchNumbers).includes(batchFilterParam);
         }
+
+        // Check if any box or box item uses this batch number
+        if (order.boxDistributions) {
+          return order.boxDistributions.some(box => 
+            box.batchNumber === batchFilterParam || 
+            box.items.some(item => item.batchNumber === batchFilterParam)
+          );
+        }
         
         return false;
       });
@@ -78,6 +86,17 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         
         // Search in picker name
         if (order.picker?.toLowerCase().includes(searchTermLower)) {
+          return true;
+        }
+
+        // Search in batch numbers
+        if (order.batchNumber?.toLowerCase().includes(searchTermLower)) {
+          return true;
+        }
+
+        if (order.batchNumbers?.some(batch => 
+          batch.toLowerCase().includes(searchTermLower))
+        ) {
           return true;
         }
         
@@ -118,6 +137,47 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     });
     
     return changedProducts.join("; ");
+  };
+
+  // Helper function to check if order has weighed products
+  const hasWeighedProducts = (order) => {
+    return order.items.some(item => {
+      const product = products.find(p => p.id === item.productId);
+      return product?.requiresWeightInput === true;
+    });
+  };
+
+  // Helper function to get batch numbers as a string
+  const getBatchNumbers = (order) => {
+    if (order.batchNumbers && order.batchNumbers.length > 0) {
+      return order.batchNumbers.join(", ");
+    }
+    
+    if (order.batchNumber) {
+      return order.batchNumber;
+    }
+    
+    // Check boxes for batch numbers
+    if (order.boxDistributions) {
+      const batchSet = new Set<string>();
+      order.boxDistributions.forEach(box => {
+        if (box.batchNumber) {
+          batchSet.add(box.batchNumber);
+        }
+        
+        box.items.forEach(item => {
+          if (item.batchNumber) {
+            batchSet.add(item.batchNumber);
+          }
+        });
+      });
+      
+      if (batchSet.size > 0) {
+        return Array.from(batchSet).join(", ");
+      }
+    }
+    
+    return "N/A";
   };
 
   // Get the picker name from either picker field or pickedBy field
@@ -161,6 +221,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
               <TableHead>Order ID</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Order Date</TableHead>
+              <TableHead>Batch Numbers</TableHead>
               <TableHead>Picker</TableHead>
               <TableHead>Blown Pouches</TableHead>
               <TableHead>Actions</TableHead>
@@ -169,13 +230,14 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
           <TableBody>
             {sortedOrders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-gray-500">
+                <TableCell colSpan={7} className="text-center text-gray-500">
                   No completed orders found
                 </TableCell>
               </TableRow>
             ) : (
               sortedOrders.map((order) => {
                 const changeDesc = getChangeDescription(order);
+                const batchNumbers = getBatchNumbers(order);
                 
                 return (
                   <TableRow 
@@ -183,10 +245,20 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                     className={order.hasChanges ? "bg-red-50" : ""}
                   >
                     <TableCell>{order.id.substring(0, 8)}</TableCell>
-                    <TableCell>{order.customer.name}</TableCell>
+                    <TableCell>
+                      <div>
+                        {order.customer.name}
+                        {hasWeighedProducts(order) && (
+                          <span className="text-xs bg-blue-100 text-blue-800 ml-1 px-1 rounded">
+                            Weighed
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {format(parseISO(order.orderDate), "dd/MM/yyyy")}
                     </TableCell>
+                    <TableCell>{batchNumbers}</TableCell>
                     <TableCell>{getPickerName(order)}</TableCell>
                     <TableCell>{order.totalBlownPouches || 0}</TableCell>
                     <TableCell>

@@ -8,6 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
+// Type for product summary used in order items view
+interface ProductSummary {
+  productId: string;
+  productName: string;
+  sku: string;
+  isWeighted: boolean;
+  quantity: number;
+  totalWeight: number;
+  boxAllocations: { boxNumber: number, quantity: number, weight: number }[];
+}
+
 interface BatchSummaryInfo {
   batchNumber: string;
   totalWeight: number;
@@ -50,161 +61,213 @@ const ViewCompletedOrder: React.FC = () => {
            ));
   });
   
-  // Calculate total weight for items in grams
-  const totalWeight = order.items.reduce((acc, item) => {
-    // First check boxDistributions to get accurate manual weights
-    if (order.boxDistributions) {
-      // Find all box items for this product and sum their weights
-      const boxItemsWeight = order.boxDistributions.reduce((boxAcc, box) => {
-        const matchingBoxItems = box.items.filter(boxItem => boxItem.productId === item.productId);
-        return boxAcc + matchingBoxItems.reduce((itemAcc, boxItem) => itemAcc + (boxItem.weight || 0), 0);
-      }, 0);
-      
-      if (boxItemsWeight > 0) {
-        console.log(`[UI] Using box items total weight for ${item.product.name}: ${boxItemsWeight}g`);
-        return acc + boxItemsWeight;
-      }
-    }
-    
-    // If no box distribution weight, try other weight sources
-    if (item.manualWeight) {
-      console.log(`[UI] Using manual weight for ${item.product.name}: ${item.manualWeight}g`);
-      return acc + item.manualWeight;
-    } else if (item.pickedWeight) {
-      console.log(`[UI] Using picked weight for ${item.product.name}: ${item.pickedWeight}g`);
-      return acc + item.pickedWeight;
-    } else if (item.product.weight) {
-      const calculatedWeight = item.product.weight * item.quantity;
-      console.log(`[UI] Using calculated weight for ${item.product.name}: ${calculatedWeight}g`);
-      return acc + calculatedWeight;
-    }
-    
-    return acc;
-  }, 0);
-  
-  // Function to get the item weight in grams
-  const getItemWeight = (item) => {
-    // First check boxDistributions to get accurate manual weights
-    if (order.boxDistributions) {
-      // Find all box items for this product and sum their weights
-      const boxItemsWeight = order.boxDistributions.reduce((boxAcc, box) => {
-        const matchingBoxItems = box.items.filter(boxItem => boxItem.productId === item.productId);
-        return boxAcc + matchingBoxItems.reduce((itemAcc, boxItem) => itemAcc + (boxItem.weight || 0), 0);
-      }, 0);
-      
-      if (boxItemsWeight > 0) {
-        return boxItemsWeight;
-      }
-    }
-    
-    // If no box distribution weight, try other weight sources
-    if (item.manualWeight) {
-      return item.manualWeight;
-    } else if (item.pickedWeight) {
-      return item.pickedWeight;
-    } else if (item.product.weight) {
-      return item.product.weight * item.quantity;
-    }
-    
-    return 0;
-  };
-  
   // Function to determine if an item has a required weight input
-  const isWeightedProduct = (item) => {
-    const product = products.find(p => p.id === item.productId);
+  const isWeightedProduct = (productId: string) => {
+    const product = products.find(p => p.id === productId);
     return product?.requiresWeightInput;
   };
   
-  // Create batch summary
-  const batchSummary: BatchSummaryInfo[] = calculateBatchSummary();
-  
-  // Function to calculate batch summary from order data
-  function calculateBatchSummary(): BatchSummaryInfo[] {
-    const summary: Record<string, BatchSummaryInfo> = {};
+  // Create consolidated product summaries - group by product and aggregate quantities and weights
+  const createProductSummaries = (): ProductSummary[] => {
+    const summaryMap: Record<string, ProductSummary> = {};
     
-    // Function to add product to a batch
-    const addToBatch = (batchNumber: string, productId: string, quantity: number, weight: number) => {
-      if (!batchNumber) return;
-      
-      const product = products.find(p => p.id === productId);
+    // Process each order item
+    order.items.forEach(item => {
+      const product = products.find(p => p.id === item.productId);
       if (!product) return;
       
-      // Use the provided explicit weight directly - this is critical for manual weights
-      const productWeight = weight > 0 ? weight : (product.weight ? product.weight * quantity : 0);
+      // Get all weights across boxes for this product
+      let totalProductWeight = 0;
+      const boxAllocations: { boxNumber: number, quantity: number, weight: number }[] = [];
       
-      console.log(`[UI] Adding to batch ${batchNumber}: ${product.name}, qty: ${quantity}, weight: ${productWeight}g`);
-      
-      if (!summary[batchNumber]) {
-        summary[batchNumber] = {
-          batchNumber,
-          totalWeight: 0,
-          products: []
-        };
-      }
-      
-      // Check if product already exists in this batch
-      const existingProduct = summary[batchNumber].products.find(p => p.name === product.name);
-      
-      if (existingProduct) {
-        existingProduct.quantity += quantity;
-        existingProduct.weight += productWeight;
-      } else {
-        summary[batchNumber].products.push({
-          name: product.name,
-          quantity,
-          weight: productWeight
+      // Check if boxes/boxDistributions exist and contain this product
+      if (order.boxDistributions || order.boxes) {
+        const boxes = order.boxDistributions || order.boxes || [];
+        
+        boxes.forEach(box => {
+          const boxItems = box.items.filter(boxItem => boxItem.productId === item.productId);
+          
+          boxItems.forEach(boxItem => {
+            // Use boxItem.weight directly as it's the manual weight
+            const weight = boxItem.weight || 0;
+            totalProductWeight += weight;
+            
+            // Add to box allocations
+            boxAllocations.push({
+              boxNumber: box.boxNumber,
+              quantity: boxItem.quantity,
+              weight: weight
+            });
+            
+            console.log(`[UI] Product ${product.name} in box ${box.boxNumber}: ${boxItem.quantity} units, weight: ${weight}g`);
+          });
         });
       }
       
-      summary[batchNumber].totalWeight += productWeight;
-    };
+      // If no weight from boxes, try the item's weights
+      if (totalProductWeight === 0) {
+        if (item.manualWeight) {
+          totalProductWeight = item.manualWeight;
+          console.log(`[UI] Using manual weight for ${product.name}: ${totalProductWeight}g`);
+        } else if (item.pickedWeight) {
+          totalProductWeight = item.pickedWeight;
+          console.log(`[UI] Using picked weight for ${product.name}: ${totalProductWeight}g`);
+        } else if (product.weight) {
+          totalProductWeight = product.weight * item.quantity;
+          console.log(`[UI] Using calculated weight for ${product.name}: ${totalProductWeight}g`);
+        }
+      }
+      
+      // Initialize or update the product summary
+      if (!summaryMap[product.id]) {
+        summaryMap[product.id] = {
+          productId: product.id,
+          productName: product.name,
+          sku: product.sku,
+          isWeighted: !!product.requiresWeightInput,
+          quantity: item.quantity,
+          totalWeight: totalProductWeight,
+          boxAllocations: [...boxAllocations]
+        };
+      } else {
+        // Update existing product summary
+        const summary = summaryMap[product.id];
+        summary.quantity += item.quantity;
+        summary.totalWeight += totalProductWeight;
+        summary.boxAllocations = [...summary.boxAllocations, ...boxAllocations];
+      }
+    });
     
-    // Process items in boxes first if available
-    if ((order.boxes && order.boxes.length > 0) || 
-        (order.boxDistributions && order.boxDistributions.length > 0)) {
-      
+    return Object.values(summaryMap);
+  };
+  
+  const productSummaries = createProductSummaries();
+  
+  // Calculate total weight from product summaries
+  const totalWeight = productSummaries.reduce((total, product) => total + product.totalWeight, 0);
+
+  // Create batch summaries with the correct batch numbers
+  const createBatchSummaries = (): BatchSummaryInfo[] => {
+    const batchMap: Record<string, BatchSummaryInfo> = {};
+    
+    // If we have box distributions with batch numbers, use those first
+    if (order.boxDistributions || order.boxes) {
       const boxes = order.boxDistributions || order.boxes || [];
-      console.log(`[UI] Processing ${boxes.length} boxes for batch summary`);
       
-      boxes.forEach((box, index) => {
-        if (!box.items || box.items.length === 0) return;
+      boxes.forEach(box => {
+        // Get batch number for this box
+        const boxBatchNumber = box.batchNumber || "Unknown";
         
-        const boxBatch = box.batchNumber || 
-          order.batchNumber || 
-          (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : "Unknown");
-        
-        console.log(`[UI] Processing box #${box.boxNumber} with batch ${boxBatch}`);
-        
-        box.items.forEach((item, itemIndex) => {
-          const batchToUse = item.batchNumber || boxBatch;
+        box.items.forEach(boxItem => {
+          const product = products.find(p => p.id === boxItem.productId);
+          if (!product) return;
           
-          // CRITICAL: For box items, the weight property directly represents the manually entered weight
-          console.log(`[UI] Box ${box.boxNumber}, item ${itemIndex}: Using weight ${item.weight}g`);
+          // Use the batch number from the box item if available, otherwise use box batch
+          const batchNumber = boxItem.batchNumber || boxBatchNumber;
           
-          addToBatch(batchToUse, item.productId, item.quantity, item.weight);
+          // Initialize batch if not exists
+          if (!batchMap[batchNumber]) {
+            batchMap[batchNumber] = {
+              batchNumber,
+              totalWeight: 0,
+              products: []
+            };
+          }
+          
+          // Get weight - prioritize boxItem.weight as it's the manually entered weight
+          const weight = boxItem.weight || 0;
+          
+          // Check if product already exists in this batch
+          const existingProductIndex = batchMap[batchNumber].products.findIndex(
+            p => p.name === product.name
+          );
+          
+          if (existingProductIndex >= 0) {
+            // Update existing product
+            batchMap[batchNumber].products[existingProductIndex].quantity += boxItem.quantity;
+            batchMap[batchNumber].products[existingProductIndex].weight += weight;
+          } else {
+            // Add new product
+            batchMap[batchNumber].products.push({
+              name: product.name,
+              quantity: boxItem.quantity,
+              weight: weight
+            });
+          }
+          
+          // Update batch total weight
+          batchMap[batchNumber].totalWeight += weight;
+          
+          console.log(`[UI] Added to batch ${batchNumber}: ${product.name}, qty: ${boxItem.quantity}, weight: ${weight}g`);
         });
       });
     } 
-    // If no boxes, use order items directly
-    else if (order.items && order.items.length > 0) {
-      console.log(`[UI] Processing ${order.items.length} items directly from order`);
+    // Fall back to order items if no boxes defined
+    else if (order.items) {
+      // Get all batch numbers from the order
+      const orderBatchNumbers = order.batchNumbers || 
+        (order.batchNumber ? [order.batchNumber] : ["Unknown"]);
       
-      const defaultBatch = order.batchNumber || 
-        (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : "Unknown");
+      // Default batch number is the first one
+      const defaultBatchNumber = orderBatchNumbers[0];
       
-      order.items.forEach((item, index) => {
-        const batchToUse = item.batchNumber || defaultBatch;
+      order.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (!product) return;
         
-        // Get the weight for this item
-        const weight = getItemWeight(item);
-        console.log(`[UI] Item ${index}: Using weight ${weight}g for ${item.product.name}`);
+        // Use item's batch number or default
+        const batchNumber = item.batchNumber || defaultBatchNumber;
         
-        addToBatch(batchToUse, item.productId, item.quantity, weight);
+        // Initialize batch if not exists
+        if (!batchMap[batchNumber]) {
+          batchMap[batchNumber] = {
+            batchNumber,
+            totalWeight: 0,
+            products: []
+          };
+        }
+        
+        // Get weight from item
+        let weight = 0;
+        if (item.manualWeight) {
+          weight = item.manualWeight;
+        } else if (item.pickedWeight) {
+          weight = item.pickedWeight;
+        } else if (product.weight) {
+          weight = product.weight * item.quantity;
+        }
+        
+        // Check if product already exists in this batch
+        const existingProductIndex = batchMap[batchNumber].products.findIndex(
+          p => p.name === product.name
+        );
+        
+        if (existingProductIndex >= 0) {
+          // Update existing product
+          batchMap[batchNumber].products[existingProductIndex].quantity += item.quantity;
+          batchMap[batchNumber].products[existingProductIndex].weight += weight;
+        } else {
+          // Add new product
+          batchMap[batchNumber].products.push({
+            name: product.name,
+            quantity: item.quantity,
+            weight: weight
+          });
+        }
+        
+        // Update batch total weight
+        batchMap[batchNumber].totalWeight += weight;
+        
+        console.log(`[UI] Added to batch ${batchNumber}: ${product.name}, qty: ${item.quantity}, weight: ${weight}g`);
       });
     }
     
-    return Object.values(summary);
-  }
+    return Object.values(batchMap);
+  };
+  
+  const batchSummaries = createBatchSummaries();
+  console.log(`[UI] Created ${batchSummaries.length} batch summaries:`, 
+    batchSummaries.map(b => `Batch ${b.batchNumber}: ${b.totalWeight}g`).join(', '));
 
   return (
     <div>
@@ -331,34 +394,44 @@ const ViewCompletedOrder: React.FC = () => {
                       <th className="text-left font-medium py-2">Product</th>
                       <th className="text-left font-medium py-2">SKU</th>
                       <th className="text-right font-medium py-2">Quantity</th>
-                      {hasWeightedProducts && (
-                        <th className="text-right font-medium py-2">Weight</th>
-                      )}
-                      {order.items.some(item => item.boxNumber) && (
-                        <th className="text-right font-medium py-2">Box</th>
+                      <th className="text-right font-medium py-2">Weight</th>
+                      {productSummaries.some(p => p.boxAllocations.length > 0) && (
+                        <th className="text-left font-medium py-2">Box Distribution</th>
                       )}
                     </tr>
                   </thead>
                   <tbody>
-                    {order.items.map((item) => (
-                      <tr key={item.id} className="border-b">
+                    {productSummaries.map((summary) => (
+                      <tr key={summary.productId} className="border-b">
                         <td className="py-3">
-                          {item.product.name}
-                          {isWeightedProduct(item) && (
+                          {summary.productName}
+                          {summary.isWeighted && (
                             <span className="text-xs text-gray-500 ml-1">(Weighed)</span>
                           )}
                         </td>
-                        <td className="py-3">{item.product.sku}</td>
-                        <td className="py-3 text-right">{item.quantity}</td>
-                        {hasWeightedProducts && (
-                          <td className="py-3 text-right">
-                            {getItemWeight(item) > 0 
-                              ? `${(getItemWeight(item) / 1000).toFixed(2)} kg` 
-                              : "-"}
+                        <td className="py-3">{summary.sku}</td>
+                        <td className="py-3 text-right">{summary.quantity}</td>
+                        <td className="py-3 text-right">
+                          {summary.totalWeight > 0
+                            ? `${(summary.totalWeight / 1000).toFixed(2)} kg`
+                            : "-"}
+                        </td>
+                        {productSummaries.some(p => p.boxAllocations.length > 0) && (
+                          <td className="py-3 text-left">
+                            {summary.boxAllocations.length > 0 ? (
+                              <ul className="text-xs">
+                                {summary.boxAllocations
+                                  .sort((a, b) => a.boxNumber - b.boxNumber)
+                                  .map((alloc, idx) => (
+                                    <li key={idx}>
+                                      Box #{alloc.boxNumber}: {alloc.quantity} {alloc.weight > 0 ? `(${(alloc.weight/1000).toFixed(2)} kg)` : ''}
+                                    </li>
+                                  ))}
+                              </ul>
+                            ) : (
+                              "-"
+                            )}
                           </td>
-                        )}
-                        {order.items.some(item => item.boxNumber) && (
-                          <td className="py-3 text-right">{item.boxNumber || "-"}</td>
                         )}
                       </tr>
                     ))}
@@ -366,12 +439,10 @@ const ViewCompletedOrder: React.FC = () => {
                       <td className="py-3">Total</td>
                       <td className="py-3"></td>
                       <td className="py-3 text-right">{totalItems}</td>
-                      {hasWeightedProducts && (
-                        <td className="py-3 text-right">
-                          {totalWeight > 0 ? `${(totalWeight / 1000).toFixed(2)} kg` : "-"}
-                        </td>
-                      )}
-                      {order.items.some(item => item.boxNumber) && <td></td>}
+                      <td className="py-3 text-right">
+                        {totalWeight > 0 ? `${(totalWeight / 1000).toFixed(2)} kg` : "-"}
+                      </td>
+                      {productSummaries.some(p => p.boxAllocations.length > 0) && <td></td>}
                     </tr>
                   </tbody>
                 </table>
@@ -386,11 +457,11 @@ const ViewCompletedOrder: React.FC = () => {
               <CardTitle>Batch Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              {batchSummary.length === 0 ? (
+              {batchSummaries.length === 0 ? (
                 <p className="text-gray-500 text-center py-6">No batch information available</p>
               ) : (
                 <div className="space-y-6">
-                  {batchSummary.map((batch, index) => (
+                  {batchSummaries.map((batch, index) => (
                     <div key={index} className="border rounded-md p-4">
                       <div className="flex justify-between items-center mb-3">
                         <h4 className="font-semibold flex items-center">
@@ -413,7 +484,12 @@ const ViewCompletedOrder: React.FC = () => {
                           <tbody>
                             {batch.products.map((product, productIndex) => (
                               <tr key={productIndex} className="border-b">
-                                <td className="py-2">{product.name}</td>
+                                <td className="py-2">
+                                  {product.name}
+                                  {isWeightedProduct(productSummaries.find(p => p.productName === product.name)?.productId || '') && (
+                                    <span className="text-xs text-gray-500 ml-1">(Weighed)</span>
+                                  )}
+                                </td>
                                 <td className="py-2 text-right">{product.quantity}</td>
                                 <td className="py-2 text-right">
                                   {(product.weight / 1000).toFixed(2)} kg
@@ -447,7 +523,7 @@ const ViewCompletedOrder: React.FC = () => {
                           Box #{box.boxNumber}
                         </h4>
                         {box.batchNumber && (
-                          <span className="text-sm font-medium">
+                          <span className="text-sm font-medium bg-gray-100 px-2 py-1 rounded">
                             Batch: {box.batchNumber}
                           </span>
                         )}
@@ -459,6 +535,9 @@ const ViewCompletedOrder: React.FC = () => {
                               <th className="text-left font-medium py-2">Product</th>
                               <th className="text-right font-medium py-2">Quantity</th>
                               <th className="text-right font-medium py-2">Weight</th>
+                              {box.items.some(item => item.batchNumber) && (
+                                <th className="text-right font-medium py-2">Batch</th>
+                              )}
                             </tr>
                           </thead>
                           <tbody>
@@ -466,14 +545,42 @@ const ViewCompletedOrder: React.FC = () => {
                               const product = products.find(p => p.id === item.productId);
                               return (
                                 <tr key={itemIndex} className="border-b">
-                                  <td className="py-2">{product?.name || "Unknown Product"}</td>
+                                  <td className="py-2">
+                                    {product?.name || "Unknown Product"}
+                                    {isWeightedProduct(item.productId) && (
+                                      <span className="text-xs text-gray-500 ml-1">(Weighed)</span>
+                                    )}
+                                  </td>
                                   <td className="py-2 text-right">{item.quantity}</td>
                                   <td className="py-2 text-right">
-                                    {item.weight ? `${(item.weight / 1000).toFixed(2)} kg` : "-"}
+                                    {item.weight ? `${(item.weight / 1000).toFixed(2)} kg` : 
+                                      isWeightedProduct(item.productId) ? "Missing weight" : "-"}
                                   </td>
+                                  {box.items.some(item => item.batchNumber) && (
+                                    <td className="py-2 text-right">
+                                      {item.batchNumber || box.batchNumber || "-"}
+                                    </td>
+                                  )}
                                 </tr>
                               );
                             })}
+                            
+                            {/* Box total row */}
+                            <tr className="font-medium">
+                              <td className="py-3">Box Total</td>
+                              <td className="py-3 text-right">
+                                {box.items.reduce((sum, item) => sum + item.quantity, 0)}
+                              </td>
+                              <td className="py-3 text-right">
+                                {(() => {
+                                  const totalBoxWeight = box.items.reduce((sum, item) => sum + (item.weight || 0), 0);
+                                  return totalBoxWeight > 0 
+                                    ? `${(totalBoxWeight / 1000).toFixed(2)} kg` 
+                                    : "-";
+                                })()}
+                              </td>
+                              {box.items.some(item => item.batchNumber) && <td></td>}
+                            </tr>
                           </tbody>
                         </table>
                       </div>
