@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -16,18 +17,21 @@ interface MSNavigator extends Navigator {
   msSaveBlob?: (blob: Blob, defaultName?: string) => boolean;
 }
 
+// Define the type for upload status
+interface UploadStatus {
+  isLoading: boolean;
+  success: boolean;
+  error: string | null;
+  type: string | null;
+  count: number;
+}
+
 const ImportManagement: React.FC = () => {
   const { addCustomer, addProduct } = useData();
   const { toast } = useToast();
   const [customerFile, setCustomerFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
-  const [uploadStatus, setUploadStatus<{
-    isLoading: boolean;
-    success: boolean;
-    error: string | null;
-    type: string | null;
-    count: number;
-  }>({
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
     isLoading: false,
     success: false,
     error: null,
@@ -49,7 +53,7 @@ const ImportManagement: React.FC = () => {
   // Generate and download template
   const downloadTemplate = (type: 'customers' | 'products') => {
     const customerTemplate = [
-      "name,email,phone,address,type,account_number,on_hold,hold_reason,needs_detailed_box_labels",
+      "name,email,phone,address,type,accountNumber,onHold,holdReason,needsDetailedBoxLabels",
       "Example Ltd,example@email.com,01234567890,123 Example St,Trade,ACC123,FALSE,,TRUE",
       "John Smith,john@email.com,07123456789,456 Sample Rd,Private,,,,"
     ].join('\n');
@@ -159,10 +163,10 @@ const ImportManagement: React.FC = () => {
           phone: row.phone,
           address: row.address,
           type: (row.type === 'Trade' ? 'Trade' : 'Private') as 'Trade' | 'Private',
-          accountNumber: row.account_number,
-          onHold: row.on_hold?.toLowerCase() === 'true',
-          holdReason: row.hold_reason || undefined,
-          needsDetailedBoxLabels: row.needs_detailed_box_labels?.toLowerCase() === 'true'
+          accountNumber: row.accountNumber,
+          onHold: row.onHold?.toLowerCase() === 'true',
+          holdReason: row.holdReason || undefined,
+          needsDetailedBoxLabels: row.needsDetailedBoxLabels?.toLowerCase() === 'true'
         };
         
         const result = await addCustomer(customer);
