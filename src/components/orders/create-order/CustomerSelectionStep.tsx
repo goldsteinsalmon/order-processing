@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Search, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Customer } from "@/types";
@@ -17,15 +17,24 @@ interface CustomerSelectionStepProps {
   onCustomerSelect: (customerId: string) => void;
   customers: Customer[];
   selectedCustomer: Customer | null;
+  disabled?: boolean;
 }
 
 const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({ 
   onCustomerSelect, 
   customers,
-  selectedCustomer
+  selectedCustomer,
+  disabled = false
 }) => {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
+
+  // Reset search when dialog closes
+  useEffect(() => {
+    if (!showCustomerSearch) {
+      setCustomerSearch("");
+    }
+  }, [showCustomerSearch]);
 
   // Filter customers using the same logic as in the Customers page
   const filteredCustomers = useMemo(() => {
@@ -55,6 +64,10 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
     setShowCustomerSearch(false);
     onCustomerSelect(customerId);
   };
+
+  const handleOpenCustomerSearch = () => {
+    setShowCustomerSearch(true);
+  };
   
   return (
     <div className="space-y-6">
@@ -67,7 +80,8 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
           type="button"
           variant="outline" 
           className="w-full justify-between h-auto py-6 text-lg customer-selection-button"
-          onClick={() => setShowCustomerSearch(true)}
+          onClick={handleOpenCustomerSearch}
+          disabled={disabled}
         >
           {selectedCustomer ? (
             <div className="flex items-center justify-start text-left">
@@ -89,7 +103,12 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
         </Button>
       </div>
       
-      <CommandDialog open={showCustomerSearch} onOpenChange={setShowCustomerSearch}>
+      <CommandDialog 
+        open={showCustomerSearch} 
+        onOpenChange={(open) => {
+          setShowCustomerSearch(open);
+        }}
+      >
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <CommandInput 

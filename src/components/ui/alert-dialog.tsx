@@ -5,7 +5,20 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 
-const AlertDialog = AlertDialogPrimitive.Root
+const AlertDialog = React.forwardRef<
+  React.ElementRef<typeof AlertDialogPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Root> & {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }
+>(({ open, onOpenChange, ...props }, ref) => (
+  <AlertDialogPrimitive.Root 
+    open={open} 
+    onOpenChange={onOpenChange}
+    {...props}
+  />
+))
+AlertDialog.displayName = "AlertDialog"
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 

@@ -147,6 +147,9 @@ const CreateOrderSteps: React.FC = () => {
     console.log("Unassigned items:", unassignedItems);
   }, [boxDistributions, unassignedItems]);
   
+  // Add a new state to track if dialogs are in transition
+  const [isDialogTransitioning, setIsDialogTransitioning] = React.useState(false);
+  
   const handleCustomerSelect = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
     
@@ -166,11 +169,13 @@ const CreateOrderSteps: React.FC = () => {
     setSelectedCustomer(null);
     setShowOnHoldWarning(false);
     
-    // Reset the customer search dialog state to make it work again
-    const customerSelectionSteps = document.querySelector('.customer-selection-button');
-    if (customerSelectionSteps) {
-      customerSelectionSteps.removeAttribute('disabled');
-    }
+    // Set dialog transitioning state to true to prevent immediate reopening
+    setIsDialogTransitioning(true);
+    
+    // Allow time for the dialog to fully close before enabling the button again
+    setTimeout(() => {
+      setIsDialogTransitioning(false);
+    }, 300); // 300ms matches the animation duration
   };
   
   const confirmOnHoldCustomer = () => {
@@ -372,6 +377,7 @@ const CreateOrderSteps: React.FC = () => {
               onCustomerSelect={handleCustomerSelect} 
               customers={customers}
               selectedCustomer={selectedCustomer}
+              disabled={isDialogTransitioning || showOnHoldWarning}
             />
           </Card>
 
@@ -461,8 +467,10 @@ const CreateOrderSteps: React.FC = () => {
       <AlertDialog 
         open={showOnHoldWarning} 
         onOpenChange={(open) => {
-          setShowOnHoldWarning(open);
-          if (!open) handleCancelCustomerSelection();
+          // Only handle closing, not opening (which is managed by handleCustomerSelect)
+          if (!open) {
+            handleCancelCustomerSelection();
+          }
         }}
       >
         <AlertDialogContent>
