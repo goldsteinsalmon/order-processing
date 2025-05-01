@@ -2,13 +2,17 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Box, Barcode } from "lucide-react";
+import { ArrowLeft, Box, Barcode, FileDown, Check } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { BatchSummary } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // Type for product summary used in order items view
 interface ProductSummary {
@@ -23,7 +27,9 @@ interface ProductSummary {
 const ViewCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { completedOrders, products } = useData();
+  const { completedOrders, products, updateOrder } = useData();
+  const { toast } = useToast();
+  const [invoiceNumber, setInvoiceNumber] = React.useState("");
 
   const order = completedOrders.find(order => order.id === id);
 
@@ -37,6 +43,60 @@ const ViewCompletedOrder: React.FC = () => {
       </div>
     );
   }
+
+  // Export this individual order
+  const handleExportOrder = () => {
+    if (!order) return;
+    
+    exportOrdersToCsv([order], `order-${order.id.substring(0, 8)}-${generateCsvFilename()}`);
+    
+    toast({
+      title: "Export successful",
+      description: `Order ${order.id.substring(0, 8)} has been exported to CSV.`
+    });
+  };
+  
+  // Mark order as invoiced
+  const handleMarkInvoiced = () => {
+    if (!invoiceNumber) {
+      toast({
+        title: "Invoice number required",
+        description: "Please enter an invoice number.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    updateOrder({
+      ...order,
+      invoiced: true,
+      invoiceNumber,
+      invoiceDate: new Date().toISOString()
+    });
+    
+    toast({
+      title: "Order marked as invoiced",
+      description: `Order ${order.id.substring(0, 8)} has been marked as invoiced with invoice #${invoiceNumber}.`
+    });
+    
+    // Reset invoice number
+    setInvoiceNumber("");
+  };
+  
+  // Remove invoiced status
+  const handleRemoveInvoiced = () => {
+    updateOrder({
+      ...order,
+      invoiced: false,
+      invoiceNumber: undefined,
+      invoiceDate: undefined
+    });
+    
+    toast({
+      title: "Invoice status removed",
+      description: `Invoice status has been removed from order ${order.id.substring(0, 8)}.`
+    });
+  };
 
   // Check if any items have a weight defined
   const hasWeightedProducts = order.items.some(item => {
@@ -210,7 +270,6 @@ const ViewCompletedOrder: React.FC = () => {
   };
   
   const batchSummaries = getBatchSummaries();
-  console.log("Final batch summaries:", batchSummaries);
 
   // Improved function to get weight from box items, considering all sources of weight data
   const getItemWeight = (boxItem: any, boxNumber: number): number => {
@@ -282,6 +341,9 @@ const ViewCompletedOrder: React.FC = () => {
           </Button>
           <h2 className="text-2xl font-bold">View Completed Order</h2>
         </div>
+        <Button onClick={handleExportOrder}>
+          <FileDown className="h-4 w-4 mr-2" /> Export Order
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -308,6 +370,32 @@ const ViewCompletedOrder: React.FC = () => {
                   </span>
                 </dd>
               </div>
+              <div className="grid grid-cols-3">
+                <dt className="font-medium">Invoice Status:</dt>
+                <dd className="col-span-2">
+                  {order.invoiced ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Invoiced
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Not Invoiced
+                    </span>
+                  )}
+                </dd>
+              </div>
+              {order.invoiced && order.invoiceNumber && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Invoice Number:</dt>
+                  <dd className="col-span-2">{order.invoiceNumber}</dd>
+                </div>
+              )}
+              {order.invoiced && order.invoiceDate && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Invoice Date:</dt>
+                  <dd className="col-span-2">{format(parseISO(order.invoiceDate), "MMMM d, yyyy")}</dd>
+                </div>
+              )}
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Delivery Method:</dt>
                 <dd className="col-span-2">{order.deliveryMethod}</dd>
@@ -357,6 +445,12 @@ const ViewCompletedOrder: React.FC = () => {
                 <dt className="font-medium">Name:</dt>
                 <dd className="col-span-2">{order.customer.name}</dd>
               </div>
+              {order.customer.accountNumber && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Account Number:</dt>
+                  <dd className="col-span-2">{order.customer.accountNumber}</dd>
+                </div>
+              )}
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Type:</dt>
                 <dd className="col-span-2">{order.customer.type}</dd>
@@ -377,6 +471,48 @@ const ViewCompletedOrder: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Invoice management section */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Invoice Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {order.invoiced ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">
+                  This order is marked as invoiced with invoice #{order.invoiceNumber} 
+                  on {order.invoiceDate ? format(parseISO(order.invoiceDate), "MMMM d, yyyy") : "unknown date"}.
+                </p>
+              </div>
+              <Button variant="outline" onClick={handleRemoveInvoiced}>
+                Remove Invoice Status
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-end gap-4">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="new-invoice-number">Invoice Number</Label>
+                <Input 
+                  id="new-invoice-number" 
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="Enter invoice number"
+                />
+              </div>
+              <Button 
+                className="mb-[1px]" 
+                onClick={handleMarkInvoiced}
+                disabled={!invoiceNumber}
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Mark as Invoiced
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="order-items" className="mb-6">
         <TabsList className="mb-4">

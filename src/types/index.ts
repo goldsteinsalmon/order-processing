@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   accountNumber?: string;
@@ -128,6 +129,9 @@ export interface Order {
   savedBoxes?: number[]; // Added to track which boxes have been saved
   boxes?: Box[]; // Added to match usage in DataContext.tsx
   batchSummaries?: BatchSummary[]; // Added for consolidated batch data
+  invoiced?: boolean; // Track if an order has been invoiced
+  invoiceNumber?: string; // Store invoice number
+  invoiceDate?: string; // Store invoice date
 }
 
 export interface StandingOrder {

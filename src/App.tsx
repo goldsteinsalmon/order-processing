@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import ProductsPage from "./pages/ProductsPage";
@@ -25,6 +26,7 @@ import PickingListPage from "./pages/PickingListPage";
 import EditCompletedOrderPage from "./pages/EditCompletedOrderPage";
 import ViewCompletedOrderPage from "./pages/ViewCompletedOrderPage";
 import BatchTrackingPage from "./pages/BatchTrackingPage";
+import ExportOrdersPage from "./pages/ExportOrdersPage";
 
 const App: React.FC = () => {
   return (
@@ -49,6 +51,7 @@ const App: React.FC = () => {
         <Route path="/view-completed-order/:id" element={<ViewCompletedOrderPage />} />
         <Route path="/picking-list" element={<PickingListPage />} />
         <Route path="/picking-list/:id" element={<PickingListPage />} />
+        <Route path="/export-orders" element={<ExportOrdersPage />} />
         
         <Route path="/standing-orders" element={<StandingOrdersPage />} />
         <Route path="/standing-order-details/:id" element={<StandingOrderDetailsPage />} />

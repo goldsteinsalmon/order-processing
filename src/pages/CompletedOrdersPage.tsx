@@ -3,8 +3,8 @@ import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import CompletedOrders from "@/components/orders/CompletedOrders";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Search, FileDown } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ const CompletedOrdersPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [batchFilter, setBatchFilter] = useState("");
+  const navigate = useNavigate();
   
   // Extract batch filter from URL if present
   useEffect(() => {
@@ -31,9 +32,24 @@ const CompletedOrdersPage: React.FC = () => {
     setSearchParams(newParams);
     setBatchFilter("");
   };
+
+  // Navigate to export page
+  const handleExport = () => {
+    navigate("/export-orders");
+  };
   
   return (
     <Layout>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <h2 className="text-2xl font-bold">Completed Orders</h2>
+        </div>
+        <Button onClick={handleExport}>
+          <FileDown className="mr-2 h-4 w-4" />
+          Export Orders
+        </Button>
+      </div>
+      
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <div className="relative w-full max-w-sm">
