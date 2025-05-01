@@ -169,7 +169,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }
     
-    // Clear the processed batch items set before recording for this order
+    // Make sure the processedBatchOrderItems set is cleared before recording batch usages
     setProcessedBatchOrderItems(new Set());
     
     // Record all batch usages for this order
@@ -189,11 +189,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       weight?: number;
     }>();
     
-    // Clear the processed items set for this new order processing
-    setProcessedBatchOrderItems(new Set());
-    
-    // Track processed items to prevent duplicates
+    // Clear any previously processed items for this order
     const processedItems = new Set<string>();
+    
+    // Reset processedBatchOrderItems for this order
+    setProcessedBatchOrderItems(new Set());
     
     // Process order-level batch information first
     if (order.batchNumber) {
@@ -267,7 +267,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Generate a unique tracking ID for this specific batch usage
       const uniqueId = `${batchNumber}-${order.id}-${productId}`;
-      if (!processedBatchOrderItems.has(uniqueId)) {
+      
+      // Only record if we haven't processed this exact combo yet
+      if (!Array.from(processedBatchOrderItems).some(id => id === uniqueId)) {
         recordBatchUsage(
           batchNumber,
           productId,
@@ -275,13 +277,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           order.id,
           weight
         );
-        
-        // Mark this combination as processed
-        setProcessedBatchOrderItems(prev => {
-          const newSet = new Set(prev);
-          newSet.add(uniqueId);
-          return newSet;
-        });
       }
     }
     
@@ -563,7 +558,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const uniqueKey = `${batchNumber}-${productId}-${orderId}`;
     
     // Check if we've already processed this exact combination
-    const alreadyProcessed = processedBatchOrderItems.has(uniqueKey);
+    const alreadyProcessed = Array.from(processedBatchOrderItems).some(id => id === uniqueKey);
     if (alreadyProcessed) {
       console.log(`Skipping duplicate batch usage: ${uniqueKey}`);
       return; // Skip if already processed

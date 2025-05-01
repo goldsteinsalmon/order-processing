@@ -43,48 +43,66 @@ const BatchTrackingPage: React.FC = () => {
     // Group batch usages by batch number to consolidate
     const batchUsageMap = new Map<string, BatchUsage>();
     
-    // Process batch usages
-    batchUsages.forEach(usage => {
-      const batchNumber = usage.batchNumber;
+    // First collect all unique batch numbers
+    const uniqueBatchNumbers = Array.from(new Set(batchUsages.map(bu => bu.batchNumber)));
+    
+    // For each unique batch number, consolidate all its usages
+    uniqueBatchNumbers.forEach(batchNumber => {
+      const batchItems = batchUsages.filter(bu => bu.batchNumber === batchNumber);
       
-      if (batchUsageMap.has(batchNumber)) {
-        // Already have this batch, update the consolidated entry
-        const existing = batchUsageMap.get(batchNumber)!;
+      if (batchItems.length === 0) return;
+      
+      // Start with the first item as our base
+      const firstItem = batchItems[0];
+      
+      // Initialize the consolidated entry
+      const consolidated: BatchUsage = {
+        ...firstItem,
+        usedWeight: 0, // We'll sum all weights
+        ordersCount: 0, // We'll count unique orders
+        usedBy: [] // We'll collect all unique order IDs
+      };
+      
+      // Collect all unique order IDs
+      const uniqueOrderIds = new Set<string>();
+      
+      // Go through all items for this batch and properly consolidate
+      batchItems.forEach(item => {
+        // Add weight
+        consolidated.usedWeight += item.usedWeight;
         
-        // For date range, use the earliest firstUsed and latest lastUsed
-        const firstUsedDate = new Date(usage.firstUsed) < new Date(existing.firstUsed) 
-          ? usage.firstUsed : existing.firstUsed;
+        // Track earliest and latest use dates
+        const itemFirstDate = new Date(item.firstUsed);
+        const consolidatedFirstDate = new Date(consolidated.firstUsed);
+        if (itemFirstDate < consolidatedFirstDate) {
+          consolidated.firstUsed = item.firstUsed;
+        }
         
-        const lastUsedDate = new Date(usage.lastUsed) > new Date(existing.lastUsed)
-          ? usage.lastUsed : existing.lastUsed;
+        const itemLastDate = new Date(item.lastUsed);
+        const consolidatedLastDate = new Date(consolidated.lastUsed);
+        if (itemLastDate > consolidatedLastDate) {
+          consolidated.lastUsed = item.lastUsed;
+        }
         
-        // Combine usedBy arrays but deduplicate
-        const usedBySet = new Set([
-          ...(existing.usedBy || []),
-          ...(usage.usedBy || [])
-        ]);
-        
-        // Count unique orders from the usedBy array
-        const uniqueOrders = new Set();
-        Array.from(usedBySet).forEach(item => {
-          if (item.startsWith('order-')) {
-            uniqueOrders.add(item.substring(6)); // Remove 'order-' prefix
-          }
-        });
-        
-        // Update the consolidated entry
-        batchUsageMap.set(batchNumber, {
-          ...existing,
-          usedWeight: existing.usedWeight + usage.usedWeight,
-          firstUsed: firstUsedDate,
-          lastUsed: lastUsedDate,
-          ordersCount: uniqueOrders.size,
-          usedBy: Array.from(usedBySet)
-        });
-      } else {
-        // First time seeing this batch, add as is
-        batchUsageMap.set(batchNumber, { ...usage });
-      }
+        // Add order IDs
+        if (item.usedBy && item.usedBy.length > 0) {
+          item.usedBy.forEach(orderKey => {
+            if (orderKey.startsWith('order-')) {
+              const orderId = orderKey.substring(6); // Remove 'order-' prefix
+              uniqueOrderIds.add(orderId);
+            }
+          });
+        }
+      });
+      
+      // Set the unique order count
+      consolidated.ordersCount = uniqueOrderIds.size;
+      
+      // Set the used by array with unique order keys
+      consolidated.usedBy = Array.from(uniqueOrderIds).map(id => `order-${id}`);
+      
+      // Add this fully consolidated batch to our map
+      batchUsageMap.set(batchNumber, consolidated);
     });
     
     // Convert back to array for display
