@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -280,11 +279,10 @@ const ExportOrdersPage: React.FC = () => {
             </Button>
             
             <Button 
-              className="w-full" 
               onClick={handleUnmarkInvoiced}
               disabled={selectedOrders.size === 0}
               variant="outline"
-              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
             >
               <Undo className="mr-2 h-4 w-4" /> 
               Unmark Selected as Invoiced ({selectedOrders.size})
