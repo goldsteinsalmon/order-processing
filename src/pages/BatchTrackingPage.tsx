@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -41,31 +42,56 @@ const BatchTrackingPage: React.FC = () => {
     
     // Collect all batch numbers from completed orders
     const validBatchNumbers = new Set();
+    const batchOrderUsage = new Map<string, Set<string>>();
     
     completedOrders.forEach(order => {
       // Check if order has a batch number array
       if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
         order.batchNumbers.forEach(batch => {
-          if (batch) validBatchNumbers.add(batch);
+          if (batch) {
+            validBatchNumbers.add(batch);
+            // Track which orders used which batches
+            if (!batchOrderUsage.has(batch)) {
+              batchOrderUsage.set(batch, new Set());
+            }
+            batchOrderUsage.get(batch)?.add(order.id);
+          }
         });
       }
       
       // Check if order has a single batch number
       if (order.batchNumber) {
         validBatchNumbers.add(order.batchNumber);
+        // Track which orders used which batches
+        if (!batchOrderUsage.has(order.batchNumber)) {
+          batchOrderUsage.set(order.batchNumber, new Set());
+        }
+        batchOrderUsage.get(order.batchNumber)?.add(order.id);
       }
       
       // Check individual items for batch numbers
       order.items.forEach(item => {
         if (item.batchNumber) {
           validBatchNumbers.add(item.batchNumber);
+          // Track which orders used which batches
+          if (!batchOrderUsage.has(item.batchNumber)) {
+            batchOrderUsage.set(item.batchNumber, new Set());
+          }
+          batchOrderUsage.get(item.batchNumber)?.add(order.id);
         }
       });
       
       // Check the pickingProgress batchNumbers mapping
       if (order.pickingProgress?.batchNumbers) {
         Object.values(order.pickingProgress.batchNumbers).forEach(batch => {
-          if (batch) validBatchNumbers.add(batch);
+          if (batch) {
+            validBatchNumbers.add(batch);
+            // Track which orders used which batches
+            if (!batchOrderUsage.has(batch)) {
+              batchOrderUsage.set(batch, new Set());
+            }
+            batchOrderUsage.get(batch)?.add(order.id);
+          }
         });
       }
     });
@@ -92,20 +118,34 @@ const BatchTrackingPage: React.FC = () => {
         // Use the latest last used date
         const lastUsedDate = new Date(usage.lastUsed) > new Date(existingUsage.lastUsed)
           ? usage.lastUsed : existingUsage.lastUsed;
-          
-        // Update batch usage record without double counting weights
-        // If the same batch appears multiple times, we should NOT sum the weights
-        // Instead, we want to take the highest weight recorded for this batch
+        
+        // Get the actual orders count from the tracking map
+        const ordersCount = batchOrderUsage.has(key) ? batchOrderUsage.get(key)!.size : 0;
+        
+        // Combine the usedBy arrays and deduplicate
+        const combinedUsedBy = [...new Set([
+          ...(existingUsage.usedBy || []),
+          ...(usage.usedBy || [])
+        ])];
+        
+        // Update batch usage record
+        // For weight, we need to properly aggregate across all boxes
         batchUsageMap.set(key, {
           ...existingUsage,
           firstUsed: firstUsedDate,
           lastUsed: lastUsedDate,
-          // Take the highest order count (not the sum)
-          ordersCount: Math.max(existingUsage.ordersCount, usage.ordersCount)
+          // Use total weight from all boxes
+          usedWeight: existingUsage.usedWeight + usage.usedWeight,
+          ordersCount: ordersCount,
+          usedBy: combinedUsedBy
         });
       } else {
-        // Add new entry
-        batchUsageMap.set(key, usage);
+        // Add new entry with correct orders count
+        const ordersCount = batchOrderUsage.has(key) ? batchOrderUsage.get(key)!.size : usage.ordersCount;
+        batchUsageMap.set(key, {
+          ...usage,
+          ordersCount: ordersCount
+        });
       }
     });
     
