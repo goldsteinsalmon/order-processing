@@ -6,13 +6,15 @@ import React from "react";
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  allowUserAccess?: boolean; // New prop to explicitly allow user access
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requireAdmin = false 
+  requireAdmin = false,
+  allowUserAccess = false // By default, don't allow users
 }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, currentUser } = useAuth();
 
   if (!isAuthenticated) {
     // User is not authenticated, redirect to login
@@ -24,7 +26,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/orders" replace />;
   }
 
-  // User is authenticated (and is admin if required)
+  // Check if the user is a regular user and if this route is not allowed for users
+  if (currentUser?.role === "User" && !allowUserAccess) {
+    // Regular user trying to access a restricted route, redirect to orders
+    return <Navigate to="/orders" replace />;
+  }
+
+  // User is authenticated and has appropriate permissions
   return <>{children}</>;
 };
 

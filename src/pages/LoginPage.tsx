@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, User } from "lucide-react";
@@ -111,11 +111,6 @@ const LoginPage: React.FC = () => {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="justify-center text-sm text-gray-500">
-            <p>
-              Demo accounts: nickgoldstein/Bigfish1! (Admin) | nila/Bigfish1! (User)
-            </p>
-          </CardFooter>
         </Card>
       </div>
     </div>

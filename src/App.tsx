@@ -43,13 +43,44 @@ const App: React.FC = () => {
           {/* Default redirect to login */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           
-          {/* Protected routes - require authentication */}
+          {/* Routes accessible to all users, including regular users */}
           <Route path="/orders" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowUserAccess={true}>
               <OrdersPage />
             </ProtectedRoute>
           } />
           
+          <Route path="/completed-orders" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <CompletedOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/order-details/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <OrderDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/view-completed-order/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <ViewCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/export-orders" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <ExportOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/export-orders-view" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <ExportOrdersViewPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Routes restricted to manager/admin only */}
           <Route path="/customers" element={
             <ProtectedRoute>
               <CustomersPage />
@@ -86,21 +117,9 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           
-          <Route path="/order-details/:id" element={
-            <ProtectedRoute>
-              <OrderDetailsPage />
-            </ProtectedRoute>
-          } />
-          
           <Route path="/create-order" element={
             <ProtectedRoute>
               <CreateOrderPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/completed-orders" element={
-            <ProtectedRoute>
-              <CompletedOrdersPage />
             </ProtectedRoute>
           } />
           
@@ -116,12 +135,6 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           
-          <Route path="/view-completed-order/:id" element={
-            <ProtectedRoute>
-              <ViewCompletedOrderPage />
-            </ProtectedRoute>
-          } />
-          
           <Route path="/picking-list" element={
             <ProtectedRoute>
               <PickingListPage />
@@ -131,18 +144,6 @@ const App: React.FC = () => {
           <Route path="/picking-list/:id" element={
             <ProtectedRoute>
               <PickingListPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/export-orders" element={
-            <ProtectedRoute>
-              <ExportOrdersPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/export-orders-view" element={
-            <ProtectedRoute>
-              <ExportOrdersViewPage />
             </ProtectedRoute>
           } />
           
@@ -206,16 +207,16 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           
+          <Route path="/batch-tracking" element={
+            <ProtectedRoute>
+              <BatchTrackingPage />
+            </ProtectedRoute>
+          } />
+          
           {/* Admin-only route */}
           <Route path="/admin" element={
             <ProtectedRoute requireAdmin={true}>
               <AdminPage />
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/batch-tracking" element={
-            <ProtectedRoute>
-              <BatchTrackingPage />
             </ProtectedRoute>
           } />
         </Routes>

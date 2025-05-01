@@ -7,6 +7,9 @@ import { LogOut, User } from "lucide-react";
 
 const Navbar: React.FC = () => {
   const { currentUser, logout, isAdmin } = useAuth();
+  
+  // Determine if user is a regular user (not admin or manager)
+  const isRegularUser = currentUser && currentUser.role === "User";
 
   return (
     <div className="px-4 py-2 bg-zinc-100 border-b">
@@ -33,63 +36,69 @@ const Navbar: React.FC = () => {
               >
                 Completed Orders
               </NavLink>
-              <NavLink
-                to="/standing-orders"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Standing Orders
-              </NavLink>
-              <NavLink
-                to="/picking-list"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Picking List
-              </NavLink>
-              <NavLink
-                to="/customers"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Customers
-              </NavLink>
-              <NavLink
-                to="/products"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Products
-              </NavLink>
-              <NavLink
-                to="/returns"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Returns
-              </NavLink>
-              <NavLink
-                to="/batch-tracking"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Batch Tracking
-              </NavLink>
-              {isAdmin() && (
-                <NavLink
-                  to="/admin"
-                  className={({ isActive }) =>
-                    isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                  }
-                >
-                  Admin
-                </NavLink>
+              
+              {/* Show these links only for admin and manager roles */}
+              {!isRegularUser && (
+                <>
+                  <NavLink
+                    to="/standing-orders"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Standing Orders
+                  </NavLink>
+                  <NavLink
+                    to="/picking-list"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Picking List
+                  </NavLink>
+                  <NavLink
+                    to="/customers"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Customers
+                  </NavLink>
+                  <NavLink
+                    to="/products"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Products
+                  </NavLink>
+                  <NavLink
+                    to="/returns"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Returns
+                  </NavLink>
+                  <NavLink
+                    to="/batch-tracking"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Batch Tracking
+                  </NavLink>
+                  {isAdmin() && (
+                    <NavLink
+                      to="/admin"
+                      className={({ isActive }) =>
+                        isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                      }
+                    >
+                      Admin
+                    </NavLink>
+                  )}
+                </>
               )}
             </nav>
           </div>
