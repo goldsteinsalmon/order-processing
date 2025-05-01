@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -167,18 +166,21 @@ const CreateOrderSteps: React.FC = () => {
   };
   
   const handleCancelCustomerSelection = () => {
+    // First clear the states
     setSelectedCustomer(null);
     setShowOnHoldWarning(false);
     
-    // Instead of tracking dialog transition, navigate back to orders list
-    // with an informative toast message
-    toast({
-      title: "Selection canceled",
-      description: "You've canceled the on-hold customer selection. Returning to orders list.",
-    });
-    
-    // Navigate back to the orders list
-    navigate("/orders");
+    // Show toast and navigate in the next event loop cycle to ensure
+    // the dialog has time to close properly
+    setTimeout(() => {
+      toast({
+        title: "Selection canceled",
+        description: "You've canceled the on-hold customer selection. Returning to orders list.",
+      });
+      
+      // Force navigation back to the orders list
+      window.location.href = "/orders";
+    }, 0);
   };
   
   const confirmOnHoldCustomer = () => {
@@ -343,7 +345,8 @@ const CreateOrderSteps: React.FC = () => {
   };
 
   const handleCancel = () => {
-    navigate("/orders");
+    // Use window.location for more reliable navigation
+    window.location.href = "/orders";
   };
 
   // Determine progress percentage based on completed steps
@@ -380,7 +383,7 @@ const CreateOrderSteps: React.FC = () => {
               onCustomerSelect={handleCustomerSelect} 
               customers={customers}
               selectedCustomer={selectedCustomer}
-              disabled={isDialogTransitioning || showOnHoldWarning}
+              disabled={showOnHoldWarning}
             />
           </Card>
 
