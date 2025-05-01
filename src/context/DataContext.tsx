@@ -189,122 +189,69 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       weight?: number;
     }[]>();
     
-    // First, collect all batch-product associations
+    // Track processed items to prevent duplicates
+    const processedItems = new Set<string>();
     
-    // 1. Process order-level batch number if it exists
+    // Process order-level batch information first
     if (order.batchNumber) {
-      order.items.forEach(item => {
-        if (!item.batchNumber) { // Only use order batch if item doesn't have specific batch
-          addToBatchProductMap(order.batchNumber, item.productId, item.quantity, item.pickedWeight);
-        }
-      });
+      processOrderItems(order.items, order.batchNumber);
     }
     
-    // 2. Process order.batchNumbers array if it exists
-    if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
-      order.batchNumbers.forEach(batchNumber => {
-        if (batchNumber) {
-          // For now, we'll just use the first batch for all unassigned items
-          order.items.forEach(item => {
-            // Skip if item has its own batch assignment
-            if (!item.batchNumber) {
-              addToBatchProductMap(batchNumber, item.productId, item.quantity, item.pickedWeight);
-            }
-          });
-        }
-      });
+    // Process order.batchNumbers array if it exists
+    if (order.batchNumbers && Array.isArray(order.batchNumbers) && order.batchNumbers.length > 0) {
+      const defaultBatch = order.batchNumbers[0];
+      processOrderItems(order.items, defaultBatch);
     }
     
-    // 3. Process item-level batch numbers (most specific)
+    // Process item-level batch numbers
     order.items.forEach(item => {
       if (item.batchNumber) {
-        addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.pickedWeight);
+        const itemKey = `item-${item.id}-${item.batchNumber}`;
+        if (!processedItems.has(itemKey)) {
+          addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.pickedWeight);
+          processedItems.add(itemKey);
+        }
       }
     });
     
-    // 4. Process pickingProgress batch assignments if they exist
-    if (order.pickingProgress?.batchNumbers) {
-      Object.entries(order.pickingProgress.batchNumbers).forEach(([itemId, batchNumber]) => {
-        if (batchNumber) {
-          const item = order.items.find(i => i.id === itemId);
-          if (item) {
-            addToBatchProductMap(batchNumber, item.productId, item.quantity, item.pickedWeight);
-          }
-        }
-      });
-    }
-    
-    // Process multi-box orders
+    // Process boxes exclusively - don't double count with order.items
     if (order.boxDistributions && order.boxDistributions.length > 0) {
-      // Get the batch number for each box if specified
-      order.boxDistributions.forEach(box => {
-        // If box has a specific batch number
-        if (box.batchNumber) {
-          box.items.forEach(item => {
-            addToBatchProductMap(box.batchNumber!, item.productId, item.quantity, item.weight);
-          });
-        } else if (order.batchNumber) {
-          // Use the order's batch number if the box doesn't have one
-          box.items.forEach(item => {
-            // Only if item doesn't have its own batch
-            if (!item.batchNumber) {
-              addToBatchProductMap(order.batchNumber, item.productId, item.quantity, item.weight);
-            }
-          });
-        } else if (order.batchNumbers && order.batchNumbers.length > 0) {
-          // Use the first batch number from order.batchNumbers array
-          const defaultBatch = order.batchNumbers[0];
-          box.items.forEach(item => {
-            // Only if item doesn't have its own batch
-            if (!item.batchNumber) {
-              addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.weight);
-            }
-          });
-        }
-        
-        // Item-specific batch numbers in boxes
-        box.items.forEach(item => {
-          if (item.batchNumber) {
-            addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.weight);
+      processBoxes(order.boxDistributions);
+    } else if (order.boxes && order.boxes.length > 0) {
+      processBoxes(order.boxes);
+    }
+    
+    // Helper function to process order items
+    function processOrderItems(items: OrderItem[], defaultBatch: string) {
+      items.forEach(item => {
+        if (!item.batchNumber) {
+          const itemKey = `item-${item.id}-${defaultBatch}`;
+          if (!processedItems.has(itemKey)) {
+            addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.pickedWeight);
+            processedItems.add(itemKey);
           }
-        });
+        }
       });
     }
     
-    // For backward compatibility, also check the boxes property
-    if (order.boxes && order.boxes.length > 0) {
-      // Handle the boxes property similarly to boxDistributions
-      order.boxes.forEach(box => {
-        // If box has a specific batch number
-        if (box.batchNumber) {
+    // Helper function to process boxes
+    function processBoxes(boxes: Box[]) {
+      boxes.forEach(box => {
+        // Determine which batch number to use for this box
+        const boxBatch = box.batchNumber || order.batchNumber || 
+          (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : undefined);
+        
+        if (boxBatch) {
           box.items.forEach(item => {
-            addToBatchProductMap(box.batchNumber!, item.productId, item.quantity, item.weight);
-          });
-        } else if (order.batchNumber) {
-          // Use the order's batch number if the box doesn't have one
-          box.items.forEach(item => {
-            // Only if item doesn't have its own batch
-            if (!item.batchNumber) {
-              addToBatchProductMap(order.batchNumber, item.productId, item.quantity, item.weight);
-            }
-          });
-        } else if (order.batchNumbers && order.batchNumbers.length > 0) {
-          // Use the first batch number from order.batchNumbers array
-          const defaultBatch = order.batchNumbers[0];
-          box.items.forEach(item => {
-            // Only if item doesn't have its own batch
-            if (!item.batchNumber) {
-              addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.weight);
+            const itemBatch = item.batchNumber || boxBatch;
+            const boxItemKey = `box-${box.boxNumber}-item-${item.productId}-${itemBatch}`;
+            
+            if (!processedItems.has(boxItemKey)) {
+              addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
+              processedItems.add(boxItemKey);
             }
           });
         }
-        
-        // Item-specific batch numbers in boxes
-        box.items.forEach(item => {
-          if (item.batchNumber) {
-            addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.weight);
-          }
-        });
       });
     }
     
@@ -339,6 +286,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       quantity: number,
       weight?: number
     ) {
+      if (!batchNumber) return;
+      
       if (!batchProductMap.has(batchNumber)) {
         batchProductMap.set(batchNumber, []);
       }
