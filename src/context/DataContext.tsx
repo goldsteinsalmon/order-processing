@@ -10,7 +10,8 @@ import {
   User, 
   Picker,
   BatchUsage,
-  OrderItem
+  OrderItem,
+  Box
 } from "../types";
 import { 
   customers as initialCustomers,
