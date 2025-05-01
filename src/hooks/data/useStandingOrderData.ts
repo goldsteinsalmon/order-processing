@@ -67,21 +67,54 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       
       if (newItemsError) throw newItemsError;
       
-      const newStandingOrder = {
-        ...newSOData,
-        items: newItemsData.map((item: any) => ({
-          ...item,
-          id: item.id,
-          productId: item.product_id,
-          product: item.product
-        })),
+      // Map to our expected StandingOrder type
+      const newStandingOrder: StandingOrder = {
+        id: newSOData.id,
+        customerId: newSOData.customer_id,
+        customer: {
+          id: newSOData.customer.id,
+          name: newSOData.customer.name,
+          email: newSOData.customer.email,
+          phone: newSOData.customer.phone,
+          address: newSOData.customer.address,
+          type: newSOData.customer.type as "Private" | "Trade",
+          accountNumber: newSOData.customer.account_number,
+          onHold: newSOData.customer.on_hold,
+          holdReason: newSOData.customer.hold_reason,
+          needsDetailedBoxLabels: newSOData.customer.needs_detailed_box_labels,
+          created: newSOData.customer.created
+        },
+        customerOrderNumber: newSOData.customer_order_number,
         schedule: {
-          frequency: newSOData.frequency,
+          frequency: newSOData.frequency as "Weekly" | "Bi-Weekly" | "Monthly",
           dayOfWeek: newSOData.day_of_week,
           dayOfMonth: newSOData.day_of_month,
-          deliveryMethod: newSOData.delivery_method,
+          deliveryMethod: newSOData.delivery_method as "Delivery" | "Collection",
           nextDeliveryDate: newSOData.next_delivery_date
-        }
+        },
+        items: newItemsData.map((item: any) => ({
+          id: item.id,
+          productId: item.product_id,
+          product: {
+            id: item.product.id,
+            name: item.product.name,
+            sku: item.product.sku,
+            description: item.product.description,
+            stockLevel: item.product.stock_level,
+            weight: item.product.weight,
+            created: item.product.created,
+            requiresWeightInput: item.product.requires_weight_input || false,
+            unit: item.product.unit,
+            required: item.product.required || false
+          },
+          quantity: item.quantity
+        })),
+        notes: newSOData.notes,
+        active: newSOData.active || true,
+        created: newSOData.created,
+        updated: newSOData.updated,
+        nextProcessingDate: newSOData.next_processing_date,
+        lastProcessedDate: newSOData.last_processed_date
       };
       
       setStandingOrders([...standingOrders, newStandingOrder]);

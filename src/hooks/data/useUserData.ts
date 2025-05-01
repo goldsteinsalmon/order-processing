@@ -22,8 +22,17 @@ export const useUserData = (toast: any) => {
       
       if (error) throw error;
       
-      setUsers([...users, data[0]]);
-      return data[0];
+      const newUser: User = {
+        id: data[0].id,
+        name: data[0].name,
+        email: data[0].email,
+        password: data[0].password,
+        role: data[0].role as "Admin" | "User" | "Manager",
+        active: data[0].active
+      };
+      
+      setUsers([...users, newUser]);
+      return newUser;
     } catch (error) {
       console.error('Error adding user:', error);
       toast({

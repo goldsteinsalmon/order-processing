@@ -66,13 +66,71 @@ export const useOrderData = (toast: any) => {
       
       if (newItemsError) throw newItemsError;
       
-      const newOrder = {
-        ...newOrderData,
+      // Map to our expected Order type
+      const newOrder: Order = {
+        id: newOrderData.id,
+        customerId: newOrderData.customer_id,
+        customer: {
+          id: newOrderData.customer.id,
+          name: newOrderData.customer.name,
+          email: newOrderData.customer.email,
+          phone: newOrderData.customer.phone,
+          address: newOrderData.customer.address,
+          type: newOrderData.customer.type as "Private" | "Trade",
+          accountNumber: newOrderData.customer.account_number,
+          onHold: newOrderData.customer.on_hold,
+          holdReason: newOrderData.customer.hold_reason,
+          needsDetailedBoxLabels: newOrderData.customer.needs_detailed_box_labels,
+          created: newOrderData.customer.created
+        },
+        customerOrderNumber: newOrderData.customer_order_number,
+        orderDate: newOrderData.order_date,
+        requiredDate: newOrderData.required_date,
+        deliveryMethod: newOrderData.delivery_method as "Delivery" | "Collection",
+        notes: newOrderData.notes,
+        status: newOrderData.status as "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked",
+        picker: newOrderData.picker,
+        isPicked: newOrderData.is_picked || false,
+        totalBlownPouches: newOrderData.total_blown_pouches || 0,
+        isModified: newOrderData.is_modified || false,
+        created: newOrderData.created,
+        updated: newOrderData.updated,
+        batchNumber: newOrderData.batch_number,
+        hasChanges: newOrderData.has_changes || false,
+        fromStandingOrder: newOrderData.from_standing_order,
+        pickedBy: newOrderData.picked_by,
+        pickedAt: newOrderData.picked_at,
+        pickingInProgress: newOrderData.picking_in_progress || false,
+        invoiced: newOrderData.invoiced || false,
+        invoiceNumber: newOrderData.invoice_number,
+        invoiceDate: newOrderData.invoice_date,
         items: newItemsData.map((item: any) => ({
-          ...item,
           id: item.id,
           productId: item.product_id,
-          product: item.product
+          product: {
+            id: item.product.id,
+            name: item.product.name,
+            sku: item.product.sku,
+            description: item.product.description,
+            stockLevel: item.product.stock_level,
+            weight: item.product.weight,
+            created: item.product.created,
+            requiresWeightInput: item.product.requires_weight_input || false,
+            unit: item.product.unit,
+            required: item.product.required || false
+          },
+          quantity: item.quantity,
+          unavailableQuantity: item.unavailable_quantity,
+          isUnavailable: item.is_unavailable,
+          blownPouches: item.blown_pouches,
+          batchNumber: item.batch_number,
+          checked: item.checked,
+          missingQuantity: item.missing_quantity,
+          pickedQuantity: item.picked_quantity,
+          pickedWeight: item.picked_weight,
+          originalQuantity: item.original_quantity,
+          boxNumber: item.box_number,
+          manualWeight: item.manual_weight
         }))
       };
       
@@ -276,9 +334,9 @@ export const useOrderData = (toast: any) => {
   const completeOrder = async (order: Order): Promise<boolean> => {
     try {
       // Update order status to completed
-      const updatedOrder = {
+      const updatedOrder: Order = {
         ...order,
-        status: "Completed",
+        status: "Completed" as "Completed" | "Pending" | "Picking" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked",
         isPicked: true,
         pickedAt: order.pickedAt || new Date().toISOString(),
         updated: new Date().toISOString()
