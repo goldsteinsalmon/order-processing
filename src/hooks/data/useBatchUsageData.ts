@@ -10,38 +10,38 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
   // Create consolidated batch summary for an order
   const createConsolidatedBatchSummary = (order: Order) => {
     const batchSummary: Record<string, { 
-      productId: string, 
-      productName: string, 
+      product_id: string, 
+      product_name: string, 
       quantity: number, 
-      totalWeight: number,
-      batchNumber: string
+      total_weight: number,
+      batch_number: string
     }[]> = {};
     
     // Process each item with a batch number
     order.items?.forEach(item => {
-      if (!item.batchNumber || !item.product) return;
+      if (!item.batch_number || !item.product) return;
       
-      const key = `${item.batchNumber}_${item.productId}`;
+      const key = `${item.batch_number}_${item.product_id}`;
       
       // Skip if already processed
       if (processedBatchOrderItems.has(key)) return;
       
       // Calculate weight based on manual weight or quantity * standard weight
-      const weight = item.manualWeight || 
-        (item.product.weight && item.pickedQuantity 
-          ? item.pickedQuantity * item.product.weight 
+      const weight = item.manual_weight || 
+        (item.product.weight && item.picked_quantity 
+          ? item.picked_quantity * item.product.weight 
           : 0);
       
-      if (!batchSummary[item.batchNumber]) {
-        batchSummary[item.batchNumber] = [];
+      if (!batchSummary[item.batch_number]) {
+        batchSummary[item.batch_number] = [];
       }
       
-      batchSummary[item.batchNumber].push({
-        productId: item.productId,
-        productName: item.product.name,
-        quantity: item.pickedQuantity || 0,
-        totalWeight: weight,
-        batchNumber: item.batchNumber
+      batchSummary[item.batch_number].push({
+        product_id: item.product_id,
+        product_name: item.product.name,
+        quantity: item.picked_quantity || 0,
+        total_weight: weight,
+        batch_number: item.batch_number
       });
       
       // Mark as processed
@@ -56,22 +56,22 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
   // Record batch usages from summary
   const recordBatchUsagesFromSummary = async (
     batchSummary: Record<string, { 
-      productId: string, 
-      productName: string, 
+      product_id: string, 
+      product_name: string, 
       quantity: number, 
-      totalWeight: number,
-      batchNumber: string
+      total_weight: number,
+      batch_number: string
     }[]>,
     orderId: string
   ) => {
-    for (const batchNumber in batchSummary) {
-      for (const item of batchSummary[batchNumber]) {
+    for (const batch_number in batchSummary) {
+      for (const item of batchSummary[batch_number]) {
         await recordBatchUsage(
-          batchNumber,
-          item.productId,
+          batch_number,
+          item.product_id,
           item.quantity,
           orderId,
-          item.totalWeight
+          item.total_weight
         );
       }
     }
@@ -79,17 +79,17 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
 
   // Record a single batch usage
   const recordBatchUsage = async (
-    batchNumber: string,
-    productId: string,
+    batch_number: string,
+    product_id: string,
     quantity: number,
     orderId: string,
     manualWeight?: number
   ) => {
     try {
       // Find product details
-      const product = products.find(p => p.id === productId);
+      const product = products.find(p => p.id === product_id);
       if (!product) {
-        console.error(`Product with ID ${productId} not found`);
+        console.error(`Product with ID ${product_id} not found`);
         return;
       }
       
@@ -100,8 +100,8 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
       const { data: existingBatchUsages, error: findError } = await supabase
         .from('batch_usages')
         .select('*')
-        .eq('batch_number', batchNumber)
-        .eq('product_id', productId);
+        .eq('batch_number', batch_number)
+        .eq('product_id', product_id);
       
       if (findError) {
         console.error('Error checking for existing batch usage:', findError);
@@ -145,10 +145,10 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
           if (bu.id === existingBatchUsage.id) {
             return {
               ...bu,
-              usedWeight: newUsedWeight,
-              ordersCount: newOrdersCount,
-              lastUsed: new Date().toISOString(),
-              usedBy: [...bu.usedBy, orderId]
+              used_weight: newUsedWeight,
+              orders_count: newOrdersCount,
+              last_used: new Date().toISOString(),
+              usedBy: [...(bu.usedBy || []), orderId]
             };
           }
           return bu;
@@ -160,8 +160,8 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
         const { data: newBatchUsage, error: createError } = await supabase
           .from('batch_usages')
           .insert({
-            batch_number: batchNumber,
-            product_id: productId,
+            batch_number: batch_number,
+            product_id: product_id,
             product_name: product.name,
             total_weight: weight,
             used_weight: weight,
@@ -191,14 +191,14 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
         // Update local state
         setBatchUsages([...batchUsages, {
           id: newBatchUsage[0].id,
-          batchNumber,
-          productId,
-          productName: product.name,
-          totalWeight: weight,
-          usedWeight: weight,
-          ordersCount: 1,
-          firstUsed: new Date().toISOString(),
-          lastUsed: new Date().toISOString(),
+          batch_number: batch_number,
+          product_id: product_id,
+          product_name: product.name,
+          total_weight: weight,
+          used_weight: weight,
+          orders_count: 1,
+          first_used: new Date().toISOString(),
+          last_used: new Date().toISOString(),
           usedBy: [orderId]
         }]);
       }
@@ -227,8 +227,8 @@ export const useBatchUsageData = (toast: any, products: Product[]) => {
   };
   
   // Get batch usage by batch number
-  const getBatchUsageByBatchNumber = (batchNumber: string) => {
-    return batchUsages.find(bu => bu.batchNumber === batchNumber);
+  const getBatchUsageByBatchNumber = (batch_number: string) => {
+    return batchUsages.find(bu => bu.batch_number === batch_number);
   };
 
   return {

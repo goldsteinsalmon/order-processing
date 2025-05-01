@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { OrderItem } from '@/types';
 import { Check, Printer, Save } from 'lucide-react';
@@ -69,15 +68,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     }
     
     // Then check if all items have batch numbers
-    if (!boxItems.every(item => item.batchNumber?.trim() || item.batch_number?.trim())) {
+    if (!boxItems.every(item => item.batch_number?.trim())) {
       return false;
     }
     
     // Finally check if all items that require weight have weights entered
     const weightInputComplete = boxItems
-      .filter(item => item.product.requires_weight_input || item.product.requiresWeightInput)
-      .every(item => (item.picked_weight || item.pickedWeight) && 
-             (item.picked_weight > 0 || item.pickedWeight > 0));
+      .filter(item => item.product.requires_weight_input)
+      .every(item => (item.picked_weight) && 
+             (item.picked_weight > 0));
         
     // If any item requires weight but hasn't been entered, box is not complete
     if (!weightInputComplete) {
@@ -89,8 +88,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 
   // Helper function to check if quantity has changed
   const hasQuantityChanged = (item: ExtendedOrderItem) => {
-    return (item.original_quantity !== undefined || item.originalQuantity !== undefined) && 
-           (item.original_quantity !== item.quantity && item.originalQuantity !== item.quantity);
+    return (item.original_quantity !== undefined) && 
+           (item.original_quantity !== item.quantity);
   };
 
   // Render item row
@@ -100,7 +99,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     const missingQuantity = missingItem ? missingItem.quantity : 0;
     
     // Check if item requires weight input
-    const requiresWeightInput = item.product.requires_weight_input || item.product.requiresWeightInput;
+    const requiresWeightInput = item.product.requires_weight_input;
     
     // Determine if there's been a quantity change
     const quantityChanged = hasQuantityChanged(item);
@@ -119,7 +118,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           </div>
           {quantityChanged && (
             <div className="text-xs text-amber-700">
-              Changed from {item.originalQuantity || item.original_quantity}
+              Changed from {item.original_quantity}
             </div>
           )}
         </td>
@@ -127,7 +126,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         <td className="p-2">
           <Input 
             type="text"
-            value={item.batchNumber || item.batch_number || ''}
+            value={item.batch_number || ''}
             onChange={e => onBatchNumberChange(item.id, e.target.value, boxNumber)}
             className="w-24"
             placeholder="Batch #"
@@ -137,7 +136,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           <td className="p-2">
             <Input
               type="number"
-              value={(item.pickedWeight || item.picked_weight || '').toString()}
+              value={(item.picked_weight || '').toString()}
               onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
               className="w-24"
               placeholder="Weight"
@@ -217,7 +216,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   <th className="text-left p-2">Product</th>
                   <th className="p-2 w-20 text-center">Qty</th>
                   <th className="p-2 w-32">Batch #</th>
-                  {boxItems.some(item => item.product.requires_weight_input || item.product.requiresWeightInput) && (
+                  {boxItems.some(item => item.product.requires_weight_input) && (
                     <th className="p-2 w-32">Weight</th>
                   )}
                   <th className="p-2 w-32">Missing</th>
@@ -244,7 +243,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
               <th className="text-left p-2">Product</th>
               <th className="p-2 w-20 text-center">Qty</th>
               <th className="p-2 w-32">Batch #</th>
-              {items.some(item => item.product.requires_weight_input || item.product.requiresWeightInput) && (
+              {items.some(item => item.product.requires_weight_input) && (
                 <th className="p-2 w-32">Weight</th>
               )}
               <th className="p-2 w-32">Missing</th>

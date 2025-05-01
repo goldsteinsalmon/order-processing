@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -19,7 +18,7 @@ const ViewCompletedOrder: React.FC = () => {
   // Setup print handler with correct options
   const handlePrint = useReactToPrint({
     documentTitle: `Order - ${selectedOrder?.customer?.name || 'Unknown'} - ${format(new Date(), 'yyyy-MM-dd')}`,
-    content: () => printRef.current
+    contentRef: printRef
   });
   
   if (!selectedOrder) {

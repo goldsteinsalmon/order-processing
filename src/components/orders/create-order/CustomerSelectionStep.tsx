@@ -50,7 +50,7 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
 
   return (
     <div className="space-y-4">
-      <Command disabled={disabled} className="rounded-lg border shadow-md">
+      <Command className="rounded-lg border shadow-md">
         <CommandInput 
           placeholder="Search customers..." 
           onValueChange={setCustomerSearch}
@@ -85,7 +85,7 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
               {filteredCustomers.map(customer => (
                 <CommandItem 
                   key={customer.id} 
-                  value={customer.name} // Use name as the value for matching
+                  value={customer.name}
                   onSelect={() => handleSelectCustomer(customer.id)}
                   className={customer.on_hold ? "text-red-500 font-medium" : ""}
                   disabled={disabled}

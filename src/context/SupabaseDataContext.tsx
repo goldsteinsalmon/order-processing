@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { 
   Customer, 
@@ -319,11 +318,11 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         phone: item.phone,
         address: item.address,
         type: item.type as "Private" | "Trade",
-        accountNumber: item.account_number,
-        onHold: item.on_hold,
-        holdReason: item.hold_reason,
+        account_number: item.account_number,
+        on_hold: item.on_hold,
+        hold_reason: item.hold_reason,
         created: item.created,
-        needsDetailedBoxLabels: item.needs_detailed_box_labels
+        needs_detailed_box_labels: item.needs_detailed_box_labels
       }));
       
       const mappedProducts: Product[] = productData.map((item: any) => ({
@@ -331,10 +330,10 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         name: item.name,
         sku: item.sku,
         description: item.description,
-        stockLevel: item.stock_level,
+        stock_level: item.stock_level,
         weight: item.weight,
         created: item.created,
-        requiresWeightInput: item.requires_weight_input,
+        requires_weight_input: item.requires_weight_input,
         unit: item.unit,
         required: item.required
       }));
@@ -347,11 +346,11 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         phone: customerData.phone,
         address: customerData.address,
         type: customerData.type as "Private" | "Trade",
-        accountNumber: customerData.account_number,
-        onHold: customerData.on_hold,
-        holdReason: customerData.hold_reason,
+        account_number: customerData.account_number,
+        on_hold: customerData.on_hold,
+        hold_reason: customerData.hold_reason,
         created: customerData.created,
-        needsDetailedBoxLabels: customerData.needs_detailed_box_labels
+        needs_detailed_box_labels: customerData.needs_detailed_box_labels
       });
 
       // Helper function to map product data
@@ -360,10 +359,10 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         name: productData.name,
         sku: productData.sku,
         description: productData.description,
-        stockLevel: productData.stock_level,
+        stock_level: productData.stock_level,
         weight: productData.weight,
         created: productData.created,
-        requiresWeightInput: productData.requires_weight_input,
+        requires_weight_input: productData.requires_weight_input,
         unit: productData.unit,
         required: productData.required
       });
@@ -484,22 +483,23 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
       // Process returns
       const processedReturns: Return[] = returnsData.map((item: any) => ({
         id: item.id,
-        customerId: item.customer_id,
-        customerType: item.customer_type as "Private" | "Trade",
-        customerName: item.customer_name,
-        contactEmail: item.contact_email,
-        contactPhone: item.contact_phone,
-        dateReturned: item.date_returned,
-        orderNumber: item.order_number,
-        invoiceNumber: item.invoice_number,
-        productSku: item.product_sku,
+        customer_id: item.customer_id,
+        customer_type: item.customer_type as "Private" | "Trade",
+        customer_name: item.customer_name,
+        contact_email: item.contact_email,
+        contact_phone: item.contact_phone,
+        date_returned: item.date_returned,
+        order_number: item.order_number,
+        invoice_number: item.invoice_number,
+        product_sku: item.product_sku,
+        product_id: item.product_id,
         product: mapProduct(item.product),
         quantity: item.quantity,
         reason: item.reason,
-        returnsRequired: item.returns_required as "Yes" | "No",
-        returnStatus: item.return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
-        resolutionStatus: item.resolution_status as "Open" | "In Progress" | "Resolved",
-        resolutionNotes: item.resolution_notes,
+        returns_required: item.returns_required as "Yes" | "No",
+        return_status: item.return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
+        resolution_status: item.resolution_status as "Open" | "In Progress" | "Resolved",
+        resolution_notes: item.resolution_notes,
         created: item.created,
         updated: item.updated
       }));
@@ -507,22 +507,23 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
       // Process complaints
       const processedComplaints: Complaint[] = complaintsData.map((item: any) => ({
         id: item.id,
-        customerType: item.customer_type as "Private" | "Trade",
-        customerName: item.customer_name,
-        customerId: item.customer_id,
-        contactEmail: item.contact_email,
-        contactPhone: item.contact_phone,
-        dateSubmitted: item.date_submitted,
-        orderNumber: item.order_number,
-        invoiceNumber: item.invoice_number,
-        productSku: item.product_sku,
+        customer_type: item.customer_type as "Private" | "Trade",
+        customer_name: item.customer_name,
+        customer_id: item.customer_id,
+        contact_email: item.contact_email,
+        contact_phone: item.contact_phone,
+        date_submitted: item.date_submitted,
+        order_number: item.order_number,
+        invoice_number: item.invoice_number,
+        product_sku: item.product_sku,
+        product_id: item.product_id,
         product: item.product ? mapProduct(item.product) : undefined,
-        complaintType: item.complaint_type,
-        complaintDetails: item.complaint_details,
-        returnsRequired: item.returns_required as "Yes" | "No",
-        returnStatus: item.return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
-        resolutionStatus: item.resolution_status as "Open" | "In Progress" | "Resolved",
-        resolutionNotes: item.resolution_notes,
+        complaint_type: item.complaint_type,
+        complaint_details: item.complaint_details,
+        returns_required: item.returns_required as "Yes" | "No",
+        return_status: item.return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
+        resolution_status: item.resolution_status as "Open" | "In Progress" | "Resolved",
+        resolution_notes: item.resolution_notes,
         created: item.created,
         updated: item.updated
       }));
@@ -534,8 +535,8 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         
         return {
           id: item.id,
-          orderId: item.order_id,
-          productId: item.product_id,
+          order_id: item.order_id,
+          product_id: item.product_id,
           product: mapProduct(item.product),
           quantity: item.quantity,
           date: item.date,
@@ -555,14 +556,14 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         
         return {
           id: batchUsage.id,
-          batchNumber: batchUsage.batch_number,
-          productId: batchUsage.product_id,
-          productName: batchUsage.product_name,
-          totalWeight: batchUsage.total_weight,
-          usedWeight: batchUsage.used_weight,
-          ordersCount: batchUsage.orders_count,
-          firstUsed: batchUsage.first_used,
-          lastUsed: batchUsage.last_used,
+          batch_number: batchUsage.batch_number,
+          product_id: batchUsage.product_id,
+          product_name: batchUsage.product_name,
+          total_weight: batchUsage.total_weight,
+          used_weight: batchUsage.used_weight,
+          orders_count: batchUsage.orders_count,
+          first_used: batchUsage.first_used,
+          last_used: batchUsage.last_used,
           usedBy: usedBy
         };
       });

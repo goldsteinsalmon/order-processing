@@ -267,3 +267,38 @@ export function adaptBatchSummaryToSnakeCase(summary: BatchSummary): any {
     total_weight: summary.totalWeight
   };
 }
+
+// Add BatchUsage adapters
+export function adaptBatchUsageToCamelCase(batchUsage: BatchUsage): any {
+  if (!batchUsage) return null;
+  
+  return {
+    id: batchUsage.id,
+    batchNumber: batchUsage.batch_number,
+    productId: batchUsage.product_id,
+    productName: batchUsage.product_name,
+    totalWeight: batchUsage.total_weight,
+    usedWeight: batchUsage.used_weight,
+    ordersCount: batchUsage.orders_count,
+    firstUsed: batchUsage.first_used,
+    lastUsed: batchUsage.last_used,
+    usedBy: batchUsage.usedBy
+  };
+}
+
+export function adaptBatchUsageToSnakeCase(batchUsage: any): BatchUsage {
+  if (!batchUsage) return null;
+  
+  return {
+    id: batchUsage.id,
+    batch_number: batchUsage.batchNumber || batchUsage.batch_number,
+    product_id: batchUsage.productId || batchUsage.product_id,
+    product_name: batchUsage.productName || batchUsage.product_name,
+    total_weight: batchUsage.totalWeight || batchUsage.total_weight,
+    used_weight: batchUsage.usedWeight || batchUsage.used_weight,
+    orders_count: batchUsage.ordersCount || batchUsage.orders_count,
+    first_used: batchUsage.firstUsed || batchUsage.first_used,
+    last_used: batchUsage.lastUsed || batchUsage.last_used,
+    usedBy: batchUsage.usedBy
+  };
+}

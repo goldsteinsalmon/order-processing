@@ -220,7 +220,7 @@ const CreateStandingOrderForm: React.FC = () => {
       }
       return {
         id: item.id,
-        productId: item.productId,
+        product_id: item.productId,
         product: product,
         quantity: item.quantity,
       };
@@ -232,24 +232,22 @@ const CreateStandingOrderForm: React.FC = () => {
     // Calculate day of week from the selected delivery date (0-6, Sunday to Saturday)
     const dayOfWeek = firstDeliveryDate.getDay();
 
-    // Create the standing order object
+    // Create the standing order object with snake_case property names
     const standingOrder = {
       id: uuidv4(),
-      customerId,
-      customer,
-      customerOrderNumber: customerOrderNumber || undefined,
-      schedule: {
-        frequency,
-        ...(frequency === "Weekly" || frequency === "Bi-Weekly" ? { dayOfWeek } : {}),
-        ...(frequency === "Monthly" ? { dayOfMonth: firstDeliveryDate.getDate() } : {}),
-        deliveryMethod,
-        nextDeliveryDate: firstDeliveryDateString,
-      },
+      customer_id: customerId,
+      customer: customers.find(c => c.id === customerId),
+      customer_order_number: customerOrderNumber || undefined,
+      frequency,
+      day_of_week: frequency === "Weekly" || frequency === "Bi-Weekly" ? dayOfWeek : undefined,
+      day_of_month: frequency === "Monthly" ? firstDeliveryDate.getDate() : undefined,
+      delivery_method: deliveryMethod,
+      next_delivery_date: firstDeliveryDateString,
       items: fullOrderItems,
       notes: notes || undefined,
       active: true,
       created: new Date().toISOString(),
-      nextProcessingDate: getOrderProcessingDate(firstDeliveryDate).toISOString(),
+      next_processing_date: getOrderProcessingDate(firstDeliveryDate).toISOString(),
     };
 
     // Add to standing orders
@@ -260,16 +258,17 @@ const CreateStandingOrderForm: React.FC = () => {
       // Create a normal order from the standing order for immediate processing
       const immediateOrder: Order = {
         id: uuidv4(),
-        customerId,
-        customer,
-        customerOrderNumber: customerOrderNumber || undefined,
-        orderDate: firstDeliveryDateString,
-        deliveryMethod,
+        customer_id: customerId,
+        customer: customers.find(c => c.id === customerId),
+        customer_order_number: customerOrderNumber || undefined,
+        order_date: firstDeliveryDateString,
+        required_date: firstDeliveryDateString,
+        delivery_method: deliveryMethod,
         items: fullOrderItems,
         notes: notes ? `${notes} (Generated from Standing Order #${standingOrder.id.substring(0, 8)})` : `Generated from Standing Order #${standingOrder.id.substring(0, 8)}`,
         status: "Pending",
         created: new Date().toISOString(),
-        fromStandingOrder: standingOrder.id,
+        from_standing_order: standingOrder.id,
       };
       
       // Add the immediate order to the orders list
@@ -296,10 +295,11 @@ const CreateStandingOrderForm: React.FC = () => {
     return customer ? customer.name : "Select a customer...";
   };
   
+  // Correcting the hold reason reference
   const isCustomerOnHold = (customerId: string) => {
     if (!customerId) return false;
     const customer = customers.find(c => c.id === customerId);
-    return customer?.onHold || false;
+    return customer?.on_hold || false;
   };
   
   const getSelectedProductName = (productId: string) => {

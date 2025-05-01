@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   name: string;
@@ -157,9 +156,10 @@ export interface BatchUsage {
   product_name: string;
   total_weight: number;
   used_weight: number;
+  orders_count: number;
   first_used: string;
   last_used: string;
-  orders_count: number;
+  usedBy?: string[]; // Add missing usedBy property
 }
 
 export interface BatchSummary {

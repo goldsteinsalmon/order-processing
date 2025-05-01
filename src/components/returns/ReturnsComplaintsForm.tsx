@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -88,22 +87,23 @@ const ReturnsComplaintsForm: React.FC = () => {
       
       const newReturn: Return = {
         id: uuidv4(),
-        customerId: customerType === "Trade" ? selectedCustomerId : undefined,
-        customerType,
-        customerName,
-        contactEmail: contactEmail || undefined,
-        contactPhone: contactPhone || undefined,
-        dateReturned: date.toISOString(),
-        orderNumber: orderNumber || undefined,
-        invoiceNumber: invoiceNumber || undefined,
-        productSku: selectedProduct.sku,
+        customer_id: customerType === "Trade" ? selectedCustomerId : undefined,
+        customer_type: customerType,
+        customer_name: customerName,
+        contact_email: contactEmail || undefined,
+        contact_phone: contactPhone || undefined,
+        date_returned: date.toISOString(),
+        order_number: orderNumber || undefined,
+        invoice_number: invoiceNumber || undefined,
+        product_sku: selectedProduct.sku,
+        product_id: selectedProduct.id,
         product: selectedProduct,
-        quantity: quantity, // Include quantity in the return
+        quantity: quantity,
         reason: returnReason || undefined,
-        returnsRequired,
-        returnStatus,
-        resolutionStatus,
-        resolutionNotes: resolutionNotes || undefined,
+        returns_required: returnsRequired,
+        return_status: returnStatus,
+        resolution_status: resolutionStatus,
+        resolution_notes: resolutionNotes || undefined,
         created: new Date().toISOString()
       };
       
@@ -118,22 +118,23 @@ const ReturnsComplaintsForm: React.FC = () => {
       
       const newComplaint: Complaint = {
         id: uuidv4(),
-        customerId: customerType === "Trade" ? selectedCustomerId : undefined,
-        customerType,
-        customerName,
-        contactEmail: contactEmail || undefined,
-        contactPhone: contactPhone || undefined,
-        dateSubmitted: date.toISOString(),
-        orderNumber: orderNumber || undefined,
-        invoiceNumber: invoiceNumber || undefined,
-        productSku: selectedProduct?.sku,
+        customer_id: customerType === "Trade" ? selectedCustomerId : undefined,
+        customer_type: customerType,
+        customer_name: customerName,
+        contact_email: contactEmail || undefined,
+        contact_phone: contactPhone || undefined,
+        date_submitted: date.toISOString(),
+        order_number: orderNumber || undefined,
+        invoice_number: invoiceNumber || undefined,
+        product_sku: selectedProduct?.sku,
+        product_id: selectedProduct?.id,
         product: selectedProduct,
-        complaintType,
-        complaintDetails,
-        returnsRequired,
-        returnStatus,
-        resolutionStatus,
-        resolutionNotes: resolutionNotes || undefined,
+        complaint_type: complaintType,
+        complaint_details: complaintDetails,
+        returns_required: returnsRequired,
+        return_status: returnStatus,
+        resolution_status: resolutionStatus,
+        resolution_notes: resolutionNotes || undefined,
         created: new Date().toISOString()
       };
       
