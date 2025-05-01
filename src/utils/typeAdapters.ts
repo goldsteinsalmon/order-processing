@@ -1,4 +1,3 @@
-
 import { Customer, Order, Product, Return, BatchUsage } from "@/types";
 
 // Convert Customer from snake_case (database) to camelCase (UI)
@@ -10,10 +9,10 @@ export const adaptCustomerToCamelCase = (customer: any): Customer => {
     phone: customer.phone,
     address: customer.address,
     type: customer.type,
-    account_number: customer.account_number,
-    on_hold: customer.on_hold,
-    hold_reason: customer.hold_reason,
-    needs_detailed_box_labels: customer.needs_detailed_box_labels
+    accountNumber: customer.account_number,
+    onHold: customer.on_hold,
+    holdReason: customer.hold_reason,
+    needsDetailedBoxLabels: customer.needs_detailed_box_labels
   };
 };
 
@@ -26,10 +25,10 @@ export const adaptCustomerToSnakeCase = (customer: Customer): any => {
     phone: customer.phone,
     address: customer.address,
     type: customer.type,
-    account_number: customer.account_number,
-    on_hold: customer.on_hold,
-    hold_reason: customer.hold_reason,
-    needs_detailed_box_labels: customer.needs_detailed_box_labels
+    account_number: customer.accountNumber,
+    on_hold: customer.onHold,
+    hold_reason: customer.holdReason,
+    needs_detailed_box_labels: customer.needsDetailedBoxLabels
   };
 };
 

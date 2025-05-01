@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,7 @@ const ImportManagement: React.FC = () => {
   const { toast } = useToast();
   const [customerFile, setCustomerFile] = useState<File | null>(null);
   const [productFile, setProductFile] = useState<File | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<{
+  const [uploadStatus, setUploadStatus<{
     isLoading: boolean;
     success: boolean;
     error: string | null;
@@ -160,10 +159,10 @@ const ImportManagement: React.FC = () => {
           phone: row.phone,
           address: row.address,
           type: (row.type === 'Trade' ? 'Trade' : 'Private') as 'Trade' | 'Private',
-          account_number: row.account_number,
-          on_hold: row.on_hold?.toLowerCase() === 'true',
-          hold_reason: row.hold_reason || undefined,
-          needs_detailed_box_labels: row.needs_detailed_box_labels?.toLowerCase() === 'true'
+          accountNumber: row.account_number,
+          onHold: row.on_hold?.toLowerCase() === 'true',
+          holdReason: row.hold_reason || undefined,
+          needsDetailedBoxLabels: row.needs_detailed_box_labels?.toLowerCase() === 'true'
         };
         
         const result = await addCustomer(customer);

@@ -1,7 +1,9 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { adaptCustomerToSnakeCase } from "@/lib/utils";
 
 export const useCustomerData = (toastHandler: any) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -10,17 +12,7 @@ export const useCustomerData = (toastHandler: any) => {
   const addCustomer = async (customer: Customer): Promise<Customer | null> => {
     try {
       // Ensure proper type conversion before inserting into the database
-      const customerForDb = {
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        type: customer.type,
-        account_number: customer.account_number,
-        on_hold: customer.on_hold,
-        hold_reason: customer.hold_reason,
-        needs_detailed_box_labels: customer.needs_detailed_box_labels
-      };
+      const customerForDb = adaptCustomerToSnakeCase(customer);
       
       const { data, error } = await supabase
         .from('customers')
@@ -37,10 +29,10 @@ export const useCustomerData = (toastHandler: any) => {
         phone: data[0].phone,
         address: data[0].address,
         type: data[0].type as "Trade", // Only Trade type is allowed
-        account_number: data[0].account_number || "", // Ensure account_number is not null
-        on_hold: data[0].on_hold || false,
-        hold_reason: data[0].hold_reason,
-        needs_detailed_box_labels: data[0].needs_detailed_box_labels || false
+        accountNumber: data[0].account_number || "", // Convert to camelCase
+        onHold: data[0].on_hold || false,
+        holdReason: data[0].hold_reason,
+        needsDetailedBoxLabels: data[0].needs_detailed_box_labels || false
       };
       
       setCustomers([...customers, newCustomer]);
@@ -60,17 +52,7 @@ export const useCustomerData = (toastHandler: any) => {
   const updateCustomer = async (customer: Customer): Promise<boolean> => {
     try {
       // Ensure proper type conversion before updating the database
-      const customerForDb = {
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        type: customer.type,
-        account_number: customer.account_number,
-        on_hold: customer.on_hold,
-        hold_reason: customer.hold_reason,
-        needs_detailed_box_labels: customer.needs_detailed_box_labels
-      };
+      const customerForDb = adaptCustomerToSnakeCase(customer);
       
       const { error } = await supabase
         .from('customers')

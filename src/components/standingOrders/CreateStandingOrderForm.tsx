@@ -301,7 +301,7 @@ const CreateStandingOrderForm: React.FC = () => {
   const isCustomerOnHold = (customerId: string) => {
     if (!customerId) return false;
     const customer = customers.find(c => c.id === customerId);
-    return customer?.on_hold || false;
+    return customer?.onHold || false;
   };
   
   const getSelectedProductName = (productId: string) => {
@@ -636,7 +636,7 @@ const CreateStandingOrderForm: React.FC = () => {
                     {selectedCustomer.name} is currently on hold.
                   </p>
                   <p className="mb-4">
-                    Reason: {selectedCustomer.hold_reason || "No reason provided"}
+                    Reason: {selectedCustomer.holdReason || "No reason provided"}
                   </p>
                   <p>Are you sure you want to proceed with this customer?</p>
                 </>

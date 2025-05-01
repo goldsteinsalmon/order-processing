@@ -54,8 +54,8 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
           <div>
             <p className="font-bold">Customer:</p>
             <p>{selectedOrder.customer.name}</p>
-            {selectedOrder.customer.account_number && (
-              <p className="text-sm">Account: {selectedOrder.customer.account_number}</p>
+            {selectedOrder.customer.accountNumber && (
+              <p className="text-sm">Account: {selectedOrder.customer.accountNumber}</p>
             )}
           </div>
           <div>

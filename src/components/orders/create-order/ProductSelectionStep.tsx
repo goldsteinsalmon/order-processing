@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from "react";
 import { Search, X, Plus, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,7 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
   
   return (
     <div className="space-y-4">
-      {selectedCustomer?.needs_detailed_box_labels && (
+      {selectedCustomer?.needsDetailedBoxLabels && (
         <div className="flex items-center text-sm text-blue-600 mb-2">
           <Package className="h-4 w-4 mr-1" />
           This customer requires detailed box labels
@@ -154,7 +155,7 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
             Cancel
           </Button>
           <Button type="button" onClick={onContinue}>
-            {selectedCustomer?.needs_detailed_box_labels ? "Continue to Box Distribution" : "Create Order"}
+            {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
           </Button>
         </div>
       )}

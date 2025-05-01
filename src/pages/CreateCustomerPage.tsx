@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -33,10 +32,10 @@ const CreateCustomerPage: React.FC = () => {
     if (duplicateCustomer && isDuplicating) {
       setName(duplicateCustomer.name + " (Copy)");
       // For account number, we'll suggest a modified version to avoid duplicate account numbers
-      setAccountNumber(duplicateCustomer.account_number + "-COPY");
+      setAccountNumber(duplicateCustomer.accountNumber + "-COPY");
       setEmail(duplicateCustomer.email || "");
       setPhone(duplicateCustomer.phone || "");
-      setNeedsDetailedBoxLabels(duplicateCustomer.needs_detailed_box_labels || false);
+      setNeedsDetailedBoxLabels(duplicateCustomer.needsDetailedBoxLabels || false);
     }
   }, [duplicateCustomer, isDuplicating]);
 
@@ -54,14 +53,14 @@ const CreateCustomerPage: React.FC = () => {
     
     const newCustomer = {
       id: uuidv4(),
-      account_number: accountNumber,
+      accountNumber: accountNumber, // Use camelCase
       name,
       email,
       phone,
       address: "", // Add empty address to satisfy the type requirement
       type: "Trade" as "Trade", // Always set to Trade
-      on_hold: false,
-      needs_detailed_box_labels: needsDetailedBoxLabels
+      onHold: false,
+      needsDetailedBoxLabels: needsDetailedBoxLabels
     };
     
     addCustomer(newCustomer);

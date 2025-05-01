@@ -116,7 +116,7 @@ const CreateOrderSteps: React.FC = () => {
   
   // Update unassigned items when order items change
   React.useEffect(() => {
-    if (selectedCustomer?.needs_detailed_box_labels) {
+    if (selectedCustomer?.needsDetailedBoxLabels) {
       const newUnassignedItems = orderItems
         .filter(item => item.productId && item.quantity > 0)
         .map(item => {
@@ -158,7 +158,7 @@ const CreateOrderSteps: React.FC = () => {
     const customer = customers.find(c => c.id === customerId);
     
     // If customer is on hold, show warning dialog
-    if (customer && customer.on_hold) {
+    if (customer && customer.onHold) {
       setSelectedCustomer(customer);
       setShowOnHoldWarning(true);
     } else {
@@ -258,7 +258,7 @@ const CreateOrderSteps: React.FC = () => {
       }
 
       // For customers with box labels, check if all items are assigned
-      if (selectedCustomer?.needs_detailed_box_labels) {
+      if (selectedCustomer?.needsDetailedBoxLabels) {
         // Clean up any empty unassigned items first
         const cleanedUnassignedItems = unassignedItems.filter(item => item.quantity > 0);
         
@@ -288,7 +288,7 @@ const CreateOrderSteps: React.FC = () => {
       const data = form.getValues();
 
       // Prepare order items array
-      const finalOrderItems = selectedCustomer?.needs_detailed_box_labels 
+      const finalOrderItems = selectedCustomer?.needsDetailedBoxLabels 
         ? boxDistributions.flatMap(box => 
             box.items.map(item => ({
               id: crypto.randomUUID(),
@@ -319,7 +319,7 @@ const CreateOrderSteps: React.FC = () => {
         status: "Pending" as const,
         created: new Date().toISOString(),
         // Include box distributions if customer needs detailed box labels
-        box_distributions: selectedCustomer?.needs_detailed_box_labels ? boxDistributions : undefined
+        box_distributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
       };
 
       addOrder(newOrder);
@@ -371,7 +371,7 @@ const CreateOrderSteps: React.FC = () => {
     if (form.formState.isValid) completed++;
     
     // If customer needs detailed box labels, add another step
-    if (selectedCustomer?.needs_detailed_box_labels) {
+    if (selectedCustomer?.needsDetailedBoxLabels) {
       steps = 3;
       if (unassignedItems.length === 0 && boxDistributions.some(box => box.items.length > 0)) {
         completed++;
@@ -425,7 +425,7 @@ const CreateOrderSteps: React.FC = () => {
             />
           </Card>
 
-          {selectedCustomer?.needs_detailed_box_labels && (
+          {selectedCustomer?.needsDetailedBoxLabels && (
             <Card className={`p-6 ${!customerId ? 'opacity-50' : ''}`}>
               <h3 className="text-lg font-medium mb-4">4. Box Distribution</h3>
               <BoxDistributionStep
@@ -445,7 +445,7 @@ const CreateOrderSteps: React.FC = () => {
               Cancel
             </Button>
             <Button type="button" onClick={handleSubmit}>
-              Create Order
+              {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
             </Button>
           </div>
         </form>
@@ -501,7 +501,7 @@ const CreateOrderSteps: React.FC = () => {
                     {selectedCustomer.name} is currently on hold.
                   </p>
                   <p className="mb-4">
-                    Reason: {selectedCustomer.hold_reason || "No reason provided"}
+                    Reason: {selectedCustomer.holdReason || "No reason provided"}
                   </p>
                   <p>Are you sure you want to proceed with this customer?</p>
                 </>
