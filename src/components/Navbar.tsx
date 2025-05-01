@@ -34,15 +34,17 @@ const Navbar: React.FC = () => {
                 Completed Orders
               </NavLink>
               
-              {/* Add picking list for regular users */}
-              <NavLink
-                to="/picking-list"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                }
-              >
-                Picking List
-              </NavLink>
+              {/* Add picking list only for admin and manager roles */}
+              {!isRegularUser && (
+                <NavLink
+                  to="/picking-list"
+                  className={({ isActive }) =>
+                    isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                  }
+                >
+                  Picking List
+                </NavLink>
+              )}
               
               {/* Show these links only for admin and manager roles */}
               {!isRegularUser && (
