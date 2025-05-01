@@ -527,7 +527,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
   };
 
-  // Updated recordBatchUsage function to correctly calculate weights
+  // Updated recordBatchUsage function to correctly calculate weights and avoid double counting
   const recordBatchUsage = (
     batchNumber: string, 
     productId: string, 
@@ -559,66 +559,53 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       totalWeight = quantity; // Fallback to using quantity as a measure
     }
     
-    // Check if batch exists
-    const existingBatchUsage = batchUsages.find(bu => 
-      bu.batchNumber === batchNumber
-    );
+    // Generate a unique key for batch-product-order combination
+    const uniqueKey = `${batchNumber}-${productId}-${orderId}`;
     
-    if (existingBatchUsage) {
-      // Get a copy to update
-      const updatedBatchUsage = { ...existingBatchUsage };
+    // Check if we've already processed this exact combination
+    const alreadyProcessed = processedBatchOrderItems.has(uniqueKey);
+    if (alreadyProcessed) {
+      console.log(`Skipping duplicate batch usage: ${uniqueKey}`);
+      return; // Skip if already processed
+    }
+    
+    // Check if this batch exists
+    const existingBatchIndex = batchUsages.findIndex(bu => bu.batchNumber === batchNumber);
+    
+    if (existingBatchIndex !== -1) {
+      // Get the existing batch usage
+      const existingBatchUsage = batchUsages[existingBatchIndex];
       
-      // Check if this exact product has already been recorded for this batch
-      const existingProductEntry = batchUsages.find(bu => 
-        bu.batchNumber === batchNumber && bu.productId === productId
-      );
-      
-      // Update weight without double-counting
-      if (existingProductEntry) {
-        // This product is already tracked for this batch, so we only update if it's from a different order
-        const orderKey = `order-${orderId}`;
-        const orderAlreadyUsedBatch = existingProductEntry.usedBy && 
-                                       existingProductEntry.usedBy.includes(orderKey);
-                                       
-        if (!orderAlreadyUsedBatch) {
-          // Only add weight if this order hasn't used this batch+product before
-          updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
-        }
-      } else {
-        // First time this product is used with this batch
-        updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
-      }
-      
-      // Create a unique key for this order
+      // Check if this order has already used this batch
       const orderKey = `order-${orderId}`;
-      
-      // Check if this batch has been used by this order before
       const orderAlreadyUsedBatch = existingBatchUsage.usedBy && 
-                                   existingBatchUsage.usedBy.includes(orderKey);
+                                    existingBatchUsage.usedBy.includes(orderKey);
+                                    
+      // Create a new batch usage entry for this product-batch combination
+      const newBatchUsage: BatchUsage = {
+        id: uuidv4(),
+        batchNumber,
+        productId,
+        productName: product.name,
+        totalWeight: totalWeight,
+        usedWeight: totalWeight,
+        ordersCount: orderAlreadyUsedBatch ? existingBatchUsage.ordersCount : existingBatchUsage.ordersCount + 1,
+        firstUsed: existingBatchUsage.firstUsed,
+        lastUsed: currentDate,
+        usedBy: orderAlreadyUsedBatch ? 
+          existingBatchUsage.usedBy : 
+          [...(existingBatchUsage.usedBy || []), orderKey]
+      };
       
-      // Only increase order count if this is the first time this order is using this batch
-      if (!orderAlreadyUsedBatch) {
-        updatedBatchUsage.ordersCount = existingBatchUsage.ordersCount + 1;
-        
-        // Add order to usedBy array if it exists, or create it
-        if (updatedBatchUsage.usedBy) {
-          if (!updatedBatchUsage.usedBy.includes(orderKey)) {
-            updatedBatchUsage.usedBy.push(orderKey);
-          }
-        } else {
-          updatedBatchUsage.usedBy = [orderKey];
-        }
-      }
+      // Add this as a separate entry - will be consolidated in the UI
+      setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
       
-      // Update last used date
-      updatedBatchUsage.lastUsed = currentDate;
-      
-      // Update in the array
-      setBatchUsages(prevBatchUsages => 
-        prevBatchUsages.map(bu => 
-          bu.id === existingBatchUsage.id ? updatedBatchUsage : bu
-        )
-      );
+      // Mark this combination as processed
+      setProcessedBatchOrderItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add(uniqueKey);
+        return newSet;
+      });
       
     } else {
       // Create new batch usage record
@@ -636,6 +623,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
       
       setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
+      
+      // Mark this combination as processed
+      setProcessedBatchOrderItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add(uniqueKey);
+        return newSet;
+      });
     }
   };
 

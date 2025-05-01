@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -39,109 +40,16 @@ const BatchTrackingPage: React.FC = () => {
       setSearchTerm(batchParam);
     }
     
-    // Collect valid batch numbers from completed orders
-    const validBatchNumbers = new Set();
-    const batchOrderUsage = new Map<string, Set<string>>();
-    
-    completedOrders.forEach(order => {
-      // Check various sources of batch numbers in the order
-      // and track which orders used which batches
-      
-      // Check batch number array first
-      if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
-        order.batchNumbers.forEach(batch => {
-          if (batch) {
-            validBatchNumbers.add(batch);
-            trackBatchUsage(batch, order.id);
-          }
-        });
-      }
-      
-      // Check single batch number
-      if (order.batchNumber) {
-        validBatchNumbers.add(order.batchNumber);
-        trackBatchUsage(order.batchNumber, order.id);
-      }
-      
-      // Check item-level batch numbers
-      order.items.forEach(item => {
-        if (item.batchNumber) {
-          validBatchNumbers.add(item.batchNumber);
-          trackBatchUsage(item.batchNumber, order.id);
-        }
-      });
-      
-      // Check picking progress batch numbers
-      if (order.pickingProgress?.batchNumbers) {
-        Object.values(order.pickingProgress.batchNumbers).forEach(batch => {
-          if (batch) {
-            validBatchNumbers.add(batch);
-            trackBatchUsage(batch, order.id);
-          }
-        });
-      }
-      
-      // Check box distributions
-      if (order.boxDistributions) {
-        order.boxDistributions.forEach(box => {
-          // Box level batch
-          if (box.batchNumber) {
-            validBatchNumbers.add(box.batchNumber);
-            trackBatchUsage(box.batchNumber, order.id);
-          }
-          
-          // Item level batch within box
-          box.items.forEach(item => {
-            if (item.batchNumber) {
-              validBatchNumbers.add(item.batchNumber);
-              trackBatchUsage(item.batchNumber, order.id);
-            }
-          });
-        });
-      }
-      
-      // Check boxes (legacy)
-      if (order.boxes) {
-        order.boxes.forEach(box => {
-          // Box level batch
-          if (box.batchNumber) {
-            validBatchNumbers.add(box.batchNumber);
-            trackBatchUsage(box.batchNumber, order.id);
-          }
-          
-          // Item level batch within box
-          box.items.forEach(item => {
-            if (item.batchNumber) {
-              validBatchNumbers.add(item.batchNumber);
-              trackBatchUsage(item.batchNumber, order.id);
-            }
-          });
-        });
-      }
-    });
-    
-    // Helper function to track batch usage by orders
-    function trackBatchUsage(batch: string, orderId: string) {
-      if (!batchOrderUsage.has(batch)) {
-        batchOrderUsage.set(batch, new Set());
-      }
-      batchOrderUsage.get(batch)?.add(orderId);
-    }
-    
-    // Filter batch usages to only include valid batches
-    const validBatchUsages = batchUsages.filter(usage => 
-      validBatchNumbers.has(usage.batchNumber)
-    );
-    
-    // Group batch usages by batch number to consolidate duplicate entries
+    // Group batch usages by batch number to consolidate
     const batchUsageMap = new Map<string, BatchUsage>();
     
-    validBatchUsages.forEach(usage => {
-      const key = usage.batchNumber;
+    // Process batch usages
+    batchUsages.forEach(usage => {
+      const batchNumber = usage.batchNumber;
       
-      if (batchUsageMap.has(key)) {
-        // Already have this batch, only update if needed
-        const existing = batchUsageMap.get(key)!;
+      if (batchUsageMap.has(batchNumber)) {
+        // Already have this batch, update the consolidated entry
+        const existing = batchUsageMap.get(batchNumber)!;
         
         // For date range, use the earliest firstUsed and latest lastUsed
         const firstUsedDate = new Date(usage.firstUsed) < new Date(existing.firstUsed) 
@@ -150,50 +58,38 @@ const BatchTrackingPage: React.FC = () => {
         const lastUsedDate = new Date(usage.lastUsed) > new Date(existing.lastUsed)
           ? usage.lastUsed : existing.lastUsed;
         
-        // For order count, use the actual count from our tracking
-        const ordersCount = batchOrderUsage.has(key) ? batchOrderUsage.get(key)!.size : existing.ordersCount;
-        
-        // Combine usedBy arrays (if they exist) but deduplicate
+        // Combine usedBy arrays but deduplicate
         const usedBySet = new Set([
           ...(existing.usedBy || []),
           ...(usage.usedBy || [])
         ]);
         
-        // Update the consolidated batch entry without double-counting weights
-        if (usage.productId !== existing.productId) {
-          // Different products - add the weights
-          batchUsageMap.set(key, {
-            ...existing,
-            usedWeight: existing.usedWeight + usage.usedWeight,
-            firstUsed: firstUsedDate,
-            lastUsed: lastUsedDate,
-            ordersCount: ordersCount,
-            usedBy: Array.from(usedBySet)
-          });
-        } else {
-          // Same product + batch combination, keep the existing weight to avoid double counting
-          // Only update the dates and order count
-          batchUsageMap.set(key, {
-            ...existing,
-            firstUsed: firstUsedDate,
-            lastUsed: lastUsedDate,
-            ordersCount: ordersCount,
-            usedBy: Array.from(usedBySet)
-          });
-        }
-      } else {
-        // First time seeing this batch
-        const ordersCount = batchOrderUsage.has(key) ? batchOrderUsage.get(key)!.size : usage.ordersCount;
-        batchUsageMap.set(key, {
-          ...usage,
-          ordersCount
+        // Count unique orders from the usedBy array
+        const uniqueOrders = new Set();
+        Array.from(usedBySet).forEach(item => {
+          if (item.startsWith('order-')) {
+            uniqueOrders.add(item.substring(6)); // Remove 'order-' prefix
+          }
         });
+        
+        // Update the consolidated entry
+        batchUsageMap.set(batchNumber, {
+          ...existing,
+          usedWeight: existing.usedWeight + usage.usedWeight,
+          firstUsed: firstUsedDate,
+          lastUsed: lastUsedDate,
+          ordersCount: uniqueOrders.size,
+          usedBy: Array.from(usedBySet)
+        });
+      } else {
+        // First time seeing this batch, add as is
+        batchUsageMap.set(batchNumber, { ...usage });
       }
     });
     
     // Convert back to array for display
     setConsolidatedBatchUsages(Array.from(batchUsageMap.values()));
-  }, [batchUsages, completedOrders, searchParams, searchTerm]);
+  }, [batchUsages, searchParams, searchTerm]);
   
   // Handle sorting
   const requestSort = (key: keyof BatchUsage) => {
