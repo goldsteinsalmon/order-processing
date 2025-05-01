@@ -7,12 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
 import { Order } from "@/types";
-import { ArrowLeft, Check, FileDown, Calendar } from "lucide-react";
+import { ArrowLeft, FileDown, Calendar, Check } from "lucide-react";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
@@ -37,7 +35,6 @@ const ExportOrdersPage: React.FC = () => {
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [invoiceNumber, setInvoiceNumber] = useState("");
   
   // Filter orders based on date range
   useEffect(() => {
@@ -73,6 +70,7 @@ const ExportOrdersPage: React.FC = () => {
       newSelected.add(orderId);
     }
     setSelectedOrders(newSelected);
+    setSelectAll(newSelected.size === filteredOrders.length);
   };
   
   // Handle select all
@@ -88,7 +86,7 @@ const ExportOrdersPage: React.FC = () => {
     setSelectAll(!selectAll);
   };
   
-  // Export selected orders
+  // Export selected orders and mark them as invoiced
   const handleExport = () => {
     if (selectedOrders.size === 0) {
       toast({
@@ -103,29 +101,32 @@ const ExportOrdersPage: React.FC = () => {
       selectedOrders.has(order.id)
     );
     
+    // Mark selected orders as invoiced
+    selectedOrders.forEach(id => {
+      const order = completedOrders.find(o => o.id === id);
+      if (order && !order.invoiced) {
+        updateOrder({
+          ...order,
+          invoiced: true,
+          invoiceDate: new Date().toISOString(),
+        });
+      }
+    });
+    
     exportOrdersToCsv(ordersToExport, generateCsvFilename());
     
     toast({
       title: "Export successful",
-      description: `Exported ${ordersToExport.length} orders to CSV.`,
+      description: `Exported ${ordersToExport.length} orders to CSV and marked them as invoiced.`,
     });
   };
   
-  // Mark selected orders as invoiced
+  // Mark selected orders as invoiced (without requiring invoice number)
   const handleMarkInvoiced = () => {
     if (selectedOrders.size === 0) {
       toast({
         title: "No orders selected",
         description: "Please select at least one order to mark as invoiced.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (!invoiceNumber) {
-      toast({
-        title: "Invoice number required",
-        description: "Please enter an invoice number.",
         variant: "destructive"
       });
       return;
@@ -138,7 +139,6 @@ const ExportOrdersPage: React.FC = () => {
         updateOrder({
           ...order,
           invoiced: true,
-          invoiceNumber,
           invoiceDate: new Date().toISOString(),
         });
       }
@@ -146,11 +146,8 @@ const ExportOrdersPage: React.FC = () => {
     
     toast({
       title: "Orders marked as invoiced",
-      description: `Marked ${selectedOrders.size} orders as invoiced with invoice #${invoiceNumber}.`,
+      description: `Marked ${selectedOrders.size} orders as invoiced.`,
     });
-    
-    // Reset invoice number
-    setInvoiceNumber("");
   };
   
   return (
@@ -164,7 +161,7 @@ const ExportOrdersPage: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Date Range Filter */}
         <Card>
           <CardHeader>
@@ -172,67 +169,65 @@ const ExportOrdersPage: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col space-y-2">
-              <Label htmlFor="from-date">From</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !fromDate && "text-muted-foreground"
-                    )}
-                    id="from-date"
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {fromDate ? format(fromDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={fromDate}
-                    onSelect={setFromDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div className="flex flex-col space-y-2">
-              <Label htmlFor="to-date">To</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !toDate && "text-muted-foreground"
-                    )}
-                    id="to-date"
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={toDate}
-                    onSelect={setToDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex flex-col space-y-2">
+                <span className="text-sm font-medium">From</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !fromDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {fromDate ? format(fromDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={fromDate}
+                      onSelect={setFromDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="flex flex-col space-y-2">
+                <span className="text-sm font-medium">To</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !toDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={toDate}
+                      onSelect={setToDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </CardContent>
         </Card>
         
-        {/* Export Actions */}
+        {/* Actions */}
         <Card>
           <CardHeader>
-            <CardTitle>Export</CardTitle>
+            <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Button 
@@ -243,28 +238,12 @@ const ExportOrdersPage: React.FC = () => {
               <FileDown className="mr-2 h-4 w-4" /> 
               Export Selected Orders ({selectedOrders.size})
             </Button>
-          </CardContent>
-        </Card>
-        
-        {/* Invoice Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Mark as Invoiced</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col space-y-2">
-              <Label htmlFor="invoice-number">Invoice Number</Label>
-              <Input 
-                id="invoice-number" 
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="Enter invoice number"
-              />
-            </div>
+            
             <Button 
               className="w-full" 
               onClick={handleMarkInvoiced}
-              disabled={selectedOrders.size === 0 || !invoiceNumber}
+              disabled={selectedOrders.size === 0}
+              variant="outline"
             >
               <Check className="mr-2 h-4 w-4" /> 
               Mark Selected as Invoiced ({selectedOrders.size})
@@ -275,8 +254,17 @@ const ExportOrdersPage: React.FC = () => {
       
       {/* Orders Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Orders</CardTitle>
+          {filteredOrders.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleSelectAll}
+            >
+              {selectAll ? "Deselect All" : "Select All"}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
