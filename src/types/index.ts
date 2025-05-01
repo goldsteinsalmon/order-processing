@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string;
@@ -57,9 +58,7 @@ export interface Order {
   invoice_number?: string;
   invoice_date?: string;
   changes?: OrderChange[];
-  // Add savedBoxes property that was missing
   savedBoxes?: number[];
-  // Add property for batch summaries
   batchSummaries?: BatchSummary[];
 }
 
@@ -113,6 +112,7 @@ export interface BoxItem {
 export interface StandingOrder {
   id: string;
   customer_id: string;
+  customer?: Customer;
   customer_order_number?: string;
   items: StandingOrderItem[];
   schedule: {
@@ -131,6 +131,8 @@ export interface StandingOrder {
 export interface StandingOrderItem {
   id: string;
   product_id: string;
+  standing_order_id?: string;
+  product?: Product;
   quantity: number;
 }
 
@@ -159,7 +161,7 @@ export interface BatchUsage {
   orders_count: number;
   first_used: string;
   last_used: string;
-  usedBy?: string[]; // Add missing usedBy property
+  usedBy?: string[]; // Added usedBy property
 }
 
 export interface BatchSummary {

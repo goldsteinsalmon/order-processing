@@ -163,23 +163,7 @@ const CreateStandingOrderForm: React.FC = () => {
     setSelectedProductId("");
     setSelectedProductQuantity(null);
   };
-
-  const handleSelectProduct = (productId: string) => {
-    setSelectedProductId(productId);
-    setShowProductSearch(false);
-    // Focus on quantity input after selecting a product
-    setTimeout(() => {
-      const quantityInput = document.getElementById("quantity") as HTMLInputElement;
-      if (quantityInput) {
-        quantityInput.focus();
-      }
-    }, 100);
-  };
-
-  const removeProductFromOrder = (itemId: string) => {
-    setOrderItems(orderItems.filter(item => item.id !== itemId));
-  };
-
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -232,17 +216,19 @@ const CreateStandingOrderForm: React.FC = () => {
     // Calculate day of week from the selected delivery date (0-6, Sunday to Saturday)
     const dayOfWeek = firstDeliveryDate.getDay();
 
-    // Create the standing order object with snake_case property names
+    // Create the standing order object with the correct structure
     const standingOrder = {
       id: uuidv4(),
       customer_id: customerId,
       customer: customers.find(c => c.id === customerId),
       customer_order_number: customerOrderNumber || undefined,
-      frequency,
-      day_of_week: frequency === "Weekly" || frequency === "Bi-Weekly" ? dayOfWeek : undefined,
-      day_of_month: frequency === "Monthly" ? firstDeliveryDate.getDate() : undefined,
-      delivery_method: deliveryMethod,
-      next_delivery_date: firstDeliveryDateString,
+      schedule: {
+        frequency: frequency,
+        dayOfWeek: frequency === "Weekly" || frequency === "Bi-Weekly" ? dayOfWeek : undefined,
+        dayOfMonth: frequency === "Monthly" ? firstDeliveryDate.getDate() : undefined,
+        deliveryMethod: deliveryMethod,
+        nextDeliveryDate: firstDeliveryDateString
+      },
       items: fullOrderItems,
       notes: notes || undefined,
       active: true,
@@ -264,7 +250,13 @@ const CreateStandingOrderForm: React.FC = () => {
         order_date: firstDeliveryDateString,
         required_date: firstDeliveryDateString,
         delivery_method: deliveryMethod,
-        items: fullOrderItems,
+        items: fullOrderItems.map(item => ({
+          id: item.id,
+          order_id: "", // Will be populated after order creation
+          product_id: item.product_id,
+          product: item.product,
+          quantity: item.quantity
+        })),
         notes: notes ? `${notes} (Generated from Standing Order #${standingOrder.id.substring(0, 8)})` : `Generated from Standing Order #${standingOrder.id.substring(0, 8)}`,
         status: "Pending",
         created: new Date().toISOString(),
@@ -634,7 +626,7 @@ const CreateStandingOrderForm: React.FC = () => {
                     {selectedCustomer.name} is currently on hold.
                   </p>
                   <p className="mb-4">
-                    Reason: {selectedCustomer.holdReason || "No reason provided"}
+                    Reason: {selectedCustomer.hold_reason || "No reason provided"}
                   </p>
                   <p>Are you sure you want to proceed with this customer?</p>
                 </>

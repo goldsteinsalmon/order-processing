@@ -185,6 +185,7 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
     setIsLoading(true);
     
     try {
+      // Fetch different data types
       // Fetch customers
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
@@ -321,7 +322,6 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         account_number: item.account_number,
         on_hold: item.on_hold,
         hold_reason: item.hold_reason,
-        created: item.created,
         needs_detailed_box_labels: item.needs_detailed_box_labels
       }));
       
@@ -332,7 +332,6 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         description: item.description,
         stock_level: item.stock_level,
         weight: item.weight,
-        created: item.created,
         requires_weight_input: item.requires_weight_input,
         unit: item.unit,
         required: item.required
@@ -349,7 +348,6 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         account_number: customerData.account_number,
         on_hold: customerData.on_hold,
         hold_reason: customerData.hold_reason,
-        created: customerData.created,
         needs_detailed_box_labels: customerData.needs_detailed_box_labels
       });
 
@@ -361,7 +359,6 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         description: productData.description,
         stock_level: productData.stock_level,
         weight: productData.weight,
-        created: productData.created,
         requires_weight_input: productData.requires_weight_input,
         unit: productData.unit,
         required: productData.required

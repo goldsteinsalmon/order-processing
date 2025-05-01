@@ -1,5 +1,4 @@
-
-import { Order, OrderItem, Box, BoxItem, BatchSummary, Customer } from "@/types";
+import { Order, OrderItem, Box, BoxItem, BatchSummary, Customer, StandingOrder, StandingOrderItem, MissingItem, Return, Complaint, BatchUsage } from "@/types";
 
 /**
  * Adapts snake_case property names to camelCase for components
@@ -230,26 +229,197 @@ export function adaptBoxItemToSnakeCase(item: any): BoxItem {
   };
 }
 
-export function adaptMissingItemToSnakeCase(item: any): any {
+// Missing Item adapters
+export function adaptMissingItemToSnakeCase(item: MissingItem): any {
   if (!item) return null;
   
   return {
     ...item,
-    order_id: item.orderId || item.order_id,
-    product_id: item.productId || item.product_id
+    order_id: item.order_id,
+    product_id: item.product_id
   };
 }
 
-export function adaptMissingItemToCamelCase(item: any): any {
+export function adaptMissingItemToCamelCase(item: any): MissingItem {
   if (!item) return null;
   
   return {
     ...item,
     orderId: item.order_id,
-    productId: item.product_id
+    productId: item.product_id,
+    product: item.product ? adaptProductToCamelCase(item.product) : undefined,
+    order: item.order ? {
+      id: item.order.id,
+      customer: item.order.customer ? adaptCustomerToCamelCase(item.order.customer) : undefined
+    } : undefined
   };
 }
 
+// Standing Order adapters
+export function adaptStandingOrderToCamelCase(standingOrder: any): StandingOrder {
+  if (!standingOrder) return null;
+  
+  return {
+    ...standingOrder,
+    customer_id: standingOrder.customer_id,
+    customer_order_number: standingOrder.customer_order_number,
+    schedule: {
+      frequency: standingOrder.frequency,
+      dayOfWeek: standingOrder.day_of_week,
+      dayOfMonth: standingOrder.day_of_month,
+      deliveryMethod: standingOrder.delivery_method,
+      nextDeliveryDate: standingOrder.next_delivery_date
+    },
+    items: standingOrder.items?.map(adaptStandingOrderItemToCamelCase) || [],
+    customer: standingOrder.customer ? adaptCustomerToCamelCase(standingOrder.customer) : undefined,
+    next_processing_date: standingOrder.next_processing_date,
+    last_processed_date: standingOrder.last_processed_date
+  };
+}
+
+export function adaptStandingOrderToSnakeCase(standingOrder: StandingOrder): any {
+  if (!standingOrder) return null;
+  
+  return {
+    ...standingOrder,
+    customer_id: standingOrder.customer_id,
+    customer_order_number: standingOrder.customer_order_number,
+    frequency: standingOrder.schedule?.frequency,
+    day_of_week: standingOrder.schedule?.dayOfWeek,
+    day_of_month: standingOrder.schedule?.dayOfMonth,
+    delivery_method: standingOrder.schedule?.deliveryMethod,
+    next_delivery_date: standingOrder.schedule?.nextDeliveryDate,
+    customer: standingOrder.customer ? adaptCustomerToSnakeCase(standingOrder.customer) : undefined,
+    items: standingOrder.items?.map(adaptStandingOrderItemToSnakeCase) || [],
+    next_processing_date: standingOrder.next_processing_date,
+    last_processed_date: standingOrder.last_processed_date
+  };
+}
+
+export function adaptStandingOrderItemToCamelCase(item: any): StandingOrderItem {
+  if (!item) return null;
+  
+  return {
+    id: item.id,
+    product_id: item.product_id,
+    product: item.product ? adaptProductToCamelCase(item.product) : undefined,
+    quantity: item.quantity
+  };
+}
+
+export function adaptStandingOrderItemToSnakeCase(item: StandingOrderItem): any {
+  if (!item) return null;
+  
+  return {
+    id: item.id,
+    product_id: item.product_id,
+    product: item.product ? adaptProductToSnakeCase(item.product) : undefined,
+    quantity: item.quantity,
+    standing_order_id: item.standing_order_id
+  };
+}
+
+// Return adapters
+export function adaptReturnToCamelCase(returnItem: any): Return {
+  if (!returnItem) return null;
+  
+  return {
+    ...returnItem,
+    customer_id: returnItem.customer_id,
+    customer_type: returnItem.customer_type,
+    customer_name: returnItem.customer_name,
+    contact_email: returnItem.contact_email,
+    contact_phone: returnItem.contact_phone,
+    date_returned: returnItem.date_returned,
+    order_number: returnItem.order_number,
+    invoice_number: returnItem.invoice_number,
+    product_sku: returnItem.product_sku,
+    product_id: returnItem.product_id,
+    product: returnItem.product ? adaptProductToCamelCase(returnItem.product) : undefined,
+    returns_required: returnItem.returns_required,
+    return_status: returnItem.return_status,
+    resolution_status: returnItem.resolution_status,
+    resolution_notes: returnItem.resolution_notes
+  };
+}
+
+export function adaptReturnToSnakeCase(returnItem: Return): any {
+  if (!returnItem) return null;
+  
+  return {
+    ...returnItem,
+    customer_id: returnItem.customer_id,
+    customer_type: returnItem.customer_type,
+    customer_name: returnItem.customer_name,
+    contact_email: returnItem.contact_email,
+    contact_phone: returnItem.contact_phone,
+    date_returned: returnItem.date_returned,
+    order_number: returnItem.order_number, 
+    invoice_number: returnItem.invoice_number,
+    product_sku: returnItem.product_sku,
+    product_id: returnItem.product_id,
+    product: returnItem.product ? adaptProductToSnakeCase(returnItem.product) : undefined,
+    returns_required: returnItem.returns_required,
+    return_status: returnItem.return_status,
+    resolution_status: returnItem.resolution_status,
+    resolution_notes: returnItem.resolution_notes
+  };
+}
+
+// Complaint adapters
+export function adaptComplaintToCamelCase(complaint: any): Complaint {
+  if (!complaint) return null;
+  
+  return {
+    ...complaint,
+    customer_id: complaint.customer_id,
+    customer_type: complaint.customer_type,
+    customer_name: complaint.customer_name,
+    contact_email: complaint.contact_email,
+    contact_phone: complaint.contact_phone,
+    date_submitted: complaint.date_submitted,
+    order_number: complaint.order_number,
+    invoice_number: complaint.invoice_number,
+    product_sku: complaint.product_sku,
+    product_id: complaint.product_id,
+    product: complaint.product ? adaptProductToCamelCase(complaint.product) : undefined,
+    complaint_type: complaint.complaint_type,
+    complaint_details: complaint.complaint_details,
+    returns_required: complaint.returns_required,
+    return_status: complaint.return_status,
+    resolution_status: complaint.resolution_status,
+    resolution_notes: complaint.resolution_notes
+  };
+}
+
+export function adaptComplaintToSnakeCase(complaint: Complaint): any {
+  if (!complaint) return null;
+  
+  return {
+    ...complaint,
+    customer_id: complaint.customer_id,
+    customer_type: complaint.customer_type,
+    customer_name: complaint.customer_name,
+    contact_email: complaint.contact_email,
+    contact_phone: complaint.contact_phone,
+    date_submitted: complaint.date_submitted,
+    order_number: complaint.order_number, 
+    invoice_number: complaint.invoice_number,
+    product_sku: complaint.product_sku,
+    product_id: complaint.product_id,
+    product: complaint.product ? adaptProductToSnakeCase(complaint.product) : undefined,
+    complaint_type: complaint.complaint_type,
+    complaint_details: complaint.complaint_details,
+    returns_required: complaint.returns_required,
+    return_status: complaint.return_status,
+    resolution_status: complaint.resolution_status,
+    resolution_notes: complaint.resolution_notes
+  };
+}
+
+/**
+ * Adapts BatchSummary to use camelCase property names
+ */
 export function adaptBatchSummaryToCamelCase(summary: any): BatchSummary {
   if (!summary) return null;
   
@@ -259,6 +429,9 @@ export function adaptBatchSummaryToCamelCase(summary: any): BatchSummary {
   };
 }
 
+/**
+ * Adapts BatchSummary to use snake_case property names
+ */
 export function adaptBatchSummaryToSnakeCase(summary: BatchSummary): any {
   if (!summary) return null;
   

@@ -12,8 +12,8 @@ export const useMissingItemData = (toast: any) => {
       const { data, error } = await supabase
         .from('missing_items')
         .insert({
-          order_id: missingItem.orderId,
-          product_id: missingItem.productId,
+          order_id: missingItem.order_id,
+          product_id: missingItem.product_id,
           quantity: missingItem.quantity,
           date: missingItem.date || new Date().toISOString(),
           status: missingItem.status || 'Pending'
@@ -26,7 +26,7 @@ export const useMissingItemData = (toast: any) => {
       const { data: productData, error: productError } = await supabase
         .from('products')
         .select('*')
-        .eq('id', missingItem.productId)
+        .eq('id', missingItem.product_id)
         .single();
       
       if (productError) throw productError;
@@ -34,7 +34,7 @@ export const useMissingItemData = (toast: any) => {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('id, customer:customers(*)')
-        .eq('id', missingItem.orderId)
+        .eq('id', missingItem.order_id)
         .single();
       
       if (orderError) throw orderError;
@@ -45,10 +45,9 @@ export const useMissingItemData = (toast: any) => {
         name: productData.name,
         sku: productData.sku,
         description: productData.description,
-        stockLevel: productData.stock_level,
+        stock_level: productData.stock_level,
         weight: productData.weight,
-        created: productData.created,
-        requiresWeightInput: productData.requires_weight_input,
+        requires_weight_input: productData.requires_weight_input,
         unit: productData.unit,
         required: productData.required
       };
@@ -60,17 +59,16 @@ export const useMissingItemData = (toast: any) => {
         phone: orderData.customer.phone,
         address: orderData.customer.address,
         type: orderData.customer.type as "Private" | "Trade",
-        accountNumber: orderData.customer.account_number,
-        onHold: orderData.customer.on_hold,
-        holdReason: orderData.customer.hold_reason,
-        needsDetailedBoxLabels: orderData.customer.needs_detailed_box_labels,
-        created: orderData.customer.created
+        account_number: orderData.customer.account_number,
+        on_hold: orderData.customer.on_hold,
+        hold_reason: orderData.customer.hold_reason,
+        needs_detailed_box_labels: orderData.customer.needs_detailed_box_labels
       };
       
       const newMissingItem: MissingItem = {
         id: data[0].id,
-        orderId: data[0].order_id,
-        productId: data[0].product_id,
+        order_id: data[0].order_id,
+        product_id: data[0].product_id,
         product: product,
         order: {
           id: orderData.id,
