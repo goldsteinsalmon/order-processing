@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { usePickerData } from "@/hooks/data/usePickerData";
 import { useToast } from "@/hooks/use-toast";
 import { Picker } from "@/types";
-import { ReloadIcon, Trash, UserPlus } from "lucide-react";
+import { Loader, Trash, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 const PickerManagement: React.FC = () => {
@@ -185,7 +186,7 @@ const PickerManagement: React.FC = () => {
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center items-center py-8">
-            <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+            <Loader className="mr-2 h-4 w-4 animate-spin" />
             Loading pickers...
           </div>
         ) : (

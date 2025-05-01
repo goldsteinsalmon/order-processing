@@ -19,8 +19,9 @@ export const usePickerData = (toast: any) => {
       
       if (error) throw error;
       
-      setPickers([...pickers, data[0]]);
-      return data[0];
+      const newPicker: Picker = data[0];
+      setPickers([...pickers, newPicker]);
+      return newPicker;
     } catch (error) {
       console.error('Error adding picker:', error);
       toast({
@@ -33,19 +34,19 @@ export const usePickerData = (toast: any) => {
   };
 
   // Update picker
-  const updatePicker = async (picker: Picker): Promise<boolean> => {
+  const updatePicker = async (updatedPicker: Picker): Promise<boolean> => {
     try {
       const { error } = await supabase
         .from('pickers')
         .update({
-          name: picker.name,
-          active: picker.active
+          name: updatedPicker.name,
+          active: updatedPicker.active
         })
-        .eq('id', picker.id);
+        .eq('id', updatedPicker.id);
       
       if (error) throw error;
       
-      setPickers(pickers.map(p => p.id === picker.id ? picker : p));
+      setPickers(pickers.map(p => p.id === updatedPicker.id ? updatedPicker : p));
       return true;
     } catch (error) {
       console.error('Error updating picker:', error);
@@ -68,7 +69,7 @@ export const usePickerData = (toast: any) => {
       
       if (error) throw error;
       
-      setPickers(pickers.filter(picker => picker.id !== pickerId));
+      setPickers(pickers.filter(p => p.id !== pickerId));
       return true;
     } catch (error) {
       console.error('Error deleting picker:', error);
@@ -81,12 +82,5 @@ export const usePickerData = (toast: any) => {
     }
   };
 
-  return {
-    pickers,
-    setPickers,
-    addPicker,
-    updatePicker,
-    deletePicker
-  };
+  return { pickers, setPickers, addPicker, updatePicker, deletePicker };
 };
-

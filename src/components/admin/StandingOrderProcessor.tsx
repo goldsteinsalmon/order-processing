@@ -1,63 +1,40 @@
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar, AlertTriangle } from "lucide-react";
 import { useData } from "@/context/DataContext";
 
 const StandingOrderProcessor: React.FC = () => {
-  const { processStandingOrders } = useData();
-  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [lastRun, setLastRun] = useState<string | null>(null);
+  const [lastProcessed, setLastProcessed] = useState<string | null>(null);
+  const { toast } = useToast();
+  const { processStandingOrders, standingOrders } = useData();
+  
+  const activeStandingOrders = standingOrders.filter(order => order.active);
 
-  // Function to manually trigger the Edge Function
-  const triggerProcessing = async () => {
+  const handleProcessStandingOrders = async () => {
+    if (isProcessing) return;
+    
     setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('process-standing-orders', {
-        body: { trigger: 'manual' }
-      });
-
-      if (error) throw error;
-      
-      toast({
-        title: "Standing Orders Processed",
-        description: data.message || `Successfully processed ${data.processed} standing orders`,
-        variant: "default",
-      });
-      
-      setLastRun(new Date().toISOString());
-    } catch (error) {
-      console.error('Error processing standing orders:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process standing orders. Check console for details.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  // Function to run the local version of processStandingOrders
-  const runLocalProcessing = async () => {
-    setIsProcessing(true);
+    
     try {
       await processStandingOrders();
+      
+      const now = new Date();
+      setLastProcessed(now.toISOString());
+      
       toast({
-        title: "Standing Orders Processed",
-        description: "Successfully processed standing orders using the local function",
-        variant: "default",
+        title: "Processing Complete",
+        description: "Standing orders have been processed successfully.",
       });
-      setLastRun(new Date().toISOString());
     } catch (error) {
-      console.error('Error processing standing orders:', error);
+      console.error("Error processing standing orders:", error);
       toast({
-        title: "Error",
-        description: "Failed to process standing orders. Check console for details.",
+        title: "Processing Failed",
+        description: "Failed to process standing orders. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -66,76 +43,55 @@ const StandingOrderProcessor: React.FC = () => {
   };
 
   return (
-    <Card className="w-full">
+    <Card>
       <CardHeader>
         <CardTitle>Standing Order Processor</CardTitle>
         <CardDescription>
-          Standing orders are automatically processed at midnight every day.
-          You can also trigger the process manually.
+          Manually process standing orders or check the status of automated processing.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-start">
-                <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5" />
-                <div>
-                  <h3 className="font-medium">Automatic Processing</h3>
-                  <p className="text-sm text-gray-600">
-                    Standing orders are automatically processed at midnight by a scheduled job.
-                    No user login is required.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-amber-500 mr-2 mt-0.5" />
-                <div>
-                  <h3 className="font-medium">Manual Processing</h3>
-                  <p className="text-sm text-gray-600">
-                    You can manually trigger the processing of standing orders using the buttons below.
-                  </p>
-                </div>
-              </div>
-            </div>
+      <CardContent className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-medium">Active Standing Orders</h3>
+            <p className="text-sm text-gray-500">
+              {activeStandingOrders.length} active orders ready for processing
+            </p>
           </div>
-          
-          {lastRun && (
-            <div className="text-sm text-gray-500">
-              Last run: {new Date(lastRun).toLocaleString()}
-            </div>
-          )}
+          <Button 
+            onClick={handleProcessStandingOrders} 
+            disabled={isProcessing || activeStandingOrders.length === 0}
+          >
+            <Calendar className="mr-2 h-4 w-4" />
+            {isProcessing ? "Processing..." : "Process Now"}
+          </Button>
         </div>
+        
+        {lastProcessed && (
+          <div className="text-sm text-gray-500 mt-2">
+            Last manual processing: {new Date(lastProcessed).toLocaleString()}
+          </div>
+        )}
+        
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Automatic Processing</AlertTitle>
+          <AlertDescription>
+            Standing orders are automatically processed every day at midnight. 
+            Manual processing should only be used for testing or if the automatic 
+            processing has failed.
+          </AlertDescription>
+        </Alert>
+        
+        {activeStandingOrders.length === 0 && (
+          <Alert variant="default" className="bg-gray-50 border-gray-200">
+            <AlertTitle>No Active Standing Orders</AlertTitle>
+            <AlertDescription>
+              There are no active standing orders to process at this time.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row gap-3">
-        <Button 
-          onClick={triggerProcessing} 
-          disabled={isProcessing} 
-          className="w-full sm:w-auto"
-        >
-          {isProcessing ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
-          )}
-          Process via Edge Function
-        </Button>
-        <Button 
-          onClick={runLocalProcessing} 
-          disabled={isProcessing}
-          variant="outline" 
-          className="w-full sm:w-auto"
-        >
-          {isProcessing ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
-          )}
-          Process Locally
-        </Button>
-      </CardFooter>
     </Card>
   );
 };

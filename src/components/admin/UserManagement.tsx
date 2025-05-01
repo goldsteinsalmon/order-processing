@@ -8,40 +8,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useUserData } from "@/hooks/data/useUserData";
+import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@/types";
-import { ReloadIcon, Trash, UserPlus } from "lucide-react";
+import { Loader, Trash, UserPlus, Edit } from "lucide-react";
 
 const UserManagement: React.FC = () => {
   const { toast } = useToast();
-  const { users, fetchUsers, addUser, updateUser, deleteUser, createPredefinedUsers } = useUserData(toast);
+  const { users, addUser, updateUser, deleteUser } = useData();
   const [isLoading, setIsLoading] = useState(true);
   
   // State for the new user form
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState<Partial<User>>({
     name: "",
     email: "",
-    password: "",
     role: "User",
     active: true
   });
-  
-  // Load users on component mount
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+
   useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        await fetchUsers();
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Simulate loading state for a short time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
     
-    loadUsers();
-  }, [fetchUsers]);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,9 +44,22 @@ const UserManagement: React.FC = () => {
     setNewUser({ ...newUser, [name]: value });
   };
   
-  // Handle role selection change
+  // Handle edit input changes
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingUser) return;
+    const { name, value } = e.target;
+    setEditingUser({ ...editingUser, [name]: value });
+  };
+  
+  // Handle role change
   const handleRoleChange = (value: string) => {
     setNewUser({ ...newUser, role: value as "Admin" | "User" | "Manager" });
+  };
+  
+  // Handle edit role change
+  const handleEditRoleChange = (value: string) => {
+    if (!editingUser) return;
+    setEditingUser({ ...editingUser, role: value as "Admin" | "User" | "Manager" });
   };
   
   // Handle active status change
@@ -59,19 +67,34 @@ const UserManagement: React.FC = () => {
     setNewUser({ ...newUser, active: checked });
   };
   
+  // Handle edit active status change
+  const handleEditActiveChange = (checked: boolean) => {
+    if (!editingUser) return;
+    setEditingUser({ ...editingUser, active: checked });
+  };
+  
   // Handle user submission
   const handleAddUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.password) {
       toast({
         title: "Missing Fields",
-        description: "Please fill out all required fields.",
+        description: "Please fill in all required fields.",
         variant: "destructive",
       });
       return;
     }
     
-    const userToAdd = {
-      id: "",
+    if (!newUser.email.includes('@')) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const userToAdd: User = {
+      id: "", // Will be generated
       name: newUser.name,
       email: newUser.email,
       password: newUser.password,
@@ -79,9 +102,9 @@ const UserManagement: React.FC = () => {
       active: newUser.active || true
     };
     
-    const success = await addUser(userToAdd);
+    const addedUser = await addUser(userToAdd);
     
-    if (success) {
+    if (addedUser) {
       setIsAddDialogOpen(false);
       toast({
         title: "User Added",
@@ -94,6 +117,31 @@ const UserManagement: React.FC = () => {
         role: "User",
         active: true
       });
+    }
+  };
+  
+  // Handle user edit
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+    
+    if (!editingUser.name || !editingUser.email) {
+      toast({
+        title: "Missing Fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const success = await updateUser(editingUser);
+    
+    if (success) {
+      setIsEditDialogOpen(false);
+      toast({
+        title: "User Updated",
+        description: `User ${editingUser.name} has been updated successfully.`
+      });
+      setEditingUser(null);
     }
   };
   
@@ -111,29 +159,10 @@ const UserManagement: React.FC = () => {
     }
   };
   
-  // Handle toggle user active status
-  const handleToggleActive = async (user: User) => {
-    const updatedUser = { ...user, active: !user.active };
-    const success = await updateUser(updatedUser);
-    
-    if (success) {
-      toast({
-        title: "User Updated",
-        description: `${user.name} is now ${updatedUser.active ? "active" : "inactive"}.`
-      });
-    }
-  };
-  
-  // Handle creating predefined users
-  const handleCreatePredefinedUsers = async () => {
-    const success = await createPredefinedUsers();
-    
-    if (success) {
-      toast({
-        title: "Default Users Created",
-        description: "The predefined users have been created successfully."
-      });
-    }
+  // Open edit dialog
+  const openEditDialog = (user: User) => {
+    setEditingUser({ ...user });
+    setIsEditDialogOpen(true);
   };
 
   return (
@@ -141,121 +170,112 @@ const UserManagement: React.FC = () => {
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>User Management</span>
-          <div className="space-x-2">
-            <Button 
-              variant="outline" 
-              onClick={handleCreatePredefinedUsers}
-              title="Create default admin and user accounts"
-            >
-              Create Default Users
-            </Button>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Add User
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New User</DialogTitle>
-                  <DialogDescription>
-                    Create a new user account for the system.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                      Name
-                    </Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      value={newUser.name}
-                      onChange={handleInputChange}
-                      className="col-span-3"
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New User</DialogTitle>
+                <DialogDescription>
+                  Create a new user with the appropriate role and permissions.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={newUser.name}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="email" className="text-right">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={newUser.email}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={newUser.password}
+                    onChange={handleInputChange}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="role" className="text-right">
+                    Role
+                  </Label>
+                  <Select
+                    value={newUser.role}
+                    onValueChange={handleRoleChange}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Manager">Manager</SelectItem>
+                      <SelectItem value="User">User</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="active" className="text-right">
+                    Active
+                  </Label>
+                  <div className="flex items-center space-x-2 col-span-3">
+                    <Switch
+                      id="active"
+                      checked={newUser.active}
+                      onCheckedChange={handleActiveChange}
                     />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">
-                      Email
+                    <Label htmlFor="active">
+                      {newUser.active ? "Active" : "Inactive"}
                     </Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={newUser.email}
-                      onChange={handleInputChange}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="password" className="text-right">
-                      Password
-                    </Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={newUser.password}
-                      onChange={handleInputChange}
-                      className="col-span-3"
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="role" className="text-right">
-                      Role
-                    </Label>
-                    <Select 
-                      value={newUser.role}
-                      onValueChange={handleRoleChange}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Manager">Manager</SelectItem>
-                        <SelectItem value="User">User</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="active" className="text-right">
-                      Active
-                    </Label>
-                    <div className="flex items-center space-x-2 col-span-3">
-                      <Switch
-                        id="active"
-                        checked={newUser.active}
-                        onCheckedChange={handleActiveChange}
-                      />
-                      <Label htmlFor="active">
-                        {newUser.active ? "Active" : "Inactive"}
-                      </Label>
-                    </div>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddUser}>
-                    Add User
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddUser}>
+                  Add User
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardTitle>
         <CardDescription>
-          Manage user accounts and permissions.
+          Manage users and their access to the system.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center items-center py-8">
-            <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+            <Loader className="mr-2 h-4 w-4 animate-spin" />
             Loading users...
           </div>
         ) : (
@@ -282,17 +302,7 @@ const UserManagement: React.FC = () => {
                     <TableRow key={user.id}>
                       <TableCell>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.role === "Admin" 
-                            ? "bg-purple-100 text-purple-800" 
-                            : user.role === "Manager" 
-                            ? "bg-blue-100 text-blue-800" 
-                            : "bg-gray-100 text-gray-800"
-                        }`}>
-                          {user.role}
-                        </span>
-                      </TableCell>
+                      <TableCell>{user.role}</TableCell>
                       <TableCell>
                         <div className="flex items-center">
                           <div className={`mr-2 h-2.5 w-2.5 rounded-full ${user.active ? "bg-green-500" : "bg-gray-400"}`}></div>
@@ -304,9 +314,10 @@ const UserManagement: React.FC = () => {
                           <Button 
                             variant="outline"
                             size="sm"
-                            onClick={() => handleToggleActive(user)}
+                            onClick={() => openEditDialog(user)}
                           >
-                            {user.active ? "Deactivate" : "Activate"}
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
                           </Button>
                           <Button 
                             variant="outline" 
@@ -326,6 +337,88 @@ const UserManagement: React.FC = () => {
           </div>
         )}
       </CardContent>
+      
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information and permissions.
+            </DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  value={editingUser.name}
+                  onChange={handleEditChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  value={editingUser.email}
+                  onChange={handleEditChange}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-role" className="text-right">
+                  Role
+                </Label>
+                <Select
+                  value={editingUser.role}
+                  onValueChange={handleEditRoleChange}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Manager">Manager</SelectItem>
+                    <SelectItem value="User">User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-active" className="text-right">
+                  Active
+                </Label>
+                <div className="flex items-center space-x-2 col-span-3">
+                  <Switch
+                    id="edit-active"
+                    checked={editingUser.active}
+                    onCheckedChange={handleEditActiveChange}
+                  />
+                  <Label htmlFor="edit-active">
+                    {editingUser.active ? "Active" : "Inactive"}
+                  </Label>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditUser}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
