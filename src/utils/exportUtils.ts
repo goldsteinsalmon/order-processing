@@ -22,10 +22,8 @@ export const generateCsvFilename = (): string => {
   return `export-${date}-${time}`;
 };
 
-// Function to export orders to CSV
+// We're keeping these functions for backward compatibility
 export const exportOrdersToCsv = (orders: Order[], filename: string): void => {
-  // This is a placeholder function since we're moving to PDF exports
-  // We'll keep it for backward compatibility
   console.log(`Exporting ${orders.length} orders to file: ${filename}`);
-  // Implement PDF export logic as needed
+  // This is now a placeholder as we're using PDF exports
 };

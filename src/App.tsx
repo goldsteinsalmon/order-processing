@@ -27,6 +27,7 @@ import EditCompletedOrderPage from "./pages/EditCompletedOrderPage";
 import ViewCompletedOrderPage from "./pages/ViewCompletedOrderPage";
 import BatchTrackingPage from "./pages/BatchTrackingPage";
 import ExportOrdersPage from "./pages/ExportOrdersPage";
+import ExportOrdersViewPage from "./pages/ExportOrdersViewPage";
 
 const App: React.FC = () => {
   return (
@@ -52,6 +53,7 @@ const App: React.FC = () => {
         <Route path="/picking-list" element={<PickingListPage />} />
         <Route path="/picking-list/:id" element={<PickingListPage />} />
         <Route path="/export-orders" element={<ExportOrdersPage />} />
+        <Route path="/export-orders-view" element={<ExportOrdersViewPage />} />
         
         <Route path="/standing-orders" element={<StandingOrdersPage />} />
         <Route path="/standing-order-details/:id" element={<StandingOrderDetailsPage />} />

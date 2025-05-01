@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft, Box, Barcode, FileDown, Check } from "lucide-react";
+import { ArrowLeft, Box, Barcode, Printer, Check } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { BatchSummary } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useReactToPrint } from "react-to-print";
@@ -343,7 +342,7 @@ const ViewCompletedOrder: React.FC = () => {
           <h2 className="text-2xl font-bold">View Completed Order</h2>
         </div>
         <Button onClick={handleExportOrder}>
-          <FileDown className="h-4 w-4 mr-2" /> Export Order
+          <Printer className="h-4 w-4 mr-2" /> Print Order
         </Button>
       </div>
 
