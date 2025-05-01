@@ -1,1 +1,5 @@
+
 project_id = "qrchywnyoqcwwfkxzsja"
+
+[functions.process-standing-orders]
+verify_jwt = false

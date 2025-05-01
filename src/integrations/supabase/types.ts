@@ -1061,7 +1061,10 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      trigger_process_standing_orders: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
