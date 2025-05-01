@@ -69,7 +69,7 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
     if (!productId) return "Select a product...";
     
     const product = products.find(p => p.id === productId);
-    return product ? `${product.name} (${product.sku})` : "Select a product...";
+    return product ? `${product.sku} - ${product.name}` : "Select a product...";
   };
   
   return (
@@ -178,15 +178,15 @@ const ProductSelectionStep: React.FC<ProductSelectionStepProps> = ({
             {filteredProducts.map(product => (
               <CommandItem 
                 key={product.id} 
-                value={`${product.name} ${product.sku}`} // Combined value for better matching
+                value={`${product.sku} ${product.name}`} // Combined value for better matching
                 onSelect={() => {
                   if (activeProductItemId) {
                     handleSelectProduct(activeProductItemId, product.id);
                   }
                 }}
               >
-                <span>{product.name}</span>
-                <span className="ml-2 text-muted-foreground">({product.sku})</span>
+                <span className="font-medium">{product.sku}</span>
+                <span className="ml-2">{product.name}</span>
               </CommandItem>
             ))}
           </CommandGroup>
