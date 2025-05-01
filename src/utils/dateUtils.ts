@@ -1,5 +1,26 @@
 import { format, isWeekend, addDays, isToday, isBefore, parseISO, startOfDay, isSaturday, isSunday } from "date-fns";
 
+// Helper to safely parse dates
+const safeParseDate = (date: Date | string | null | undefined): Date | null => {
+  if (!date) return null;
+  
+  try {
+    // If it's a string, try to parse it
+    if (typeof date === "string") {
+      // Check if it's a valid ISO string
+      const parsed = parseISO(date);
+      // Check if the resulting date is valid
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    
+    // If it's already a Date object, check if it's valid
+    return isNaN(date.getTime()) ? null : date;
+  } catch (e) {
+    console.error("Invalid date value:", date, e);
+    return null;
+  }
+};
+
 // Get the next working day
 export const getNextWorkingDay = (date: Date = new Date()): Date => {
   let nextDay = new Date(date);
@@ -21,38 +42,58 @@ export const getNextWorkingDay = (date: Date = new Date()): Date => {
 
 // Check if a date is a business day (not a weekend)
 export const isBusinessDay = (date: Date): boolean => {
-  return !isWeekend(date);
+  const safeDate = safeParseDate(date);
+  if (!safeDate) return false;
+  
+  return !isWeekend(safeDate);
 };
 
 // Format a date for display
 export const formatDisplayDate = (date: Date | string): string => {
-  const parsedDate = typeof date === "string" ? parseISO(date) : date;
-  return format(parsedDate, "MMMM do, yyyy");
+  const safeDate = safeParseDate(date);
+  if (!safeDate) return "Invalid Date";
+  
+  return format(safeDate, "MMMM do, yyyy");
 };
 
 // Check if an order is same day
 export const isSameDayOrder = (orderDate: Date | string): boolean => {
-  const parsedDate = typeof orderDate === "string" ? parseISO(orderDate) : orderDate;
-  return isToday(parsedDate);
+  const safeDate = safeParseDate(orderDate);
+  if (!safeDate) return false;
+  
+  return isToday(safeDate);
 };
 
 // Check if an order is next working day
 export const isNextWorkingDayOrder = (orderDate: Date | string): boolean => {
-  const parsedDate = typeof orderDate === "string" ? parseISO(orderDate) : orderDate;
+  const safeDate = safeParseDate(orderDate);
+  if (!safeDate) return false;
+  
   const tomorrow = addDays(new Date(), 1);
   
   // Check if dates are the same (ignoring time)
-  return format(parsedDate, "yyyy-MM-dd") === format(tomorrow, "yyyy-MM-dd") && isBusinessDay(parsedDate);
+  try {
+    return format(safeDate, "yyyy-MM-dd") === format(tomorrow, "yyyy-MM-dd") && isBusinessDay(safeDate);
+  } catch (e) {
+    console.error("Error comparing dates in isNextWorkingDayOrder:", e);
+    return false;
+  }
 };
 
 // Order date validator (for disabling weekends in date picker)
 export const orderDateValidator = (date: Date): boolean => {
-  return !isWeekend(date);
+  const safeDate = safeParseDate(date);
+  if (!safeDate) return false;
+  
+  return !isWeekend(safeDate);
 };
 
 // Get working day before a specific date
 export const getWorkingDayBefore = (date: Date): Date => {
-  let previousDay = addDays(date, -1);
+  const safeDate = safeParseDate(date);
+  if (!safeDate) return new Date(); // Return today as fallback
+  
+  let previousDay = addDays(safeDate, -1);
   
   // If it's a weekend, move to Friday
   while (isWeekend(previousDay)) {
@@ -64,41 +105,53 @@ export const getWorkingDayBefore = (date: Date): Date => {
 
 // Check if a date is a weekend (Saturday or Sunday)
 export const isWeekendDay = (date: Date): boolean => {
-  return isSaturday(date) || isSunday(date);
+  const safeDate = safeParseDate(date);
+  if (!safeDate) return false;
+  
+  return isSaturday(safeDate) || isSunday(safeDate);
 };
 
 // Check if a standing order needs to be processed immediately
 export const shouldProcessImmediately = (deliveryDate: Date | string): boolean => {
-  const parsedDate = typeof deliveryDate === "string" ? parseISO(deliveryDate) : deliveryDate;
+  const safeDate = safeParseDate(deliveryDate);
+  if (!safeDate) return false;
   
-  // Format date to yyyy-MM-dd for comparison
-  const dateFormatted = format(parsedDate, "yyyy-MM-dd");
-  const todayFormatted = format(new Date(), "yyyy-MM-dd");
-  const nextWorkingDayFormatted = format(getNextWorkingDay(), "yyyy-MM-dd");
-  
-  // Process immediately if it's same day or next working day
-  return dateFormatted === todayFormatted || dateFormatted === nextWorkingDayFormatted;
+  try {
+    // Format date to yyyy-MM-dd for comparison
+    const dateFormatted = format(safeDate, "yyyy-MM-dd");
+    const todayFormatted = format(new Date(), "yyyy-MM-dd");
+    const nextWorkingDayFormatted = format(getNextWorkingDay(), "yyyy-MM-dd");
+    
+    // Process immediately if it's same day or next working day
+    return dateFormatted === todayFormatted || dateFormatted === nextWorkingDayFormatted;
+  } catch (e) {
+    console.error("Error in shouldProcessImmediately:", e);
+    return false;
+  }
 };
 
 // Check if an order should be scheduled for processing
 export const shouldScheduleProcessing = (deliveryDate: Date | string): boolean => {
-  const parsedDate = typeof deliveryDate === "string" ? parseISO(deliveryDate) : deliveryDate;
+  const safeDate = safeParseDate(deliveryDate);
+  if (!safeDate) return false;
+  
   const today = startOfDay(new Date());
   
   // If deliveryDate is in the future (more than next working day)
-  return isBefore(today, parsedDate) && !shouldProcessImmediately(parsedDate);
+  return isBefore(today, safeDate) && !shouldProcessImmediately(safeDate);
 };
 
 // Get the date when an order should be processed (midnight of working day before delivery)
 export const getOrderProcessingDate = (deliveryDate: Date | string): Date => {
-  const parsedDate = typeof deliveryDate === "string" ? parseISO(deliveryDate) : deliveryDate;
+  const safeDate = safeParseDate(deliveryDate);
+  if (!safeDate) return new Date(); // Return today as fallback
   
-  if (shouldProcessImmediately(parsedDate)) {
+  if (shouldProcessImmediately(safeDate)) {
     // If it should be processed immediately, return current date
     return new Date();
   } else {
     // Otherwise, return the working day before the delivery at midnight
-    const processingDay = getWorkingDayBefore(parsedDate);
+    const processingDay = getWorkingDayBefore(safeDate);
     processingDay.setHours(0, 0, 0, 0); // Set to midnight
     return processingDay;
   }

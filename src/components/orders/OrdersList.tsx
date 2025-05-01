@@ -21,10 +21,10 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     
     const lowerSearchTerm = searchTerm.toLowerCase();
     return orders.filter(order => 
-      order.customer.name.toLowerCase().includes(lowerSearchTerm) ||
+      order.customer?.name?.toLowerCase().includes(lowerSearchTerm) ||
       order.id.toLowerCase().includes(lowerSearchTerm) ||
-      order.deliveryMethod.toLowerCase().includes(lowerSearchTerm) ||
-      order.status.toLowerCase().includes(lowerSearchTerm)
+      order.deliveryMethod?.toLowerCase().includes(lowerSearchTerm) ||
+      order.status?.toLowerCase().includes(lowerSearchTerm)
     );
   }, [orders, searchTerm]);
   
@@ -32,8 +32,13 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
   const sortedOrders = useMemo(() => {
     const now = new Date().getTime();
     return [...filteredOrders].sort((a, b) => {
-      const dateA = new Date(a.orderDate).getTime();
-      const dateB = new Date(b.orderDate).getTime();
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : now;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : now;
+      
+      // If either date is invalid (NaN), put it at the end
+      if (isNaN(dateA)) return 1;
+      if (isNaN(dateB)) return -1;
+      if (isNaN(dateA) && isNaN(dateB)) return 0;
       
       // Calculate absolute difference from current date
       const diffA = Math.abs(now - dateA);
@@ -121,6 +126,19 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     return false;
   };
 
+  // Safe format date function
+  const safeFormatDate = (dateString) => {
+    try {
+      if (!dateString) return "Invalid Date";
+      const date = parseISO(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      return format(date, "dd/MM/yyyy");
+    } catch (e) {
+      console.error("Error formatting date:", dateString, e);
+      return "Invalid Date";
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between mb-6">
@@ -152,8 +170,19 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                 </tr>
               ) : (
                 sortedOrders.map((order) => {
-                  const isSameDay = isSameDayOrder(order.orderDate);
-                  const isNextDay = isNextWorkingDayOrder(order.orderDate);
+                  // Safely check dates - avoid errors for invalid dates
+                  let isSameDay = false;
+                  let isNextDay = false;
+                  
+                  try {
+                    if (order.orderDate) {
+                      isSameDay = isSameDayOrder(order.orderDate);
+                      isNextDay = isNextWorkingDayOrder(order.orderDate);
+                    }
+                  } catch (e) {
+                    console.error("Error checking order dates:", e);
+                  }
+                  
                   const changeDesc = getChangeDescription(order);
                   const statusDisplay = getOrderStatusDisplay(order);
                   const highlightChanges = shouldHighlightChanges(order);
@@ -168,11 +197,11 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                       }`}
                     >
                       <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
-                      <td className="px-4 py-3">{order.customer.name}</td>
+                      <td className="px-4 py-3">{order.customer?.name || "Unknown Customer"}</td>
                       <td className="px-4 py-3">
-                        {format(parseISO(order.orderDate), "dd/MM/yyyy")}
+                        {safeFormatDate(order.orderDate)}
                       </td>
-                      <td className="px-4 py-3">{order.deliveryMethod}</td>
+                      <td className="px-4 py-3">{order.deliveryMethod || "N/A"}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
                           {statusDisplay.label}
