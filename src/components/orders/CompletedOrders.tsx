@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Eye, Edit, Printer } from "lucide-react";
+import { Eye, Edit, Printer, ArrowUp, ArrowDown } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -18,6 +19,10 @@ interface CompletedOrdersProps {
   batchFilter?: string;
 }
 
+// Define sort directions and sortable fields
+type SortDirection = "asc" | "desc";
+type SortableField = "id" | "customer" | "orderDate" | "completedDate" | "batchNumbers" | "picker" | "blownPouches";
+
 const CompletedOrders: React.FC<CompletedOrdersProps> = ({ 
   searchTerm = "", 
   batchFilter = "" 
@@ -27,6 +32,32 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   const [filteredOrders, setFilteredOrders] = useState(completedOrders);
   const [searchParams] = useSearchParams();
   const batchFilterParam = searchParams.get('batch') || batchFilter;
+  
+  // Add sorting state
+  const [sortField, setSortField] = useState<SortableField>("completedDate");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  
+  // Handle sorting logic
+  const handleSort = (field: SortableField) => {
+    if (sortField === field) {
+      // Toggle direction if already sorting by this field
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Default to descending when changing sort field
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+  
+  // Render sort icon
+  const renderSortIcon = (field: SortableField) => {
+    if (sortField !== field) {
+      return <span className="ml-1 opacity-0 group-hover:opacity-50"><ArrowUp className="h-3 w-3" /></span>;
+    }
+    return sortDirection === "asc" ? 
+      <ArrowUp className="ml-1 h-3 w-3" /> : 
+      <ArrowDown className="ml-1 h-3 w-3" />;
+  };
   
   useEffect(() => {
     if (batchFilterParam) {
@@ -109,15 +140,46 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     }
   }, [completedOrders, batchFilterParam, searchTerm]);
   
-  // Sort completed orders by completion date (newest first)
-  // First try "updated" field, then fall back to "orderDate"
+  // Sort orders based on current sort field and direction
   const sortedOrders = [...filteredOrders].sort((a, b) => {
-    // Use updated timestamp if available (which indicates when the order was completed)
-    const dateA = a.updated ? new Date(a.updated).getTime() : new Date(a.orderDate).getTime();
-    const dateB = b.updated ? new Date(b.updated).getTime() : new Date(b.orderDate).getTime();
+    const sortMultiplier = sortDirection === "asc" ? 1 : -1;
     
-    // Sort descending (newest first)
-    return dateB - dateA;
+    switch (sortField) {
+      case "id":
+        return sortMultiplier * a.id.localeCompare(b.id);
+      
+      case "customer":
+        return sortMultiplier * a.customer.name.localeCompare(b.customer.name);
+      
+      case "orderDate":
+        const dateA = new Date(a.orderDate).getTime();
+        const dateB = new Date(b.orderDate).getTime();
+        return sortMultiplier * (dateA - dateB);
+        
+      case "completedDate":
+        // Use updated timestamp if available (which indicates when the order was completed)
+        const completedA = a.updated ? new Date(a.updated).getTime() : new Date(a.orderDate).getTime();
+        const completedB = b.updated ? new Date(b.updated).getTime() : new Date(b.orderDate).getTime();
+        return sortMultiplier * (completedA - completedB);
+        
+      case "batchNumbers":
+        const batchA = getBatchNumbers(a) || "";
+        const batchB = getBatchNumbers(b) || "";
+        return sortMultiplier * batchA.localeCompare(batchB);
+        
+      case "picker":
+        const pickerA = getPickerName(a) || "";
+        const pickerB = getPickerName(b) || "";
+        return sortMultiplier * pickerA.localeCompare(pickerB);
+        
+      case "blownPouches":
+        const blownA = a.totalBlownPouches || 0;
+        const blownB = b.totalBlownPouches || 0;
+        return sortMultiplier * (blownA - blownB);
+        
+      default:
+        return 0;
+    }
   });
 
   // Helper function to generate change description
@@ -182,6 +244,15 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     return "N/A";
   };
 
+  // Format the completed date/time with both date and time
+  const formatCompletedDate = (order) => {
+    if (order.updated) {
+      const date = parseISO(order.updated);
+      return format(date, "dd/MM/yyyy HH:mm");
+    }
+    return "N/A";
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">
@@ -202,26 +273,64 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
       )}
 
       <div className="text-sm text-gray-500 mb-4">
-        Sorted by completion date (newest first)
+        {sortField === "completedDate" && sortDirection === "desc" 
+          ? "Sorted by completion date (newest first)" 
+          : `Sorted by ${sortField} (${sortDirection === "asc" ? "ascending" : "descending"})`}
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Order Date</TableHead>
-              <TableHead>Batch Numbers</TableHead>
-              <TableHead>Picker</TableHead>
-              <TableHead>Blown Pouches</TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("id")}
+              >
+                Order ID {renderSortIcon("id")}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("customer")}
+              >
+                Customer {renderSortIcon("customer")}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("orderDate")}
+              >
+                Order Date {renderSortIcon("orderDate")}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("completedDate")}
+              >
+                Completed On {renderSortIcon("completedDate")}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("batchNumbers")}
+              >
+                Batch Numbers {renderSortIcon("batchNumbers")}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("picker")}
+              >
+                Picker {renderSortIcon("picker")}
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer group"
+                onClick={() => handleSort("blownPouches")}
+              >
+                Blown Pouches {renderSortIcon("blownPouches")}
+              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedOrders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-gray-500">
+                <TableCell colSpan={8} className="text-center text-gray-500">
                   No completed orders found
                 </TableCell>
               </TableRow>
@@ -244,6 +353,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                     <TableCell>
                       {format(parseISO(order.orderDate), "dd/MM/yyyy")}
                     </TableCell>
+                    <TableCell>{formatCompletedDate(order)}</TableCell>
                     <TableCell>{batchNumbers}</TableCell>
                     <TableCell>{getPickerName(order)}</TableCell>
                     <TableCell>{order.totalBlownPouches || 0}</TableCell>

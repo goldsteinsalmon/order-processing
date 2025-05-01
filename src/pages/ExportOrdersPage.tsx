@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -13,6 +14,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { getNextWorkingDay } from "@/utils/dateUtils";
 import {
   Table,
   TableBody,
@@ -27,10 +29,10 @@ const ExportOrdersPage: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  const [fromDate, setFromDate] = useState<Date | undefined>(
-    new Date(new Date().setDate(new Date().getDate() - 30))
-  );
-  const [toDate, setToDate] = useState<Date | undefined>(new Date());
+  // Set default fromDate and toDate to the next working day
+  const nextWorkingDay = getNextWorkingDay();
+  const [fromDate, setFromDate] = useState<Date | undefined>(nextWorkingDay);
+  const [toDate, setToDate] = useState<Date | undefined>(nextWorkingDay);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectAll, setSelectAll] = useState(false);
