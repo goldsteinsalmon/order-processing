@@ -15,9 +15,9 @@ export const useProductData = (toast: any) => {
           name: p.name,
           sku: p.sku,
           description: p.description,
-          stock_level: p.stockLevel,
+          stock_level: p.stock_level,
           weight: p.weight,
-          requires_weight_input: p.requiresWeightInput,
+          requires_weight_input: p.requires_weight_input,
           unit: p.unit,
           required: p.required
         }));
@@ -34,10 +34,10 @@ export const useProductData = (toast: any) => {
           name: p.name,
           sku: p.sku,
           description: p.description,
-          stockLevel: p.stock_level,
+          stock_level: p.stock_level,
           weight: p.weight,
           created: p.created,
-          requiresWeightInput: p.requires_weight_input,
+          requires_weight_input: p.requires_weight_input,
           unit: p.unit,
           required: p.required
         }));
@@ -52,9 +52,9 @@ export const useProductData = (toast: any) => {
             name: productData.name,
             sku: productData.sku,
             description: productData.description,
-            stock_level: productData.stockLevel,
+            stock_level: productData.stock_level,
             weight: productData.weight,
-            requires_weight_input: productData.requiresWeightInput,
+            requires_weight_input: productData.requires_weight_input,
             unit: productData.unit,
             required: productData.required
           })
@@ -67,10 +67,10 @@ export const useProductData = (toast: any) => {
           name: data[0].name,
           sku: data[0].sku,
           description: data[0].description,
-          stockLevel: data[0].stock_level,
+          stock_level: data[0].stock_level,
           weight: data[0].weight,
           created: data[0].created,
-          requiresWeightInput: data[0].requires_weight_input,
+          requires_weight_input: data[0].requires_weight_input,
           unit: data[0].unit,
           required: data[0].required
         };
@@ -98,9 +98,9 @@ export const useProductData = (toast: any) => {
           name: product.name,
           sku: product.sku,
           description: product.description,
-          stock_level: product.stockLevel,
+          stock_level: product.stock_level,
           weight: product.weight,
-          requires_weight_input: product.requiresWeightInput,
+          requires_weight_input: product.requires_weight_input,
           unit: product.unit,
           required: product.required
         })

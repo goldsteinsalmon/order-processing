@@ -1,7 +1,8 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Order } from "@/types";
+import { Order, OrderItem } from "@/types";
+import { adaptOrderToCamelCase, adaptOrderToSnakeCase } from "@/utils/typeAdapters";
 
 export const useOrderData = (toast: any) => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -14,11 +15,11 @@ export const useOrderData = (toast: any) => {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          customer_id: order.customerId,
-          customer_order_number: order.customerOrderNumber,
-          order_date: order.orderDate,
-          required_date: order.requiredDate,
-          delivery_method: order.deliveryMethod,
+          customer_id: order.customer_id,
+          customer_order_number: order.customer_order_number,
+          order_date: order.order_date,
+          required_date: order.required_date,
+          delivery_method: order.delivery_method,
           notes: order.notes,
           status: order.status,
           created: new Date().toISOString()
@@ -32,7 +33,7 @@ export const useOrderData = (toast: any) => {
       // Insert order items
       const orderItemsToInsert = order.items.map(item => ({
         order_id: newOrderId,
-        product_id: item.productId,
+        product_id: item.product_id,
         quantity: item.quantity,
         original_quantity: item.quantity
       }));
@@ -66,10 +67,10 @@ export const useOrderData = (toast: any) => {
       
       if (newItemsError) throw newItemsError;
       
-      // Map to our expected Order type
+      // Convert to our expected Order type
       const newOrder: Order = {
         id: newOrderData.id,
-        customerId: newOrderData.customer_id,
+        customer_id: newOrderData.customer_id,
         customer: {
           id: newOrderData.customer.id,
           name: newOrderData.customer.name,
@@ -77,60 +78,60 @@ export const useOrderData = (toast: any) => {
           phone: newOrderData.customer.phone,
           address: newOrderData.customer.address,
           type: newOrderData.customer.type as "Private" | "Trade",
-          accountNumber: newOrderData.customer.account_number,
-          onHold: newOrderData.customer.on_hold,
-          holdReason: newOrderData.customer.hold_reason,
-          needsDetailedBoxLabels: newOrderData.customer.needs_detailed_box_labels,
+          account_number: newOrderData.customer.account_number,
+          on_hold: newOrderData.customer.on_hold,
+          hold_reason: newOrderData.customer.hold_reason,
+          needs_detailed_box_labels: newOrderData.customer.needs_detailed_box_labels,
           created: newOrderData.customer.created
         },
-        customerOrderNumber: newOrderData.customer_order_number,
-        orderDate: newOrderData.order_date,
-        requiredDate: newOrderData.required_date,
-        deliveryMethod: newOrderData.delivery_method as "Delivery" | "Collection",
+        customer_order_number: newOrderData.customer_order_number,
+        order_date: newOrderData.order_date,
+        required_date: newOrderData.required_date,
+        delivery_method: newOrderData.delivery_method as "Delivery" | "Collection",
         notes: newOrderData.notes,
-        status: newOrderData.status as "Pending" | "Picking" | "Completed" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked",
+        status: newOrderData.status as "Pending" | "Processing" | "Completed" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked",
         picker: newOrderData.picker,
-        isPicked: newOrderData.is_picked || false,
-        totalBlownPouches: newOrderData.total_blown_pouches || 0,
-        isModified: newOrderData.is_modified || false,
+        is_picked: newOrderData.is_picked || false,
+        total_blown_pouches: newOrderData.total_blown_pouches || 0,
+        is_modified: newOrderData.is_modified || false,
         created: newOrderData.created,
         updated: newOrderData.updated,
-        batchNumber: newOrderData.batch_number,
-        hasChanges: newOrderData.has_changes || false,
-        fromStandingOrder: newOrderData.from_standing_order,
-        pickedBy: newOrderData.picked_by,
-        pickedAt: newOrderData.picked_at,
-        pickingInProgress: newOrderData.picking_in_progress || false,
+        batch_number: newOrderData.batch_number,
+        has_changes: newOrderData.has_changes || false,
+        from_standing_order: newOrderData.from_standing_order,
+        picked_by: newOrderData.picked_by,
+        picked_at: newOrderData.picked_at,
+        picking_in_progress: newOrderData.picking_in_progress || false,
         invoiced: newOrderData.invoiced || false,
-        invoiceNumber: newOrderData.invoice_number,
-        invoiceDate: newOrderData.invoice_date,
-        items: newItemsData.map((item: any) => ({
+        invoice_number: newOrderData.invoice_number,
+        invoice_date: newOrderData.invoice_date,
+        items: newItemsData.map((item: any): OrderItem => ({
           id: item.id,
-          productId: item.product_id,
+          product_id: item.product_id,
+          order_id: item.order_id,
           product: {
             id: item.product.id,
             name: item.product.name,
             sku: item.product.sku,
             description: item.product.description,
-            stockLevel: item.product.stock_level,
+            stock_level: item.product.stock_level,
             weight: item.product.weight,
-            created: item.product.created,
-            requiresWeightInput: item.product.requires_weight_input || false,
+            requires_weight_input: item.product.requires_weight_input || false,
             unit: item.product.unit,
             required: item.product.required || false
           },
           quantity: item.quantity,
-          unavailableQuantity: item.unavailable_quantity,
-          isUnavailable: item.is_unavailable,
-          blownPouches: item.blown_pouches,
-          batchNumber: item.batch_number,
+          unavailable_quantity: item.unavailable_quantity,
+          is_unavailable: item.is_unavailable,
+          blown_pouches: item.blown_pouches,
+          batch_number: item.batch_number,
           checked: item.checked,
-          missingQuantity: item.missing_quantity,
-          pickedQuantity: item.picked_quantity,
-          pickedWeight: item.picked_weight,
-          originalQuantity: item.original_quantity,
-          boxNumber: item.box_number,
-          manualWeight: item.manual_weight
+          missing_quantity: item.missing_quantity,
+          picked_quantity: item.picked_quantity,
+          picked_weight: item.picked_weight,
+          original_quantity: item.original_quantity,
+          box_number: item.box_number,
+          manual_weight: item.manual_weight
         }))
       };
       
@@ -157,26 +158,26 @@ export const useOrderData = (toast: any) => {
       const { error: orderError } = await supabase
         .from('orders')
         .update({
-          customer_id: updatedOrder.customerId,
-          customer_order_number: updatedOrder.customerOrderNumber,
-          order_date: updatedOrder.orderDate,
-          required_date: updatedOrder.requiredDate,
-          delivery_method: updatedOrder.deliveryMethod,
+          customer_id: updatedOrder.customer_id,
+          customer_order_number: updatedOrder.customer_order_number,
+          order_date: updatedOrder.order_date,
+          required_date: updatedOrder.required_date,
+          delivery_method: updatedOrder.delivery_method,
           notes: updatedOrder.notes,
           status: updatedOrder.status,
           picker: updatedOrder.picker,
-          is_picked: updatedOrder.isPicked,
-          total_blown_pouches: updatedOrder.totalBlownPouches,
-          is_modified: updatedOrder.isModified,
+          is_picked: updatedOrder.is_picked,
+          total_blown_pouches: updatedOrder.total_blown_pouches,
+          is_modified: updatedOrder.is_modified,
           updated: new Date().toISOString(),
-          batch_number: updatedOrder.batchNumber,
-          has_changes: updatedOrder.hasChanges,
-          picked_by: updatedOrder.pickedBy,
-          picked_at: updatedOrder.pickedAt,
-          picking_in_progress: updatedOrder.pickingInProgress,
+          batch_number: updatedOrder.batch_number,
+          has_changes: updatedOrder.has_changes,
+          picked_by: updatedOrder.picked_by,
+          picked_at: updatedOrder.picked_at,
+          picking_in_progress: updatedOrder.picking_in_progress,
           invoiced: updatedOrder.invoiced,
-          invoice_number: updatedOrder.invoiceNumber,
-          invoice_date: updatedOrder.invoiceDate
+          invoice_number: updatedOrder.invoice_number,
+          invoice_date: updatedOrder.invoice_date
         })
         .eq('id', updatedOrder.id);
       
@@ -206,17 +207,17 @@ export const useOrderData = (toast: any) => {
               .from('order_items')
               .update({
                 quantity: item.quantity,
-                unavailable_quantity: item.unavailableQuantity,
-                is_unavailable: item.isUnavailable,
-                blown_pouches: item.blownPouches,
-                batch_number: item.batchNumber,
+                unavailable_quantity: item.unavailable_quantity,
+                is_unavailable: item.is_unavailable,
+                blown_pouches: item.blown_pouches,
+                batch_number: item.batch_number,
                 checked: item.checked,
-                missing_quantity: item.missingQuantity,
-                picked_quantity: item.pickedQuantity,
-                picked_weight: item.pickedWeight,
-                original_quantity: item.originalQuantity,
-                box_number: item.boxNumber,
-                manual_weight: item.manualWeight
+                missing_quantity: item.missing_quantity,
+                picked_quantity: item.picked_quantity,
+                picked_weight: item.picked_weight,
+                original_quantity: item.original_quantity,
+                box_number: item.box_number,
+                manual_weight: item.manual_weight
               })
               .eq('id', item.id);
             
@@ -230,19 +231,19 @@ export const useOrderData = (toast: any) => {
               .from('order_items')
               .insert({
                 order_id: updatedOrder.id,
-                product_id: item.productId,
+                product_id: item.product_id,
                 quantity: item.quantity,
-                unavailable_quantity: item.unavailableQuantity,
-                is_unavailable: item.isUnavailable,
-                blown_pouches: item.blownPouches,
-                batch_number: item.batchNumber,
+                unavailable_quantity: item.unavailable_quantity,
+                is_unavailable: item.is_unavailable,
+                blown_pouches: item.blown_pouches,
+                batch_number: item.batch_number,
                 checked: item.checked,
-                missing_quantity: item.missingQuantity,
-                picked_quantity: item.pickedQuantity,
-                picked_weight: item.pickedWeight,
-                original_quantity: item.originalQuantity,
-                box_number: item.boxNumber,
-                manual_weight: item.manualWeight
+                missing_quantity: item.missing_quantity,
+                picked_quantity: item.picked_quantity,
+                picked_weight: item.picked_weight,
+                original_quantity: item.original_quantity,
+                box_number: item.box_number,
+                manual_weight: item.manual_weight
               });
             
             if (insertItemError) throw insertItemError;
@@ -336,9 +337,9 @@ export const useOrderData = (toast: any) => {
       // Update order status to completed
       const updatedOrder: Order = {
         ...order,
-        status: "Completed" as "Completed" | "Pending" | "Picking" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked",
-        isPicked: true,
-        pickedAt: order.pickedAt || new Date().toISOString(),
+        status: "Completed",
+        is_picked: true,
+        picked_at: order.picked_at || new Date().toISOString(),
         updated: new Date().toISOString()
       };
       
@@ -346,8 +347,8 @@ export const useOrderData = (toast: any) => {
         .from('orders')
         .update({
           status: updatedOrder.status,
-          is_picked: updatedOrder.isPicked,
-          picked_at: updatedOrder.pickedAt,
+          is_picked: updatedOrder.is_picked,
+          picked_at: updatedOrder.picked_at,
           updated: updatedOrder.updated
         })
         .eq('id', order.id);

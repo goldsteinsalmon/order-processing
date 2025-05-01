@@ -58,6 +58,16 @@ const CreateStandingOrderForm: React.FC = () => {
   // First delivery date
   const [firstDeliveryDate, setFirstDeliveryDate] = useState<Date>(new Date());
 
+  // Add the missing functions
+  const removeProductFromOrder = (itemId: string) => {
+    setOrderItems(orderItems.filter(item => item.id !== itemId));
+  };
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setShowProductSearch(false);
+  };
+
   // Update default delivery date when frequency settings change
   React.useEffect(() => {
     // Ensure the selected date is in the future
@@ -626,7 +636,7 @@ const CreateStandingOrderForm: React.FC = () => {
                     {selectedCustomer.name} is currently on hold.
                   </p>
                   <p className="mb-4">
-                    Reason: {selectedCustomer.hold_reason || "No reason provided"}
+                    Reason: {selectedCustomer.holdReason || "No reason provided"}
                   </p>
                   <p>Are you sure you want to proceed with this customer?</p>
                 </>
