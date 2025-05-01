@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import CompletedOrders from "@/components/orders/CompletedOrders";
 import { Input } from "@/components/ui/input";
-import { Search, FileInvoice } from "lucide-react";
+import { Search, FileText } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
@@ -45,7 +45,7 @@ const CompletedOrdersPage: React.FC = () => {
           <h2 className="text-2xl font-bold">Completed Orders</h2>
         </div>
         <Button onClick={handleExport}>
-          <FileInvoice className="mr-2 h-4 w-4" />
+          <FileText className="mr-2 h-4 w-4" />
           Invoicing
         </Button>
       </div>
