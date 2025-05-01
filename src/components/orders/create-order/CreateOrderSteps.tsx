@@ -44,7 +44,9 @@ const CreateOrderSteps: React.FC = () => {
   
   // Box distribution state
   const [boxDistributions, setBoxDistributions] = React.useState<Box[]>([{ 
-    boxNumber: 1, 
+    id: crypto.randomUUID(),
+    order_id: '',  // Will be filled when the order is created
+    box_number: 1, 
     items: [], 
     completed: false,
     printed: false
@@ -114,7 +116,7 @@ const CreateOrderSteps: React.FC = () => {
   
   // Update unassigned items when order items change
   React.useEffect(() => {
-    if (selectedCustomer?.needsDetailedBoxLabels) {
+    if (selectedCustomer?.needs_detailed_box_labels) {
       const newUnassignedItems = orderItems
         .filter(item => item.productId && item.quantity > 0)
         .map(item => {
@@ -132,7 +134,9 @@ const CreateOrderSteps: React.FC = () => {
       // Initialize box distributions with empty boxes
       if (boxDistributions.length === 0) {
         setBoxDistributions([{ 
-          boxNumber: 1, 
+          id: crypto.randomUUID(),
+          order_id: '', 
+          box_number: 1, 
           items: [], 
           completed: false,
           printed: false
@@ -154,7 +158,7 @@ const CreateOrderSteps: React.FC = () => {
     const customer = customers.find(c => c.id === customerId);
     
     // If customer is on hold, show warning dialog
-    if (customer && customer.onHold) {
+    if (customer && customer.on_hold) {
       setSelectedCustomer(customer);
       setShowOnHoldWarning(true);
     } else {
@@ -254,7 +258,7 @@ const CreateOrderSteps: React.FC = () => {
       }
 
       // For customers with box labels, check if all items are assigned
-      if (selectedCustomer?.needsDetailedBoxLabels) {
+      if (selectedCustomer?.needs_detailed_box_labels) {
         // Clean up any empty unassigned items first
         const cleanedUnassignedItems = unassignedItems.filter(item => item.quantity > 0);
         
@@ -284,36 +288,38 @@ const CreateOrderSteps: React.FC = () => {
       const data = form.getValues();
 
       // Prepare order items array
-      const finalOrderItems: OrderItem[] = selectedCustomer?.needsDetailedBoxLabels 
+      const finalOrderItems = selectedCustomer?.needs_detailed_box_labels 
         ? boxDistributions.flatMap(box => 
             box.items.map(item => ({
               id: crypto.randomUUID(),
-              productId: item.productId,
-              product: products.find(p => p.id === item.productId)!,
+              order_id: '', // Will be filled when the order is created
+              product_id: item.product_id,
+              product: products.find(p => p.id === item.product_id)!,
               quantity: item.quantity,
-              boxNumber: box.boxNumber
+              box_number: box.box_number
             }))
           )
         : orderItems.map(item => ({
             id: item.id,
-            productId: item.productId,
+            order_id: '', // Will be filled when the order is created
+            product_id: item.productId,
             product: products.find(p => p.id === item.productId)!,
             quantity: item.quantity
           }));
 
       const newOrder = {
         id: crypto.randomUUID(),
-        customerId: data.customerId,
+        customer_id: data.customerId,
         customer: customers.find(c => c.id === data.customerId)!,
-        customerOrderNumber: data.customerOrderNumber,
-        orderDate: format(data.orderDate, "yyyy-MM-dd"),
-        deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
+        customer_order_number: data.customerOrderNumber,
+        order_date: format(data.orderDate, "yyyy-MM-dd"),
+        delivery_method: data.deliveryMethod as "Delivery" | "Collection",
         items: finalOrderItems,
         notes: data.notes,
         status: "Pending" as const,
         created: new Date().toISOString(),
         // Include box distributions if customer needs detailed box labels
-        boxDistributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
+        box_distributions: selectedCustomer?.needs_detailed_box_labels ? boxDistributions : undefined
       };
 
       addOrder(newOrder);
@@ -338,7 +344,13 @@ const CreateOrderSteps: React.FC = () => {
       notes: "",
     });
     setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
-    setBoxDistributions([{ boxNumber: 1, items: [], completed: false, printed: false }]);
+    setBoxDistributions([{ id: crypto.randomUUID(),
+      order_id: '', 
+      box_number: 1, 
+      items: [], 
+      completed: false,
+      printed: false
+    }]);
     setUnassignedItems([]);
     setCurrentStep(1);
     setManualDateChange(false);
@@ -359,7 +371,7 @@ const CreateOrderSteps: React.FC = () => {
     if (form.formState.isValid) completed++;
     
     // If customer needs detailed box labels, add another step
-    if (selectedCustomer?.needsDetailedBoxLabels) {
+    if (selectedCustomer?.needs_detailed_box_labels) {
       steps = 3;
       if (unassignedItems.length === 0 && boxDistributions.some(box => box.items.length > 0)) {
         completed++;
@@ -413,7 +425,7 @@ const CreateOrderSteps: React.FC = () => {
             />
           </Card>
 
-          {selectedCustomer?.needsDetailedBoxLabels && (
+          {selectedCustomer?.needs_detailed_box_labels && (
             <Card className={`p-6 ${!customerId ? 'opacity-50' : ''}`}>
               <h3 className="text-lg font-medium mb-4">4. Box Distribution</h3>
               <BoxDistributionStep
@@ -489,7 +501,7 @@ const CreateOrderSteps: React.FC = () => {
                     {selectedCustomer.name} is currently on hold.
                   </p>
                   <p className="mb-4">
-                    Reason: {selectedCustomer.holdReason || "No reason provided"}
+                    Reason: {selectedCustomer.hold_reason || "No reason provided"}
                   </p>
                   <p>Are you sure you want to proceed with this customer?</p>
                 </>

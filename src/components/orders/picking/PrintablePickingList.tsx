@@ -1,4 +1,3 @@
-
 import React, { forwardRef } from "react";
 import { format } from "date-fns";
 import { OrderItem, Order, Box, BoxItem } from "@/types";
@@ -12,7 +11,7 @@ interface ExtendedOrderItem extends OrderItem {
 }
 
 interface PrintablePickingListProps {
-  selectedOrder: Order;
+  selectedOrder: Order | any; // Using any to allow camelCase properties
   items: ExtendedOrderItem[];
   groupByBox?: boolean;
   specificBoxNumber?: number; // Added to allow printing a specific box only
@@ -21,18 +20,27 @@ interface PrintablePickingListProps {
 const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProps>(
   ({ selectedOrder, items, groupByBox = false, specificBoxNumber }, ref) => {
     // Check if we have any items requiring weight input
-    const hasWeightInputItems = items.some(item => item.product.requires_weight_input);
+    const hasWeightInputItems = items.some(item => 
+      item.product?.requires_weight_input || item.product?.requiresWeightInput
+    );
     
     // Group items by box if needed
     const groupedItems = React.useMemo(() => {
       // If a specific box number is given, only include those items
       if (specificBoxNumber !== undefined) {
-        const boxItems = items.filter(item => item.boxNumber === specificBoxNumber || item.box_number === specificBoxNumber);
+        const boxItems = items.filter(item => 
+          item.boxNumber === specificBoxNumber || item.box_number === specificBoxNumber
+        );
         return { [specificBoxNumber]: boxItems };
       }
       
+      // Determine if customer needs detailed box labels
+      const needsDetailedBoxLabels = selectedOrder.customer?.needs_detailed_box_labels || 
+                                     selectedOrder.customer?.needsDetailedBoxLabels || 
+                                     false;
+      
       // Otherwise group all items
-      if (!groupByBox && !selectedOrder.customer.needsDetailedBoxLabels) return { 0: items };
+      if (!groupByBox && !needsDetailedBoxLabels) return { 0: items };
       
       return items.reduce((acc, item) => {
         const boxNumber = item.boxNumber || item.box_number || 0;
@@ -42,7 +50,24 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
         acc[boxNumber].push(item);
         return acc;
       }, {} as Record<number, ExtendedOrderItem[]>);
-    }, [items, groupByBox, selectedOrder.customer.needsDetailedBoxLabels, specificBoxNumber]);
+    }, [items, groupByBox, selectedOrder.customer, specificBoxNumber]);
+    
+    // Helper function to determine if a product requires weight input
+    const requiresWeightInput = (product: any): boolean => {
+      return product?.requires_weight_input || product?.requiresWeightInput || false;
+    };
+    
+    // Get customer info with safe property access
+    const customerName = selectedOrder.customer?.name || "Unknown";
+    const customerNeedsDetailedBoxLabels = 
+      selectedOrder.customer?.needs_detailed_box_labels || 
+      selectedOrder.customer?.needsDetailedBoxLabels || 
+      false;
+    
+    // Safely access order properties
+    const orderDate = selectedOrder.order_date || selectedOrder.orderDate || new Date();
+    const deliveryMethod = selectedOrder.delivery_method || selectedOrder.deliveryMethod || "Unknown";
+    const orderNotes = selectedOrder.notes;
     
     return (
       <div ref={ref} className="p-8">
@@ -57,19 +82,19 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
         </div>
         
         <div className="mb-6">
-          <h3 className="font-bold">Customer: {selectedOrder.customer.name}</h3>
-          <p>Order Date: {format(new Date(selectedOrder.orderDate || selectedOrder.order_date), "MMMM d, yyyy")}</p>
-          <p>Delivery Method: {selectedOrder.deliveryMethod || selectedOrder.delivery_method}</p>
-          {selectedOrder.notes && (
+          <h3 className="font-bold">Customer: {customerName}</h3>
+          <p>Order Date: {format(new Date(orderDate), "MMMM d, yyyy")}</p>
+          <p>Delivery Method: {deliveryMethod}</p>
+          {orderNotes && (
             <div className="mt-2">
               <p className="font-bold">Notes:</p>
-              <p>{selectedOrder.notes}</p>
+              <p>{orderNotes}</p>
             </div>
           )}
         </div>
         
         {/* Render items either grouped by box or all together */}
-        {(groupByBox || selectedOrder.customer.needsDetailedBoxLabels) ? (
+        {(groupByBox || customerNeedsDetailedBoxLabels) ? (
           // Grouped by box
           Object.entries(groupedItems).map(([boxNumberStr, boxItems]) => {
             const boxNumber = parseInt(boxNumberStr);
@@ -98,7 +123,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
                       <tr key={item.id} className="border-b">
                         <td className="py-2">
                           {item.product.name}
-                          {item.product.requires_weight_input && (
+                          {requiresWeightInput(item.product) && (
                             <div className="text-xs italic flex items-center">
                               <Weight className="h-3 w-3 mr-1" />
                               Requires weight input
@@ -110,7 +135,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
                         <td className="py-2">_________________</td>
                         {hasWeightInputItems && (
                           <td className="py-2 text-right">
-                            {item.product.requires_weight_input ? "_________________" : "N/A"}
+                            {requiresWeightInput(item.product) ? "_________________" : "N/A"}
                           </td>
                         )}
                         <td className="py-2 text-center">□</td>
@@ -139,7 +164,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
                 <tr key={item.id} className="border-b">
                   <td className="py-2">
                     {item.product.name}
-                    {item.product.requires_weight_input && (
+                    {requiresWeightInput(item.product) && (
                       <div className="text-xs italic flex items-center">
                         <Weight className="h-3 w-3 mr-1" />
                         Requires weight input
@@ -151,7 +176,7 @@ const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProp
                   <td className="py-2">_________________</td>
                   {hasWeightInputItems && (
                     <td className="py-2 text-right">
-                      {item.product.requires_weight_input ? "_________________" : "N/A"}
+                      {requiresWeightInput(item.product) ? "_________________" : "N/A"}
                     </td>
                   )}
                   <td className="py-2 text-center">□</td>

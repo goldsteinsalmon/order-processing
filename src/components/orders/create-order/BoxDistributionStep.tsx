@@ -24,21 +24,14 @@ interface BoxDistributionStepProps {
   onSubmit: () => void;
 }
 
-// Define a client-side BoxItem that uses camelCase properties
+// Define a client-side BoxItem that includes the full id and box_id
 interface ClientBoxItem {
-  productId: string;
-  productName: string;
+  id: string;
+  box_id: string;
+  product_id: string;
+  product_name: string;
   quantity: number;
   weight: number;
-  batch_number?: string;
-}
-
-// Define a client-side Box that uses camelCase properties
-interface ClientBox {
-  box_number: number;
-  items: ClientBoxItem[];
-  completed?: boolean;
-  printed?: boolean;
   batch_number?: string;
 }
 
@@ -81,19 +74,22 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   }, [unassignedItems]);
 
   const handleAddBox = () => {
+    // Find the highest box number
     const newBoxNumber = boxDistributions.length > 0 
       ? Math.max(...boxDistributions.map(box => box.box_number)) + 1 
       : 1;
       
-    setBoxDistributions([
-      ...boxDistributions, 
-      { 
-        box_number: newBoxNumber, 
-        items: [], 
-        completed: false,
-        printed: false
-      }
-    ]);
+    // Create a new box with required properties
+    const newBox: Box = { 
+      id: crypto.randomUUID(),
+      order_id: '', // Will be filled in when the order is created
+      box_number: newBoxNumber, 
+      items: [], 
+      completed: false,
+      printed: false
+    };
+    
+    setBoxDistributions([...boxDistributions, newBox]);
   };
   
   const handleRemoveBox = (boxNumber: number) => {
@@ -142,19 +138,20 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
             )
           };
         } else {
-          // Add new item to box
+          // Add new item to box with required properties
           const product = products.find(p => p.id === item.productId);
+          const newItem: ClientBoxItem = { 
+            id: crypto.randomUUID(),
+            box_id: box.id || crypto.randomUUID(), 
+            product_id: item.productId, 
+            product_name: product ? product.name : "Unknown Product",
+            quantity,
+            weight: 0
+          };
+          
           return {
             ...box,
-            items: [
-              ...box.items, 
-              { 
-                product_id: item.productId, 
-                product_name: product ? product.name : "Unknown Product",
-                quantity,
-                weight: 0
-              }
-            ]
+            items: [...box.items, newItem]
           };
         }
       }
@@ -200,6 +197,8 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       for (let i = existingBoxCount; i < boxCount; i++) {
         highestBoxNumber++;
         newBoxes.push({
+          id: crypto.randomUUID(),
+          order_id: '', // Will be filled in when the order is created
           box_number: highestBoxNumber,
           items: [],
           completed: false,
@@ -253,16 +252,17 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
           return item;
         });
       } else {
-        // Add as new item
-        updatedItems = [
-          ...box.items,
-          {
-            product_id: currentItem.productId,
-            product_name: currentItem.productName,
-            quantity: adjustedQuantity,
-            weight: 0
-          }
-        ];
+        // Add as new item with required properties
+        const newItem: ClientBoxItem = {
+          id: crypto.randomUUID(),
+          box_id: box.id || crypto.randomUUID(),
+          product_id: currentItem.productId,
+          product_name: currentItem.productName,
+          quantity: adjustedQuantity,
+          weight: 0
+        };
+        
+        updatedItems = [...box.items, newItem];
       }
       
       return {
