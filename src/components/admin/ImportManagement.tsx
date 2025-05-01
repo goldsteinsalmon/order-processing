@@ -12,6 +12,11 @@ import Papa from "papaparse";
 import { Customer, Product } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
+// Add Navigator interface extension for IE-specific methods
+interface MSNavigator extends Navigator {
+  msSaveBlob?: (blob: Blob, defaultName?: string) => boolean;
+}
+
 const ImportManagement: React.FC = () => {
   const { addCustomer, addProduct } = useData();
   const { toast } = useToast();
@@ -60,14 +65,16 @@ const ImportManagement: React.FC = () => {
     const filename = `${type}-template.csv`;
     
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
     
-    if (navigator.msSaveBlob) {
+    // Type guard for msSaveBlob (Internet Explorer)
+    const msNavigator = navigator as MSNavigator;
+    if (msNavigator.msSaveBlob) {
       // For IE
-      navigator.msSaveBlob(blob, filename);
+      msNavigator.msSaveBlob(blob, filename);
     } else {
       // For other browsers
       const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
