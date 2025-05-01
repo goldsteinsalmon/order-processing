@@ -3,3 +3,6 @@ project_id = "qrchywnyoqcwwfkxzsja"
 
 [functions.process-standing-orders]
 verify_jwt = false
+
+[functions.manage-users]
+verify_jwt = true
