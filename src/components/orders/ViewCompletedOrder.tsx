@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -43,22 +44,22 @@ const ViewCompletedOrder: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-gray-500">Order Date</div>
-                <div>{format(new Date(selectedOrder.orderDate || selectedOrder.order_date), 'MMMM d, yyyy')}</div>
+                <div>{format(new Date(selectedOrder.order_date), 'MMMM d, yyyy')}</div>
               </div>
               <div>
                 <div className="text-sm text-gray-500">Delivery Method</div>
-                <div>{selectedOrder.deliveryMethod || selectedOrder.delivery_method}</div>
+                <div>{selectedOrder.delivery_method}</div>
               </div>
-              {selectedOrder.pickedBy && (
+              {selectedOrder.picked_by && (
                 <div>
                   <div className="text-sm text-gray-500">Picked By</div>
-                  <div>{selectedOrder.pickedBy || selectedOrder.picked_by}</div>
+                  <div>{selectedOrder.picked_by}</div>
                 </div>
               )}
-              {selectedOrder.pickedAt && (
+              {selectedOrder.picked_at && (
                 <div>
                   <div className="text-sm text-gray-500">Picked At</div>
-                  <div>{format(new Date(selectedOrder.pickedAt || selectedOrder.picked_at), 'MMMM d, yyyy h:mm a')}</div>
+                  <div>{format(new Date(selectedOrder.picked_at), 'MMMM d, yyyy h:mm a')}</div>
                 </div>
               )}
             </div>
@@ -84,10 +85,10 @@ const ViewCompletedOrder: React.FC = () => {
                   <tr key={item.id} className="border-b">
                     <td className="py-2">{item.product.name}</td>
                     <td className="py-2 text-right">{item.quantity}</td>
-                    <td className="py-2 text-right">{item.batchNumber || item.batch_number || 'N/A'}</td>
+                    <td className="py-2 text-right">{item.batch_number || 'N/A'}</td>
                     <td className="py-2 text-right">
-                      {item.pickedWeight || item.picked_weight 
-                        ? `${item.pickedWeight || item.picked_weight} ${item.product.unit || 'g'}`
+                      {item.picked_weight 
+                        ? `${item.picked_weight} ${item.product.unit || 'g'}`
                         : 'N/A'}
                     </td>
                   </tr>

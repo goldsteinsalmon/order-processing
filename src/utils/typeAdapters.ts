@@ -1,3 +1,4 @@
+
 import { Customer, Order, Product, Return, BatchUsage } from "@/types";
 
 // Convert Customer from snake_case (database) to camelCase (UI)
@@ -46,7 +47,9 @@ export const adaptCustomerToSnakeCase = (customer: Customer): any => {
 
 // Convert Order from snake_case (database) to camelCase (UI)
 export const adaptOrderToCamelCase = (order: any): Order => {
-  return {
+  if (!order) return null as any;
+  
+  const result = {
     id: order.id,
     customer_id: order.customer_id,
     customer: order.customer ? adaptCustomerToCamelCase(order.customer) : undefined,
@@ -79,12 +82,33 @@ export const adaptOrderToCamelCase = (order: any): Order => {
     changes: order.changes,
     savedBoxes: order.savedBoxes,
     batchSummaries: order.batchSummaries,
-    items: order.items
+    items: order.items ? order.items.map((item: any) => ({
+      id: item.id,
+      order_id: item.order_id,
+      product_id: item.product_id,
+      product: item.product,
+      quantity: item.quantity,
+      unavailable_quantity: item.unavailable_quantity,
+      is_unavailable: item.is_unavailable,
+      blown_pouches: item.blown_pouches,
+      batch_number: item.batch_number,
+      checked: item.checked,
+      missing_quantity: item.missing_quantity,
+      picked_quantity: item.picked_quantity,
+      picked_weight: item.picked_weight,
+      original_quantity: item.original_quantity,
+      box_number: item.box_number,
+      manual_weight: item.manual_weight
+    })) : []
   };
+  
+  return result;
 };
 
 // Convert Order from camelCase (UI) to snake_case (database)
 export const adaptOrderToSnakeCase = (order: Order): any => {
+  if (!order) return null as any;
+  
   return {
     id: order.id,
     customer_id: order.customer_id,
@@ -107,7 +131,6 @@ export const adaptOrderToSnakeCase = (order: Order): any => {
     has_changes: order.has_changes,
     from_standing_order: order.from_standing_order,
     picking_in_progress: order.picking_in_progress,
-    picking_progress: order.picking_progress,
     invoiced: order.invoiced,
     invoice_number: order.invoice_number,
     invoice_date: order.invoice_date

@@ -22,10 +22,10 @@ import {
 
 // Interface for DataContext
 interface DataContextType {
-  customers: Customer[]; // Changed from any[] to Customer[]
+  customers: Customer[]; 
   products: Product[];
-  orders: Order[]; // Changed from any[] to Order[]
-  completedOrders: Order[]; // Changed from any[] to Order[]
+  orders: Order[]; 
+  completedOrders: Order[]; 
   standingOrders: StandingOrder[];
   returns: Return[];
   complaints: Complaint[];
@@ -39,10 +39,10 @@ interface DataContextType {
   addProduct: (product: Product | Product[]) => Promise<Product | Product[] | null>;
   updateProduct: (product: Product) => Promise<boolean>;
   deleteProduct: (productId: string) => Promise<boolean>;
-  addOrder: (order: Order) => Promise<Order | null>; // Changed from any to Order
-  updateOrder: (order: Order) => Promise<boolean>; // Changed from any to Order
+  addOrder: (order: Order) => Promise<Order | null>; 
+  updateOrder: (order: Order) => Promise<boolean>; 
   deleteOrder: (orderId: string) => Promise<boolean>;
-  completeOrder: (order: Order) => Promise<boolean>; // Changed from any to Order
+  completeOrder: (order: Order) => Promise<boolean>; 
   addStandingOrder: (standingOrder: StandingOrder) => Promise<StandingOrder | null>;
   updateStandingOrder: (standingOrder: StandingOrder) => Promise<boolean>;
   processStandingOrders: () => Promise<void>;
