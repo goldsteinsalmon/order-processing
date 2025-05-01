@@ -27,7 +27,7 @@ const UserManagement: React.FC = () => {
     name: "",
     email: "",
     password: "",
-    role: "User",
+    role: "User" as "Admin" | "User" | "Manager",
     active: true,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -48,7 +48,12 @@ const UserManagement: React.FC = () => {
 
       if (error) throw error;
 
-      setUsers(data || []);
+      const typedUsers = data ? data.map(user => ({
+        ...user,
+        role: user.role as "Admin" | "User" | "Manager"
+      })) : [];
+      
+      setUsers(typedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({
@@ -94,15 +99,20 @@ const UserManagement: React.FC = () => {
       }
 
       if (data) {
-        // Add the new user to the users state
-        setUsers([...users, data[0]]);
+        // Add the new user to the users state with proper typing
+        const newUserWithTypedRole = {
+          ...data[0],
+          role: data[0].role as "Admin" | "User" | "Manager"
+        };
+        
+        setUsers([...users, newUserWithTypedRole]);
         
         // Reset form
         setNewUser({
           name: "",
           email: "",
           password: "",
-          role: "User",
+          role: "User" as "Admin" | "User" | "Manager",
           active: true,
         });
         
@@ -240,7 +250,7 @@ const UserManagement: React.FC = () => {
                   name: "",
                   email: "",
                   password: "",
-                  role: "User",
+                  role: "User" as "Admin" | "User" | "Manager",
                   active: true,
                 });
               }}>
@@ -305,10 +315,10 @@ const UserManagement: React.FC = () => {
                     <Label htmlFor="role">Role</Label>
                     <Select
                       value={editingUser ? editingUser.role : newUser.role}
-                      onValueChange={(value) =>
+                      onValueChange={(value: "Admin" | "Manager" | "User") =>
                         editingUser
-                          ? setEditingUser({ ...editingUser, role: value as User["role"] })
-                          : setNewUser({ ...newUser, role: value as User["role"] })
+                          ? setEditingUser({ ...editingUser, role: value })
+                          : setNewUser({ ...newUser, role: value })
                       }
                     >
                       <SelectTrigger>

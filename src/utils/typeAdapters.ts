@@ -1,5 +1,5 @@
 
-import { Order, OrderItem } from "@/types";
+import { Order, OrderItem, Box, BatchSummary } from "@/types";
 
 /**
  * Adapts snake_case property names to camelCase for components
@@ -21,6 +21,7 @@ export function adaptOrderToCamelCase(order: Order): any {
     hasChanges: order.has_changes,
     fromStandingOrder: order.from_standing_order,
     pickingInProgress: order.picking_in_progress,
+    pickingProgress: order.picking_progress,
     boxDistributions: order.box_distributions,
     completedBoxes: order.completed_boxes,
     missingItems: order.missing_items,
@@ -28,6 +29,7 @@ export function adaptOrderToCamelCase(order: Order): any {
     invoiceNumber: order.invoice_number,
     batchNumber: order.batch_number,
     batchNumbers: order.batch_numbers,
+    savedBoxes: order.savedBoxes,
     items: order.items?.map(adaptOrderItemToCamelCase)
   };
 }
@@ -72,6 +74,7 @@ export function adaptOrderToSnakeCase(order: any): Order {
     has_changes: order.hasChanges || order.has_changes,
     from_standing_order: order.fromStandingOrder || order.from_standing_order,
     picking_in_progress: order.pickingInProgress || order.picking_in_progress,
+    picking_progress: order.pickingProgress || order.picking_progress,
     box_distributions: order.boxDistributions || order.box_distributions,
     completed_boxes: order.completedBoxes || order.completed_boxes,
     missing_items: order.missingItems || order.missing_items,
@@ -79,6 +82,7 @@ export function adaptOrderToSnakeCase(order: any): Order {
     invoice_number: order.invoiceNumber || order.invoice_number,
     batch_number: order.batchNumber || order.batch_number,
     batch_numbers: order.batchNumbers || order.batch_numbers,
+    savedBoxes: order.savedBoxes,
     items: order.items?.map(adaptOrderItemToSnakeCase)
   };
 }
@@ -100,5 +104,32 @@ export function adaptOrderItemToSnakeCase(item: any): OrderItem {
     picked_weight: item.pickedWeight || item.picked_weight,
     box_number: item.boxNumber || item.box_number,
     manual_weight: item.manualWeight || item.manual_weight
+  };
+}
+
+/**
+ * Helper functions for box adapters
+ */
+export function adaptBoxToCamelCase(box: Box): any {
+  if (!box) return null;
+  
+  return {
+    ...box,
+    orderId: box.order_id,
+    boxNumber: box.box_number,
+    batchNumber: box.batch_number,
+    items: box.items?.map(adaptBoxItemToCamelCase)
+  };
+}
+
+export function adaptBoxItemToCamelCase(item: any): any {
+  if (!item) return null;
+  
+  return {
+    ...item,
+    boxId: item.box_id,
+    productId: item.product_id,
+    productName: item.product_name,
+    batchNumber: item.batch_number
   };
 }
