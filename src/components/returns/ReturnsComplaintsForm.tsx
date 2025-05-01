@@ -1,467 +1,411 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import React, { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { useData } from "@/context/DataContext";
-import { Return, Complaint } from "@/types";
-import { v4 as uuidv4 } from "uuid";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useData } from "@/context/DataContext";
 
-// This component handles both Returns and Complaints forms in one place
-const ReturnsComplaintsForm: React.FC = () => {
-  const { addReturn, addComplaint, products, customers } = useData();
+const returnSchema = z.object({
+  customerId: z.string().optional(),
+  customerName: z.string().min(2, { message: "Customer name must be at least 2 characters." }),
+  customerType: z.enum(["Private", "Trade"]),
+  contactEmail: z.string().email({ message: "Invalid email format." }).optional(),
+  contactPhone: z.string().optional(),
+  dateReturned: z.date(),
+  orderNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  productId: z.string().min(1, { message: "Product ID is required." }),
+  quantity: z.number().min(1, { message: "Quantity must be at least 1." }),
+  reason: z.string().optional(),
+  returnsRequired: z.enum(["Yes", "No"]),
+});
+
+const complaintSchema = z.object({
+  customerId: z.string().optional(),
+  customerName: z.string().min(2, { message: "Customer name must be at least 2 characters." }),
+  customerType: z.enum(["Private", "Trade"]),
+  contactEmail: z.string().email({ message: "Invalid email format." }).optional(),
+  contactPhone: z.string().optional(),
+  dateSubmitted: z.date(),
+  orderNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  productId: z.string().optional(),
+  complaintType: z.string().min(2, { message: "Complaint type must be at least 2 characters." }),
+  complaintDetails: z.string().min(10, { message: "Complaint details must be at least 10 characters." }),
+  returnsRequired: z.enum(["Yes", "No"]),
+});
+
+type ReturnFormValues = z.infer<typeof returnSchema>;
+type ComplaintFormValues = z.infer<typeof complaintSchema>;
+
+const ReturnsComplaintsForm = () => {
+  const { addReturn, addComplaint, products } = useData();
   const { toast } = useToast();
-  
-  const [formType, setFormType] = useState<"returns" | "complaints">("returns");
-  const [customerType, setCustomerType] = useState<"Private" | "Trade">("Private");
-  const [customerName, setCustomerName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [date, setDate] = useState<Date>(new Date());
-  const [orderNumber, setOrderNumber] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [productSku, setProductSku] = useState("");
-  const [productId, setProductId] = useState("");
-  const [quantity, setQuantity] = useState<number | null>(null); // Changed to null for empty field
-  const [complaintType, setComplaintType] = useState("");
-  const [complaintDetails, setComplaintDetails] = useState("");
-  const [returnReason, setReturnReason] = useState("");
-  const [returnsRequired, setReturnsRequired] = useState<"Yes" | "No">("Yes");
-  const [returnStatus, setReturnStatus] = useState<"Pending" | "Processing" | "Completed" | "No Return Required">("Pending");
-  const [resolutionStatus, setResolutionStatus] = useState<"Open" | "In Progress" | "Resolved">("Open");
-  const [resolutionNotes, setResolutionNotes] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
-  const resetForm = () => {
-    setFormType("returns");
-    setCustomerType("Private");
-    setCustomerName("");
-    setContactEmail("");
-    setContactPhone("");
-    setDate(new Date());
-    setOrderNumber("");
-    setInvoiceNumber("");
-    setProductSku("");
-    setProductId("");
-    setQuantity(null); // Reset to null instead of 1
-    setComplaintType("");
-    setComplaintDetails("");
-    setReturnReason("");
-    setReturnsRequired("Yes");
-    setReturnStatus("Pending");
-    setResolutionStatus("Open");
-    setResolutionNotes("");
-    setSelectedCustomerId("");
+  const returnForm = useForm<ReturnFormValues>({
+    resolver: zodResolver(returnSchema),
+    defaultValues: {
+      customerType: "Private",
+      dateReturned: new Date(),
+      returnsRequired: "No",
+      quantity: 1,
+    },
+  });
+
+  const complaintForm = useForm<ComplaintFormValues>({
+    resolver: zodResolver(complaintSchema),
+    defaultValues: {
+      customerType: "Private",
+      dateSubmitted: new Date(),
+      returnsRequired: "No",
+    },
+  });
+
+  useEffect(() => {
+    if (products && products.length > 0) {
+      // Set the initial product to the first one in the list
+      setSelectedProduct(products[0]);
+      returnForm.setValue("productId", products[0].id);
+      complaintForm.setValue("productId", products[0].id);
+    }
+  }, [products, returnForm, complaintForm]);
+
+  const handleProductChange = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
+    setSelectedProduct(product);
+    returnForm.setValue("productId", productId);
+    complaintForm.setValue("productId", productId);
   };
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formType === "returns") {
-      // Create a new return
-      const selectedProduct = products.find(p => p.id === productId);
-      
-      if (!selectedProduct) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Please select a valid product."
-        });
-        return;
-      }
-      
-      // Validate quantity
-      if (quantity === null || quantity <= 0) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Please enter a valid quantity."
-        });
-        return;
-      }
-      
-      const newReturn: Return = {
-        id: uuidv4(),
-        customer_id: customerType === "Trade" ? selectedCustomerId : undefined,
-        customer_type: customerType,
-        customer_name: customerName,
-        contact_email: contactEmail || undefined,
-        contact_phone: contactPhone || undefined,
-        date_returned: date.toISOString(),
-        order_number: orderNumber || undefined,
-        invoice_number: invoiceNumber || undefined,
-        product_sku: selectedProduct.sku,
-        product_id: selectedProduct.id,
-        product: selectedProduct,
-        quantity: quantity,
-        reason: returnReason || undefined,
-        returns_required: returnsRequired,
-        return_status: returnStatus,
-        resolution_status: resolutionStatus,
-        resolution_notes: resolutionNotes || undefined,
-        created: new Date().toISOString()
-      };
-      
-      addReturn(newReturn);
+
+  const handleSubmitReturn = async (data: ReturnFormValues) => {
+    const newReturn = {
+      id: crypto.randomUUID(),
+      customerId: data.customerId || undefined,
+      customerName: data.customerName,
+      customerType: data.customerType as "Private" | "Trade",
+      contactEmail: data.contactEmail || undefined,
+      contactPhone: data.contactPhone || undefined,
+      dateReturned: format(data.dateReturned, "yyyy-MM-dd"),
+      orderNumber: data.orderNumber || undefined,
+      invoiceNumber: data.invoiceNumber || undefined,
+      productId: data.productId,
+      productSku: selectedProduct?.sku || "",
+      quantity: data.quantity,
+      reason: data.reason,
+      returnsRequired: data.returnsRequired as "Yes" | "No",
+      returnStatus: "Pending",
+      resolutionStatus: "Open",
+      created: new Date().toISOString()
+    };
+
+    try {
+      await addReturn(newReturn);
       toast({
-        title: "Return Created",
-        description: "The return has been successfully recorded."
+        title: "Return submitted",
+        description: "The return has been submitted successfully.",
       });
-    } else {
-      
-      const selectedProduct = productId ? products.find(p => p.id === productId) : undefined;
-      
-      const newComplaint: Complaint = {
-        id: uuidv4(),
-        customer_id: customerType === "Trade" ? selectedCustomerId : undefined,
-        customer_type: customerType,
-        customer_name: customerName,
-        contact_email: contactEmail || undefined,
-        contact_phone: contactPhone || undefined,
-        date_submitted: date.toISOString(),
-        order_number: orderNumber || undefined,
-        invoice_number: invoiceNumber || undefined,
-        product_sku: selectedProduct?.sku,
-        product_id: selectedProduct?.id,
-        product: selectedProduct,
-        complaint_type: complaintType,
-        complaint_details: complaintDetails,
-        returns_required: returnsRequired,
-        return_status: returnStatus,
-        resolution_status: resolutionStatus,
-        resolution_notes: resolutionNotes || undefined,
-        created: new Date().toISOString()
-      };
-      
-      addComplaint(newComplaint);
+      returnForm.reset();
+    } catch (error) {
       toast({
-        title: "Complaint Created",
-        description: "The complaint has been successfully recorded."
+        title: "Error",
+        description: "Failed to submit the return. Please try again.",
+        variant: "destructive",
       });
     }
-    
-    // Reset form after submission
-    resetForm();
   };
-  
-  // Handle customer selection
-  const handleCustomerChange = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    
-    // Find the selected customer
-    const customer = customers.find(c => c.id === customerId);
-    if (customer) {
-      // Auto-fill fields with customer information
-      setCustomerName(customer.name);
-      setContactEmail(customer.email);
-      setContactPhone(customer.phone);
+
+  const handleSubmitComplaint = async (data: ComplaintFormValues) => {
+    const newComplaint = {
+      id: crypto.randomUUID(),
+      customerId: data.customerId || undefined,
+      customerName: data.customerName,
+      customerType: data.customerType as "Private" | "Trade",
+      contactEmail: data.contactEmail || undefined,
+      contactPhone: data.contactPhone || undefined,
+      dateSubmitted: format(data.dateSubmitted, "yyyy-MM-dd"),
+      orderNumber: data.orderNumber || undefined,
+      invoiceNumber: data.invoiceNumber || undefined,
+      productId: data.productId || undefined,
+      productSku: selectedProduct?.sku || undefined,
+      complaintType: data.complaintType,
+      complaintDetails: data.complaintDetails,
+      returnsRequired: data.returnsRequired as "Yes" | "No",
+      returnStatus: "Pending",
+      resolutionStatus: "Open",
+      created: new Date().toISOString()
+    };
+
+    try {
+      await addComplaint(newComplaint);
+      toast({
+        title: "Complaint submitted",
+        description: "The complaint has been submitted successfully.",
+      });
+      complaintForm.reset();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit the complaint. Please try again.",
+        variant: "destructive",
+      });
     }
   };
-  
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Record a Return or Complaint</h2>
-      
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>What would you like to record?</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <RadioGroup
-            value={formType}
-            onValueChange={(value: "returns" | "complaints") => setFormType(value)}
-            className="flex space-x-4"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="returns" id="returns" />
-              <Label htmlFor="returns">Product Return</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="complaints" id="complaints" />
-              <Label htmlFor="complaints">Customer Complaint</Label>
-            </div>
-          </RadioGroup>
-        </CardContent>
-      </Card>
-      
-      <form onSubmit={handleSubmit}>
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Customer Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="customerType">Customer Type</Label>
-              <RadioGroup
-                value={customerType}
-                onValueChange={(value: "Private" | "Trade") => setCustomerType(value)}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Private" id="private" />
-                  <Label htmlFor="private">Private Customer</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Trade" id="trade" />
-                  <Label htmlFor="trade">Trade Account</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            {customerType === "Trade" ? (
-              <div>
-                <Label htmlFor="tradeCustomer">Select Trade Customer</Label>
-                <Select 
-                  value={selectedCustomerId} 
-                  onValueChange={handleCustomerChange}
-                >
-                  <SelectTrigger id="tradeCustomer">
-                    <SelectValue placeholder="Select a trade customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers
-                      .filter(customer => customer.type === "Trade")
-                      .map(customer => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div>
-                <Label htmlFor="customerName">Customer Name</Label>
-                <Input
-                  id="customerName"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  required
-                />
-              </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Return Form */}
+      <div className="border rounded-md p-4">
+        <h2 className="text-lg font-semibold mb-4">Submit a Return</h2>
+        <form onSubmit={returnForm.handleSubmit(handleSubmitReturn)} className="space-y-4">
+          <div>
+            <Label htmlFor="return-customerName">Customer Name</Label>
+            <Input id="return-customerName" type="text" {...returnForm.register("customerName")} />
+            {returnForm.formState.errors.customerName && (
+              <p className="text-red-500 text-sm">{returnForm.formState.errors.customerName.message}</p>
             )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="contactEmail">Email (Optional)</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="contactPhone">Phone (Optional)</Label>
-                <Input
-                  id="contactPhone"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Order Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="date">
-                {formType === "returns" ? "Date Returned" : "Date of Complaint"}
-              </Label>
-              <Input
-                id="date"
-                type="date"
-                value={format(date, "yyyy-MM-dd")}
-                onChange={(e) => setDate(new Date(e.target.value))}
-                required
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="orderNumber">Order Number (Optional)</Label>
-                <Input
-                  id="orderNumber"
-                  value={orderNumber}
-                  onChange={(e) => setOrderNumber(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="invoiceNumber">Invoice Number (Optional)</Label>
-                <Input
-                  id="invoiceNumber"
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="productSku">Product</Label>
-              <Select 
-                value={productId} 
-                onValueChange={setProductId}
-                required={formType === "returns"}
-              >
-                <SelectTrigger id="productSku">
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.sku} - {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {formType === "returns" && (
-              <div>
-                <Label htmlFor="quantity">Quantity</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  value={quantity === null ? "" : quantity}
-                  onChange={(e) => setQuantity(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full"
-                  placeholder="Enter quantity"
-                  required
-                />
-              </div>
+          </div>
+          <div>
+            <Label htmlFor="return-customerType">Customer Type</Label>
+            <Select {...returnForm.register("customerType")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select customer type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Private">Private</SelectItem>
+                <SelectItem value="Trade">Trade</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="return-contactEmail">Contact Email</Label>
+            <Input id="return-contactEmail" type="email" {...returnForm.register("contactEmail")} />
+            {returnForm.formState.errors.contactEmail && (
+              <p className="text-red-500 text-sm">{returnForm.formState.errors.contactEmail.message}</p>
             )}
-            
-            {formType === "returns" ? (
-              <div>
-                <Label htmlFor="returnReason">Reason for Return</Label>
-                <Textarea
-                  id="returnReason"
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  placeholder="Describe why the product is being returned"
-                  rows={3}
-                />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <Label htmlFor="complaintType">Type of Complaint</Label>
-                  <Select value={complaintType} onValueChange={setComplaintType} required>
-                    <SelectTrigger id="complaintType">
-                      <SelectValue placeholder="Select complaint type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Quality Issue">Quality Issue</SelectItem>
-                      <SelectItem value="Foreign Object">Foreign Object Found</SelectItem>
-                      <SelectItem value="Late Delivery">Late Delivery</SelectItem>
-                      <SelectItem value="Incorrect Order">Incorrect Order</SelectItem>
-                      <SelectItem value="Customer Service">Customer Service</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="complaintDetails">Complaint Details</Label>
-                  <Textarea
-                    id="complaintDetails"
-                    value={complaintDetails}
-                    onChange={(e) => setComplaintDetails(e.target.value)}
-                    placeholder="Provide details about the complaint"
-                    rows={3}
-                    required
-                  />
-                </div>
-              </>
+          </div>
+          <div>
+            <Label htmlFor="return-contactPhone">Contact Phone</Label>
+            <Input id="return-contactPhone" type="tel" {...returnForm.register("contactPhone")} />
+          </div>
+          <div>
+            <Label>Date Returned</Label>
+            <Controller
+              control={returnForm.control}
+              name="dateReturned"
+              render={({ field }) => (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("2023-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+            />
+          </div>
+          <div>
+            <Label htmlFor="return-orderNumber">Order Number</Label>
+            <Input id="return-orderNumber" type="text" {...returnForm.register("orderNumber")} />
+          </div>
+          <div>
+            <Label htmlFor="return-invoiceNumber">Invoice Number</Label>
+            <Input id="return-invoiceNumber" type="text" {...returnForm.register("invoiceNumber")} />
+          </div>
+          <div>
+            <Label htmlFor="return-productId">Product</Label>
+            <Select onValueChange={handleProductChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {returnForm.formState.errors.productId && (
+              <p className="text-red-500 text-sm">{returnForm.formState.errors.productId.message}</p>
             )}
-          </CardContent>
-        </Card>
-        
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Resolution Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Returns Required</Label>
-              <RadioGroup
-                value={returnsRequired}
-                onValueChange={(value: "Yes" | "No") => setReturnsRequired(value)}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Yes" id="returnsYes" />
-                  <Label htmlFor="returnsYes">Yes</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="No" id="returnsNo" />
-                  <Label htmlFor="returnsNo">No</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            {returnsRequired === "Yes" && (
-              <div>
-                <Label htmlFor="returnStatus">Return Status</Label>
-                <Select value={returnStatus} onValueChange={(value: "Pending" | "Processing" | "Completed" | "No Return Required") => setReturnStatus(value)}>
-                  <SelectTrigger id="returnStatus">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Processing">Processing</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="No Return Required">No Return Required</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          </div>
+          <div>
+            <Label htmlFor="return-quantity">Quantity</Label>
+            <Input id="return-quantity" type="number" {...returnForm.register("quantity", { valueAsNumber: true })} />
+            {returnForm.formState.errors.quantity && (
+              <p className="text-red-500 text-sm">{returnForm.formState.errors.quantity.message}</p>
             )}
-            
-            <div>
-              <Label htmlFor="resolutionStatus">Resolution Status</Label>
-              <Select value={resolutionStatus} onValueChange={(value: "Open" | "In Progress" | "Resolved") => setResolutionStatus(value)}>
-                <SelectTrigger id="resolutionStatus">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Resolved">Resolved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="resolutionNotes">Resolution Notes</Label>
-              <Textarea
-                id="resolutionNotes"
-                value={resolutionNotes}
-                onChange={(e) => setResolutionNotes(e.target.value)}
-                placeholder="Notes about resolution or actions taken"
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <div className="flex justify-end">
-          <Button type="submit" className="mr-2">
-            Submit {formType === "returns" ? "Return" : "Complaint"}
-          </Button>
-          <Button type="button" variant="outline" onClick={resetForm}>
-            Reset Form
-          </Button>
-        </div>
-      </form>
+          </div>
+          <div>
+            <Label htmlFor="return-reason">Reason for Return</Label>
+            <Textarea id="return-reason" {...returnForm.register("reason")} />
+          </div>
+          <div>
+            <Label htmlFor="return-returnsRequired">Returns Required</Label>
+            <Select {...returnForm.register("returnsRequired")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Yes">Yes</SelectItem>
+                <SelectItem value="No">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="submit">Submit Return</Button>
+        </form>
+      </div>
+
+      {/* Complaint Form */}
+      <div className="border rounded-md p-4">
+        <h2 className="text-lg font-semibold mb-4">Submit a Complaint</h2>
+        <form onSubmit={complaintForm.handleSubmit(handleSubmitComplaint)} className="space-y-4">
+          <div>
+            <Label htmlFor="complaint-customerName">Customer Name</Label>
+            <Input id="complaint-customerName" type="text" {...complaintForm.register("customerName")} />
+            {complaintForm.formState.errors.customerName && (
+              <p className="text-red-500 text-sm">{complaintForm.formState.errors.customerName.message}</p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="complaint-customerType">Customer Type</Label>
+            <Select {...complaintForm.register("customerType")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select customer type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Private">Private</SelectItem>
+                <SelectItem value="Trade">Trade</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="complaint-contactEmail">Contact Email</Label>
+            <Input id="complaint-contactEmail" type="email" {...complaintForm.register("contactEmail")} />
+            {complaintForm.formState.errors.contactEmail && (
+              <p className="text-red-500 text-sm">{complaintForm.formState.errors.contactEmail.message}</p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="complaint-contactPhone">Contact Phone</Label>
+            <Input id="complaint-contactPhone" type="tel" {...complaintForm.register("contactPhone")} />
+          </div>
+          <div>
+            <Label>Date Submitted</Label>
+            <Controller
+              control={complaintForm.control}
+              name="dateSubmitted"
+              render={({ field }) => (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("2023-01-01")
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
+            />
+          </div>
+          <div>
+            <Label htmlFor="complaint-orderNumber">Order Number</Label>
+            <Input id="complaint-orderNumber" type="text" {...complaintForm.register("orderNumber")} />
+          </div>
+          <div>
+            <Label htmlFor="complaint-invoiceNumber">Invoice Number</Label>
+            <Input id="complaint-invoiceNumber" type="text" {...complaintForm.register("invoiceNumber")} />
+          </div>
+          <div>
+            <Label htmlFor="complaint-productId">Product</Label>
+            <Select onValueChange={handleProductChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="complaint-complaintType">Complaint Type</Label>
+            <Input id="complaint-complaintType" type="text" {...complaintForm.register("complaintType")} />
+            {complaintForm.formState.errors.complaintType && (
+              <p className="text-red-500 text-sm">{complaintForm.formState.errors.complaintType.message}</p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="complaint-complaintDetails">Complaint Details</Label>
+            <Textarea id="complaint-complaintDetails" {...complaintForm.register("complaintDetails")} />
+            {complaintForm.formState.errors.complaintDetails && (
+              <p className="text-red-500 text-sm">{complaintForm.formState.errors.complaintDetails.message}</p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor="complaint-returnsRequired">Returns Required</Label>
+            <Select {...complaintForm.register("returnsRequired")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Yes">Yes</SelectItem>
+                <SelectItem value="No">No</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="submit">Submit Complaint</Button>
+        </form>
+      </div>
     </div>
   );
 };

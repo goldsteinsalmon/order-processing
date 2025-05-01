@@ -3,6 +3,7 @@ import React, { ForwardRefRenderFunction, forwardRef } from "react";
 import { Order, OrderItem } from "@/types";
 import { format } from "date-fns";
 import { ExtendedOrderItem } from "./ItemsTable"; // Import the type from our new file
+import { getOrderDate, getCustomerOrderNumber, getDeliveryMethod } from "@/utils/propertyHelpers";
 
 interface PrintablePickingListProps {
   selectedOrder: Order;
@@ -19,7 +20,7 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
     if (!groupByBox) return { noBox: items };
     
     return items.reduce((acc, item) => {
-      const boxNumber = item.box_number || item.boxNumber || 0;
+      const boxNumber = item.boxNumber || 0;
       if (!acc[boxNumber]) {
         acc[boxNumber] = [];
       }
@@ -34,9 +35,9 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
   // Calculate total weight for products that have weight info
   const getTotalWeight = (boxItems: ExtendedOrderItem[]) => {
     return boxItems
-      .filter(item => item.product.requires_weight_input)
+      .filter(item => item.product.requiresWeightInput)
       .reduce((total, item) => {
-        const weight = item.picked_weight || item.pickedWeight || 0;
+        const weight = item.pickedWeight || 0;
         return total + weight;
       }, 0);
   };
@@ -59,10 +60,10 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
             )}
           </div>
           <div>
-            <p><span className="font-bold">Order Date:</span> {format(new Date(selectedOrder.order_date), "MMMM d, yyyy")}</p>
-            <p><span className="font-bold">Delivery Method:</span> {selectedOrder.delivery_method}</p>
-            {selectedOrder.customer_order_number && (
-              <p><span className="font-bold">Customer Order Number:</span> {selectedOrder.customer_order_number}</p>
+            <p><span className="font-bold">Order Date:</span> {format(new Date(getOrderDate(selectedOrder)), "MMMM d, yyyy")}</p>
+            <p><span className="font-bold">Delivery Method:</span> {getDeliveryMethod(selectedOrder)}</p>
+            {getCustomerOrderNumber(selectedOrder) && (
+              <p><span className="font-bold">Customer Order Number:</span> {getCustomerOrderNumber(selectedOrder)}</p>
             )}
           </div>
         </div>
@@ -92,10 +93,10 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
                     <tr key={item.id} className="border-b">
                       <td className="py-1">{item.product.name}</td>
                       <td className="py-1 text-right">{item.quantity}</td>
-                      <td className="py-1 text-right">{item.batchNumber || item.batch_number || ''}</td>
+                      <td className="py-1 text-right">{item.batchNumber || ''}</td>
                       <td className="py-1 text-right">
-                        {item.product.requires_weight_input
-                          ? `${item.pickedWeight || item.picked_weight || '-'} ${item.product.unit || 'g'}`
+                        {item.product.requiresWeightInput
+                          ? `${item.pickedWeight || '-'} ${item.product.unit || 'g'}`
                           : '-'
                         }
                       </td>
@@ -130,10 +131,10 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
                 <tr key={item.id} className="border-b">
                   <td className="py-1">{item.product.name}</td>
                   <td className="py-1 text-right">{item.quantity}</td>
-                  <td className="py-1 text-right">{item.batchNumber || item.batch_number || ''}</td>
+                  <td className="py-1 text-right">{item.batchNumber || ''}</td>
                   <td className="py-1 text-right">
-                    {item.product.requires_weight_input
-                      ? `${item.pickedWeight || item.picked_weight || '-'} ${item.product.unit || 'g'}`
+                    {item.product.requiresWeightInput
+                      ? `${item.pickedWeight || '-'} ${item.product.unit || 'g'}`
                       : '-'
                     }
                   </td>

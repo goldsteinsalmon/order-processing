@@ -337,11 +337,35 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         description: item.description,
         stock_level: item.stock_level,
         weight: item.weight,
-        requires_weight_input: item.requires_weight_input,
+        requiresWeightInput: item.requires_weight_input || false,
         unit: item.unit,
-        required: item.required
+        required: item.required || false
       }));
 
+      // Map returns data
+      const mappedReturns: Return[] = returnsData.map((item: any) => ({
+        id: item.id,
+        customerId: item.customer_id,
+        customerName: item.customer_name,
+        customerType: item.customer_type,
+        contactEmail: item.contact_email,
+        contactPhone: item.contact_phone,
+        dateReturned: item.date_returned,
+        orderNumber: item.order_number,
+        invoiceNumber: item.invoice_number,
+        productId: item.product_id,
+        productSku: item.product_sku,
+        product: item.product ? adaptProductToCamelCase(item.product) : undefined,
+        quantity: item.quantity,
+        reason: item.reason,
+        returnsRequired: item.returns_required,
+        returnStatus: item.return_status,
+        resolutionStatus: item.resolution_status,
+        resolutionNotes: item.resolution_notes,
+        created: item.created,
+        updated: item.updated
+      }));
+      
       // Helper function to map customer data
       const mapCustomer = (customerData: any): Customer => ({
         id: customerData.id,
@@ -364,9 +388,9 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
         description: productData.description,
         stock_level: productData.stock_level,
         weight: productData.weight,
-        requires_weight_input: productData.requires_weight_input,
+        requiresWeightInput: productData.requires_weight_input || false,
         unit: productData.unit,
-        required: productData.required
+        required: productData.required || false
       });
 
       // Process orders with their items
@@ -643,3 +667,17 @@ export const SupabaseDataProvider: React.FC<{ children: ReactNode }> = ({ childr
 };
 
 export default SupabaseDataProvider;
+
+function adaptProductToCamelCase(product: any): Product {
+  return {
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
+    stock_level: product.stock_level,
+    weight: product.weight,
+    requiresWeightInput: product.requires_weight_input || false,
+    unit: product.unit,
+    required: product.required || false
+  };
+}

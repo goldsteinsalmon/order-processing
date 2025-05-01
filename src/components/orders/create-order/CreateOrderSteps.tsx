@@ -42,11 +42,11 @@ const CreateOrderSteps: React.FC = () => {
     id: string;
   }[]>([{ productId: "", quantity: 0, id: crypto.randomUUID() }]);
   
-  // Box distribution state
+  // Box distribution state - update to use camelCase properties for Box
   const [boxDistributions, setBoxDistributions] = React.useState<Box[]>([{ 
     id: crypto.randomUUID(),
-    order_id: '',  // Will be filled when the order is created
-    box_number: 1, 
+    orderId: '',  // Will be filled when the order is created
+    boxNumber: 1, 
     items: [], 
     completed: false,
     printed: false
@@ -135,8 +135,8 @@ const CreateOrderSteps: React.FC = () => {
       if (boxDistributions.length === 0) {
         setBoxDistributions([{ 
           id: crypto.randomUUID(),
-          order_id: '', 
-          box_number: 1, 
+          orderId: '', 
+          boxNumber: 1, 
           items: [], 
           completed: false,
           printed: false
@@ -292,34 +292,35 @@ const CreateOrderSteps: React.FC = () => {
         ? boxDistributions.flatMap(box => 
             box.items.map(item => ({
               id: crypto.randomUUID(),
-              order_id: '', // Will be filled when the order is created
-              product_id: item.product_id,
-              product: products.find(p => p.id === item.product_id)!,
+              orderId: '', // Will be filled when the order is created
+              productId: item.productId,
+              product: products.find(p => p.id === item.productId)!,
               quantity: item.quantity,
-              box_number: box.box_number
+              boxNumber: box.boxNumber
             }))
           )
         : orderItems.map(item => ({
             id: item.id,
-            order_id: '', // Will be filled when the order is created
-            product_id: item.productId,
+            orderId: '', // Will be filled when the order is created
+            productId: item.productId,
             product: products.find(p => p.id === item.productId)!,
             quantity: item.quantity
           }));
 
       const newOrder = {
         id: crypto.randomUUID(),
-        customer_id: data.customerId,
+        customerId: data.customerId,
         customer: customers.find(c => c.id === data.customerId)!,
-        customer_order_number: data.customerOrderNumber,
-        order_date: format(data.orderDate, "yyyy-MM-dd"),
-        delivery_method: data.deliveryMethod as "Delivery" | "Collection",
+        customerOrderNumber: data.customerOrderNumber,
+        orderDate: format(data.orderDate, "yyyy-MM-dd"),
+        requiredDate: format(data.orderDate, "yyyy-MM-dd"), // Default to same date
+        deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
         items: finalOrderItems,
         notes: data.notes,
         status: "Pending" as const,
         created: new Date().toISOString(),
         // Include box distributions if customer needs detailed box labels
-        box_distributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
+        boxDistributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
       };
 
       addOrder(newOrder);
@@ -344,9 +345,10 @@ const CreateOrderSteps: React.FC = () => {
       notes: "",
     });
     setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
-    setBoxDistributions([{ id: crypto.randomUUID(),
-      order_id: '', 
-      box_number: 1, 
+    setBoxDistributions([{ 
+      id: crypto.randomUUID(),
+      orderId: '', 
+      boxNumber: 1, 
       items: [], 
       completed: false,
       printed: false
