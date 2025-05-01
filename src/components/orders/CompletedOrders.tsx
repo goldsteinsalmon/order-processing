@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Eye, Edit, Printer } from "lucide-react";
@@ -139,14 +138,6 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     return changedProducts.join("; ");
   };
 
-  // Helper function to check if order has weighed products
-  const hasWeighedProducts = (order) => {
-    return order.items.some(item => {
-      const product = products.find(p => p.id === item.productId);
-      return product?.requiresWeightInput === true;
-    });
-  };
-
   // Helper function to get batch numbers as a string
   const getBatchNumbers = (order) => {
     if (order.batchNumbers && order.batchNumbers.length > 0) {
@@ -248,11 +239,6 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                     <TableCell>
                       <div>
                         {order.customer.name}
-                        {hasWeighedProducts(order) && (
-                          <span className="text-xs bg-blue-100 text-blue-800 ml-1 px-1 rounded">
-                            Weighed
-                          </span>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell>
