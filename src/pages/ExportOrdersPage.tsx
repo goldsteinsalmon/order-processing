@@ -1,9 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   exportOrdersToCsv, 
@@ -124,11 +122,7 @@ const ExportOrdersPage: React.FC = () => {
   // Export selected orders and mark them as invoiced
   const handleExportCsv = () => {
     if (selectedOrders.size === 0) {
-      toast({
-        title: "No orders selected",
-        description: "Please select at least one order to export.",
-        variant: "destructive"
-      });
+      alert("Please select at least one order to export.");
       return;
     }
     
@@ -150,20 +144,13 @@ const ExportOrdersPage: React.FC = () => {
     
     exportOrdersToCsv(ordersToExport, generateCsvFilename());
     
-    toast({
-      title: "Export successful",
-      description: `Exported ${ordersToExport.length} orders to CSV and marked them as invoiced.`,
-    });
+    alert(`Exported ${ordersToExport.length} orders to CSV and marked them as invoiced.`);
   };
 
   // Export selected orders to Excel
   const handleExportExcel = () => {
     if (selectedOrders.size === 0) {
-      toast({
-        title: "No orders selected",
-        description: "Please select at least one order to export.",
-        variant: "destructive"
-      });
+      alert("Please select at least one order to export.");
       return;
     }
     
@@ -185,20 +172,13 @@ const ExportOrdersPage: React.FC = () => {
     
     exportOrdersToExcel(ordersToExport, generateExcelFilename());
     
-    toast({
-      title: "Export successful",
-      description: `Exported ${ordersToExport.length} orders to Excel and marked them as invoiced.`,
-    });
+    alert(`Exported ${ordersToExport.length} orders to Excel and marked them as invoiced.`);
   };
   
   // Mark selected orders as invoiced
   const handleMarkInvoiced = () => {
     if (selectedOrders.size === 0) {
-      toast({
-        title: "No orders selected",
-        description: "Please select at least one order to mark as invoiced.",
-        variant: "destructive"
-      });
+      alert("Please select at least one order to mark as invoiced.");
       return;
     }
     
@@ -214,20 +194,13 @@ const ExportOrdersPage: React.FC = () => {
       }
     });
     
-    toast({
-      title: "Orders marked as invoiced",
-      description: `Marked ${selectedOrders.size} orders as invoiced.`,
-    });
+    alert(`Marked ${selectedOrders.size} orders as invoiced.`);
   };
   
   // Unmark selected orders as invoiced
   const handleUnmarkInvoiced = () => {
     if (selectedOrders.size === 0) {
-      toast({
-        title: "No orders selected",
-        description: "Please select at least one order to unmark as invoiced.",
-        variant: "destructive"
-      });
+      alert("Please select at least one order to unmark as invoiced.");
       return;
     }
     
@@ -244,10 +217,7 @@ const ExportOrdersPage: React.FC = () => {
       }
     });
     
-    toast({
-      title: "Orders unmarked as invoiced",
-      description: `Unmarked ${selectedOrders.size} orders as invoiced.`,
-    });
+    alert(`Unmarked ${selectedOrders.size} orders as invoiced.`);
   };
   
   return (
