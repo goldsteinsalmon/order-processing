@@ -94,6 +94,8 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Sign up with email and password
   const signUp = async (email: string, password: string, name: string, role: string = 'User') => {
     try {
+      // Instead of using the emailConfirm property (which doesn't exist),
+      // we'll configure the auth settings to skip email verification
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -102,9 +104,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
             name,
             role
           },
-          emailRedirectTo: window.location.origin,
-          // Don't require email verification
-          emailConfirm: false
+          emailRedirectTo: window.location.origin
         },
       });
 
