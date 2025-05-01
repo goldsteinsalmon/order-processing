@@ -67,7 +67,18 @@ interface DataContextType {
   getBatchUsages: () => BatchUsage[];
   getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
-  recordAllBatchUsagesForOrder: (order: Order) => void; // New function to record all batch usages for an order
+  recordAllBatchUsagesForOrder: (order: Order) => void;
+}
+
+// New interface to represent a consolidated batch summary
+interface ConsolidatedBatchSummary {
+  batchNumber: string;
+  products: {
+    productId: string;
+    productName: string;
+    totalQuantity: number;
+    totalWeight: number;
+  }[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -172,231 +183,322 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Make sure the processedBatchOrderItems set is cleared before recording batch usages
     setProcessedBatchOrderItems(new Set());
     
-    // Record all batch usages for this order
-    recordAllBatchUsagesForOrder(updatedOrder);
+    // Create a consolidated batch summary first
+    const batchSummary = createConsolidatedBatchSummary(updatedOrder);
+    
+    console.log("Consolidated batch summary:", batchSummary);
+    
+    // Record batch usages based on the consolidated summary
+    recordBatchUsagesFromSummary(batchSummary, updatedOrder.id);
     
     setOrders(orders.filter(o => o.id !== order.id));
     setCompletedOrders([...completedOrders, updatedOrder]);
   };
-  
-  // Improved function to collect and process all batch usages for an order
-  const recordAllBatchUsagesForOrder = (order: Order) => {
-    // Create a map to track which products are using which batches
-    // Key is productId-batchNumber, value is the weight to record
-    const batchProductMap = new Map<string, {
-      batchNumber: string;
-      productId: string;
-      quantity: number;
-      weight?: number;
-    }>();
+
+  // New function to create a consolidated batch summary from an order
+  const createConsolidatedBatchSummary = (order: Order): ConsolidatedBatchSummary[] => {
+    console.log("Creating consolidated batch summary for order:", order.id);
     
-    // Clear the set of processed items for this order
-    setProcessedBatchOrderItems(new Set());
+    // Initialize a map to store the batch summaries
+    // Key: batchNumber, Value: Map of productId to product summary
+    const batchProductMap = new Map<
+      string, 
+      Map<string, { productName: string; totalQuantity: number; totalWeight: number }>
+    >();
     
-    // Check if this is a multi-box order (has either boxDistributions or boxes with more than 1 box)
-    const isMultiBoxOrder = 
-      (order.boxDistributions && order.boxDistributions.length > 1) || 
-      (order.boxes && order.boxes.length > 1);
+    // Handle different data sources depending on order structure
     
-    console.log(`Processing order ${order.id}: isMultiBoxOrder=${isMultiBoxOrder}`);
-    
-    // Process order-level batch information first if it exists
-    if (order.batchNumber) {
-      processOrderItems(order.items, order.batchNumber);
-    }
-    
-    // Process order.batchNumbers array if it exists
-    if (order.batchNumbers && Array.isArray(order.batchNumbers) && order.batchNumbers.length > 0) {
-      const defaultBatch = order.batchNumbers[0];
-      processOrderItems(order.items, defaultBatch);
-    }
-    
-    // Process item-level batch numbers
-    order.items.forEach(item => {
-      if (item.batchNumber) {
-        addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.pickedWeight);
-      }
-    });
-    
-    // Create a tracking object for unique product-boxed items to avoid double counting
-    // Use a map where key is productId and value is the total weight already counted
-    const processedProductWeights = new Map<string, number>();
-    
-    // Process boxes exclusively - avoid double-counting with order.items
-    if (order.boxDistributions && order.boxDistributions.length > 0) {
-      processBoxDistributions(order.boxDistributions);
-    } else if (order.boxes && order.boxes.length > 0) {
-      processBoxDistributions(order.boxes);
-    }
-    
-    // Helper function to process order items
-    function processOrderItems(items: OrderItem[], defaultBatch: string) {
-      items.forEach(item => {
-        if (!item.batchNumber) {
-          // Use the default batch for items without a specific batch number
-          addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.pickedWeight);
-        }
-      });
-    }
-    
-    // Helper function to process box distributions with deduplication
-    function processBoxDistributions(boxes: Box[]) {
-      // Create a product occurrence map to track which products appear in how many boxes
-      const productOccurrences = new Map<string, number>();
+    // Case 1: Order has boxes or boxDistributions - use these as the primary source
+    if ((order.boxes && order.boxes.length > 0) || 
+        (order.boxDistributions && order.boxDistributions.length > 0)) {
       
-      // First scan to count in how many boxes each product appears
-      boxes.forEach(box => {
-        // Track unique products in this box
-        const uniqueProductsInBox = new Set<string>();
-        
-        box.items.forEach(item => {
-          uniqueProductsInBox.add(item.productId);
-        });
-        
-        // For each unique product in this box, increment its occurrence count
-        uniqueProductsInBox.forEach(productId => {
-          const currentCount = productOccurrences.get(productId) || 0;
-          productOccurrences.set(productId, currentCount + 1);
-        });
-      });
+      const boxes = order.boxDistributions || order.boxes || [];
+      console.log(`Processing ${boxes.length} boxes`);
       
-      // Debug output
-      if (isMultiBoxOrder) {
-        console.log('Multi-box order detected. Product occurrences:');
-        productOccurrences.forEach((count, productId) => {
-          const product = products.find(p => p.id === productId);
-          console.log(`${product?.name || productId}: appears in ${count} boxes`);
-        });
-      }
-      
-      // Keep track of which products we've processed to avoid double counting
-      const processedProducts = new Set<string>();
-      
-      // Process each box
       boxes.forEach((box, boxIndex) => {
-        // Determine which batch number to use for this box
-        const boxBatch = box.batchNumber || order.batchNumber || 
+        if (!box.items || box.items.length === 0) return;
+        
+        // Get the batch number for this box, or fallback to order batch
+        const boxBatchNumber = box.batchNumber || 
+          order.batchNumber || 
           (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : undefined);
         
-        if (boxBatch) {
-          // For each box, process each product only ONCE
-          const processedInThisBox = new Set<string>();
-          
-          box.items.forEach(item => {
-            const itemBatch = item.batchNumber || boxBatch;
-            const productId = item.productId;
-            
-            // Only process if we haven't seen this product in this box
-            if (!processedInThisBox.has(productId)) {
-              // Only process the product if we haven't processed it in any previous box
-              if (!processedProducts.has(productId)) {
-                // Get how many boxes this product appears in
-                const occurrenceCount = productOccurrences.get(productId) || 1;
-                
-                // Find the product to get accurate weight information
-                const product = products.find(p => p.id === productId);
-                
-                // Calculate the correct weight based on various factors
-                let weightToRecord: number | undefined = undefined;
-                
-                if (item.weight !== undefined && item.weight > 0) {
-                  // If the item has a specific weight set, use that as the base
-                  weightToRecord = item.weight;
-                } else if (product?.weight) {
-                  // Otherwise calculate from product weight and quantity
-                  weightToRecord = product.weight * item.quantity;
-                }
-                
-                if (weightToRecord !== undefined) {
-                  // IMPORTANT: For multi-box orders where the same product appears in multiple boxes,
-                  // we need to handle the weight correctly to avoid double-counting
-                  
-                  if (isMultiBoxOrder && occurrenceCount > 1) {
-                    // This is a multi-box order AND this product appears in multiple boxes,
-                    // so record the correct fraction of the weight
-                    console.log(`Product ${product?.name || productId} appears in ${occurrenceCount} boxes. Recording ${weightToRecord / occurrenceCount}g instead of ${weightToRecord}g`);
-                    weightToRecord = weightToRecord / occurrenceCount;
-                  } else {
-                    // Either this is a single-box order OR this product only appears in one box,
-                    // so use the full weight
-                    console.log(`Product ${product?.name || productId} appears in only one box or is in a single-box order. Using full weight: ${weightToRecord}g`);
-                  }
-                }
-                
-                // Record batch usage with correct weight
-                addToBatchProductMap(itemBatch, productId, item.quantity, weightToRecord);
-                
-                // Mark as processed globally to avoid processing in other boxes
-                processedProducts.add(productId);
-              }
-              
-              // Mark as processed in this box to avoid processing duplicates within same box
-              processedInThisBox.add(productId);
-            }
-          });
+        if (!boxBatchNumber) {
+          console.warn(`No batch number found for box ${boxIndex} in order ${order.id}`);
+          return;
         }
+        
+        // Process each item in the box
+        box.items.forEach(item => {
+          // Skip invalid items
+          if (!item.productId) return;
+          
+          // Get product info
+          const product = products.find(p => p.id === item.productId);
+          if (!product) return;
+          
+          // Use item batch number if available, otherwise box batch number
+          const batchNumber = item.batchNumber || boxBatchNumber;
+          
+          // Calculate weight - use explicit item weight if provided, otherwise calculate from product
+          let weight = 0;
+          if (item.weight !== undefined && item.weight > 0) {
+            weight = item.weight;
+          } else if (product.weight) {
+            weight = product.weight * item.quantity;
+          }
+          
+          // Store in our batch summary map
+          addToBatchSummary(batchNumber, product.id, product.name, item.quantity, weight);
+        });
+      });
+    } 
+    // Case 2: Fall back to order.items if no boxes are defined
+    else if (order.items && order.items.length > 0) {
+      console.log(`Processing ${order.items.length} items directly from order`);
+      
+      // Default batch number for the order
+      const defaultBatchNumber = 
+        order.batchNumber || 
+        (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : undefined);
+      
+      if (!defaultBatchNumber) {
+        console.warn(`No batch number found for order ${order.id}`);
+        return [];
+      }
+      
+      // Process each item
+      order.items.forEach(item => {
+        // Skip invalid items
+        if (!item.productId) return;
+        
+        // Get product info
+        const product = products.find(p => p.id === item.productId);
+        if (!product) return;
+        
+        // Use item batch number if available, otherwise order batch number
+        const batchNumber = item.batchNumber || defaultBatchNumber;
+        
+        // Calculate weight - use explicit item weight if provided, otherwise calculate from product
+        let weight = 0;
+        if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
+          weight = item.pickedWeight;
+        } else if (product.weight) {
+          weight = product.weight * item.quantity;
+        }
+        
+        // Store in our batch summary map
+        addToBatchSummary(batchNumber, product.id, product.name, item.quantity, weight);
       });
     }
     
-    // Now record each batch usage from our map
-    for (const {batchNumber, productId, quantity, weight} of batchProductMap.values()) {
-      // Generate a unique tracking ID for this specific batch usage
-      const uniqueId = `${batchNumber}-${order.id}-${productId}`;
+    // Helper function to add an item to the batch summary
+    function addToBatchSummary(
+      batchNumber: string,
+      productId: string,
+      productName: string,
+      quantity: number,
+      weight: number
+    ) {
+      if (!batchProductMap.has(batchNumber)) {
+        batchProductMap.set(batchNumber, new Map());
+      }
       
-      // Only record if we haven't processed this exact combo yet
-      if (!Array.from(processedBatchOrderItems).some(id => id === uniqueId)) {
-        recordBatchUsage(
-          batchNumber,
-          productId,
-          quantity,
-          order.id,
-          weight
-        );
+      const productMap = batchProductMap.get(batchNumber)!;
+      
+      if (productMap.has(productId)) {
+        const existing = productMap.get(productId)!;
+        existing.totalQuantity += quantity;
+        existing.totalWeight += weight;
+      } else {
+        productMap.set(productId, {
+          productName: productName,
+          totalQuantity: quantity,
+          totalWeight: weight
+        });
+      }
+    }
+    
+    // Convert the nested maps to the expected format
+    const result: ConsolidatedBatchSummary[] = [];
+    
+    batchProductMap.forEach((productMap, batchNumber) => {
+      const products = Array.from(productMap.entries()).map(([productId, summary]) => ({
+        productId,
+        productName: summary.productName,
+        totalQuantity: summary.totalQuantity,
+        totalWeight: summary.totalWeight
+      }));
+      
+      result.push({
+        batchNumber,
+        products
+      });
+    });
+    
+    return result;
+  };
+  
+  // New function to record batch usages from a consolidated summary
+  const recordBatchUsagesFromSummary = (batchSummaries: ConsolidatedBatchSummary[], orderId: string) => {
+    console.log(`Recording batch usages from summary for order ${orderId}`);
+    
+    // Reset processed items tracking
+    setProcessedBatchOrderItems(new Set());
+    
+    // Record each batch-product combination
+    batchSummaries.forEach(batch => {
+      batch.products.forEach(product => {
+        // Generate a unique tracking ID
+        const uniqueId = `${batch.batchNumber}-${orderId}-${product.productId}`;
         
-        // Add to processed set
+        // Skip if already processed (shouldn't happen, but being safe)
+        if (Array.from(processedBatchOrderItems).some(id => id === uniqueId)) {
+          console.log(`Skipping duplicate batch usage: ${uniqueId}`);
+          return;
+        }
+        
+        // Create a new batch usage entry
+        const newBatchUsage: BatchUsage = {
+          id: uuidv4(),
+          batchNumber: batch.batchNumber,
+          productId: product.productId,
+          productName: product.productName,
+          totalWeight: product.totalWeight,
+          usedWeight: product.totalWeight,
+          ordersCount: 1,
+          firstUsed: new Date().toISOString(),
+          lastUsed: new Date().toISOString(),
+          usedBy: [`order-${orderId}`]
+        };
+        
+        // Add to batch usages
+        setBatchUsages(prev => [...prev, newBatchUsage]);
+        
+        // Mark as processed
         setProcessedBatchOrderItems(prev => {
           const newSet = new Set(prev);
           newSet.add(uniqueId);
           return newSet;
         });
-      }
+        
+        console.log(`Recorded batch usage for ${product.productName} in batch ${batch.batchNumber}: ${product.totalWeight}g`);
+      });
+    });
+  };
+  
+  // We're keeping the old recordAllBatchUsagesForOrder function for compatibility, 
+  // but it won't be used anymore
+  const recordAllBatchUsagesForOrder = (order: Order) => {
+    console.log("WARNING: recordAllBatchUsagesForOrder is deprecated. Using consolidated batch summary instead.");
+    const batchSummary = createConsolidatedBatchSummary(order);
+    recordBatchUsagesFromSummary(batchSummary, order.id);
+  };
+
+  // Updated recordBatchUsage function to correctly calculate weights and avoid double counting
+  const recordBatchUsage = (
+    batchNumber: string, 
+    productId: string, 
+    quantity: number, 
+    orderId: string,
+    manualWeight?: number
+  ) => {
+    if (!batchNumber || !productId) return;
+    
+    const currentDate = new Date().toISOString();
+    const product = products.find(p => p.id === productId);
+    
+    if (!product) {
+      console.error(`Cannot record batch usage: Product not found for product ID ${productId}`);
+      return;
     }
     
-    // Helper function to add items to the batch-product map
-    function addToBatchProductMap(
-      batchNumber: string,
-      productId: string,
-      quantity: number,
-      weight?: number
-    ) {
-      if (!batchNumber) return;
+    // Calculate weight in grams - ensure we're getting the correct weight
+    let totalWeight = 0;
+    
+    if (manualWeight !== undefined && manualWeight > 0) {
+      // Use the manually entered weight for products that require weight input
+      totalWeight = manualWeight;
+    } else if (product.weight) {
+      // Use calculated weight based on quantity and product's weight
+      totalWeight = product.weight * quantity;
+    } else {
+      console.warn(`No weight available for product ${product.name}. Using quantity as fallback for batch tracking.`);
+      totalWeight = quantity; // Fallback to using quantity as a measure
+    }
+    
+    // Generate a unique key for batch-product-order combination
+    const uniqueKey = `${batchNumber}-${orderId}-${productId}`;
+    
+    // Check if we've already processed this exact combination
+    const alreadyProcessed = Array.from(processedBatchOrderItems).some(id => id === uniqueKey);
+    if (alreadyProcessed) {
+      console.log(`Skipping duplicate batch usage: ${uniqueKey}`);
+      return; // Skip if already processed
+    }
+    
+    // Check if this batch exists
+    const existingBatchIndex = batchUsages.findIndex(bu => 
+      bu.batchNumber === batchNumber && bu.productId === productId);
+    
+    if (existingBatchIndex !== -1) {
+      // Get the existing batch usage
+      const existingBatchUsage = batchUsages[existingBatchIndex];
       
-      const key = `${batchNumber}-${productId}`;
+      // Check if this order has already used this batch
+      const orderKey = `order-${orderId}`;
+      const orderAlreadyUsedBatch = existingBatchUsage.usedBy && 
+                                    existingBatchUsage.usedBy.includes(orderKey);
+                                    
+      // Create a new batch usage entry for this product-batch combination
+      const newBatchUsage: BatchUsage = {
+        id: uuidv4(),
+        batchNumber,
+        productId,
+        productName: product.name,
+        totalWeight: totalWeight,
+        usedWeight: totalWeight,
+        ordersCount: orderAlreadyUsedBatch ? existingBatchUsage.ordersCount : existingBatchUsage.ordersCount + 1,
+        firstUsed: existingBatchUsage.firstUsed,
+        lastUsed: currentDate,
+        usedBy: orderAlreadyUsedBatch ? 
+          existingBatchUsage.usedBy : 
+          [...(existingBatchUsage.usedBy || []), orderKey]
+      };
       
-      // Find the product to get its weight if not provided
-      if (weight === undefined) {
-        const product = products.find(p => p.id === productId);
-        if (product?.weight) {
-          weight = product.weight * quantity;
-        }
-      }
+      // Add this as a separate entry - will be consolidated in the UI
+      setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
       
-      if (batchProductMap.has(key)) {
-        // Update existing entry by adding quantity and weight
-        const existing = batchProductMap.get(key)!;
-        existing.quantity += quantity;
-        if (weight !== undefined && existing.weight !== undefined) {
-          existing.weight += weight;
-        }
-      } else {
-        // Create new entry
-        batchProductMap.set(key, {
-          batchNumber,
-          productId,
-          quantity,
-          weight
-        });
-      }
+      // Mark this combination as processed
+      setProcessedBatchOrderItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add(uniqueKey);
+        return newSet;
+      });
+      
+    } else {
+      // Create new batch usage record
+      const newBatchUsage: BatchUsage = {
+        id: uuidv4(),
+        batchNumber,
+        productId,
+        productName: product.name,
+        totalWeight: totalWeight,
+        usedWeight: totalWeight,
+        ordersCount: 1,
+        firstUsed: currentDate,
+        lastUsed: currentDate,
+        usedBy: [`order-${orderId}`]
+      };
+      
+      setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
+      
+      // Mark this combination as processed
+      setProcessedBatchOrderItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add(uniqueKey);
+        return newSet;
+      });
     }
   };
 
@@ -603,113 +705,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getBatchUsageByBatchNumber = (batchNumber: string) => {
     return batchUsages.find(bu => bu.batchNumber === batchNumber);
-  };
-
-  // Updated recordBatchUsage function to correctly calculate weights and avoid double counting
-  const recordBatchUsage = (
-    batchNumber: string, 
-    productId: string, 
-    quantity: number, 
-    orderId: string,
-    manualWeight?: number
-  ) => {
-    if (!batchNumber || !productId) return;
-    
-    const currentDate = new Date().toISOString();
-    const product = products.find(p => p.id === productId);
-    
-    if (!product) {
-      console.error(`Cannot record batch usage: Product not found for product ID ${productId}`);
-      return;
-    }
-    
-    // Calculate weight in grams - ensure we're getting the correct weight
-    let totalWeight = 0;
-    
-    if (manualWeight !== undefined && manualWeight > 0) {
-      // Use the manually entered weight for products that require weight input
-      totalWeight = manualWeight;
-    } else if (product.weight) {
-      // Use calculated weight based on quantity and product's weight
-      totalWeight = product.weight * quantity;
-    } else {
-      console.warn(`No weight available for product ${product.name}. Using quantity as fallback for batch tracking.`);
-      totalWeight = quantity; // Fallback to using quantity as a measure
-    }
-    
-    // Generate a unique key for batch-product-order combination
-    const uniqueKey = `${batchNumber}-${orderId}-${productId}`;
-    
-    // Check if we've already processed this exact combination
-    const alreadyProcessed = Array.from(processedBatchOrderItems).some(id => id === uniqueKey);
-    if (alreadyProcessed) {
-      console.log(`Skipping duplicate batch usage: ${uniqueKey}`);
-      return; // Skip if already processed
-    }
-    
-    // Check if this batch exists
-    const existingBatchIndex = batchUsages.findIndex(bu => 
-      bu.batchNumber === batchNumber && bu.productId === productId);
-    
-    if (existingBatchIndex !== -1) {
-      // Get the existing batch usage
-      const existingBatchUsage = batchUsages[existingBatchIndex];
-      
-      // Check if this order has already used this batch
-      const orderKey = `order-${orderId}`;
-      const orderAlreadyUsedBatch = existingBatchUsage.usedBy && 
-                                    existingBatchUsage.usedBy.includes(orderKey);
-                                    
-      // Create a new batch usage entry for this product-batch combination
-      const newBatchUsage: BatchUsage = {
-        id: uuidv4(),
-        batchNumber,
-        productId,
-        productName: product.name,
-        totalWeight: totalWeight,
-        usedWeight: totalWeight,
-        ordersCount: orderAlreadyUsedBatch ? existingBatchUsage.ordersCount : existingBatchUsage.ordersCount + 1,
-        firstUsed: existingBatchUsage.firstUsed,
-        lastUsed: currentDate,
-        usedBy: orderAlreadyUsedBatch ? 
-          existingBatchUsage.usedBy : 
-          [...(existingBatchUsage.usedBy || []), orderKey]
-      };
-      
-      // Add this as a separate entry - will be consolidated in the UI
-      setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
-      
-      // Mark this combination as processed
-      setProcessedBatchOrderItems(prev => {
-        const newSet = new Set(prev);
-        newSet.add(uniqueKey);
-        return newSet;
-      });
-      
-    } else {
-      // Create new batch usage record
-      const newBatchUsage: BatchUsage = {
-        id: uuidv4(),
-        batchNumber,
-        productId,
-        productName: product.name,
-        totalWeight: totalWeight,
-        usedWeight: totalWeight,
-        ordersCount: 1,
-        firstUsed: currentDate,
-        lastUsed: currentDate,
-        usedBy: [`order-${orderId}`]
-      };
-      
-      setBatchUsages(prevBatchUsages => [...prevBatchUsages, newBatchUsage]);
-      
-      // Mark this combination as processed
-      setProcessedBatchOrderItems(prev => {
-        const newSet = new Set(prev);
-        newSet.add(uniqueKey);
-        return newSet;
-      });
-    }
   };
 
   const value = {

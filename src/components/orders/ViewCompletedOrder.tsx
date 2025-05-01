@@ -2,23 +2,26 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Box, Barcode } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell
-} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+interface BatchSummaryInfo {
+  batchNumber: string;
+  totalWeight: number;
+  products: {
+    name: string;
+    quantity: number;
+    weight: number;
+  }[];
+}
 
 const ViewCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { completedOrders } = useData();
+  const { completedOrders, products } = useData();
 
   const order = completedOrders.find(order => order.id === id);
 
@@ -33,158 +36,88 @@ const ViewCompletedOrder: React.FC = () => {
     );
   }
 
-  // Helper function to generate change description
-  const getChangeDescription = (order) => {
-    if (!order.changes || order.changes.length === 0) return null;
-    
-    // Get the list of changed products
-    const changedProducts = order.changes.map(change => {
-      if (change.originalQuantity === 0) {
-        return `Added ${change.newQuantity} ${change.productName}`;
-      } else if (change.newQuantity === 0) {
-        return `Removed ${change.productName}`;
-      } else {
-        return `Changed ${change.productName} from ${change.originalQuantity} to ${change.newQuantity}`;
-      }
-    });
-    
-    return changedProducts.join("; ");
-  };
-
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
-  // Get all batch numbers used in this order
-  const getAllBatchNumbers = () => {
-    const batchNumbers = new Set<string>();
+  // Create batch summary
+  const batchSummary: BatchSummaryInfo[] = calculateBatchSummary();
+  
+  // Function to calculate batch summary from order data
+  function calculateBatchSummary(): BatchSummaryInfo[] {
+    const summary: Record<string, BatchSummaryInfo> = {};
     
-    // Check if order has a single batch number
-    if (order.batchNumber) {
-      batchNumbers.add(order.batchNumber);
-    }
-    
-    // Check if order has an array of batch numbers
-    if (order.batchNumbers && Array.isArray(order.batchNumbers)) {
-      order.batchNumbers.forEach(batch => {
-        if (batch) batchNumbers.add(batch);
-      });
-    }
-    
-    // Check individual items for batch numbers
-    order.items.forEach(item => {
-      if (item.batchNumber) {
-        batchNumbers.add(item.batchNumber);
+    // Function to add product to a batch
+    const addToBatch = (batchNumber: string, productId: string, quantity: number, weight: number) => {
+      if (!batchNumber) return;
+      
+      const product = products.find(p => p.id === productId);
+      if (!product) return;
+      
+      // Calculate weight if not provided
+      const productWeight = weight > 0 ? weight : (product.weight ? product.weight * quantity : 0);
+      
+      if (!summary[batchNumber]) {
+        summary[batchNumber] = {
+          batchNumber,
+          totalWeight: 0,
+          products: []
+        };
       }
-    });
-    
-    // Check the pickingProgress batchNumbers mapping for all items
-    if (order.pickingProgress?.batchNumbers) {
-      Object.values(order.pickingProgress.batchNumbers).forEach(batch => {
-        if (batch) batchNumbers.add(batch);
-      });
-    }
-    
-    return Array.from(batchNumbers);
-  };
-  
-  // Get batch numbers for each item
-  const getItemBatchNumber = (item) => {
-    // First check if the item has its own batch number
-    if (item.batchNumber) {
-      return item.batchNumber;
-    }
-    
-    // Then check the pickingProgress batchNumbers mapping
-    if (order.pickingProgress?.batchNumbers && order.pickingProgress.batchNumbers[item.id]) {
-      return order.pickingProgress.batchNumbers[item.id];
-    }
-    
-    // Fall back to the order's batch number
-    return order.batchNumber || "N/A";
-  };
-
-  // Get blown pouches for each item
-  const getItemBlownPouches = (item) => {
-    // First check if the item has its own blown pouches
-    if (item.blownPouches !== undefined) {
-      return item.blownPouches;
-    }
-    
-    // Then check the pickingProgress blownPouches mapping
-    if (order.pickingProgress?.blownPouches && order.pickingProgress.blownPouches[item.id]) {
-      return order.pickingProgress.blownPouches[item.id];
-    }
-    
-    // Default to 0
-    return 0;
-  };
-  
-  const changeDesc = getChangeDescription(order);
-  
-  // Helper to format weight in kg with proper precision
-  const formatWeight = (weightInGrams) => {
-    if (!weightInGrams && weightInGrams !== 0) return "N/A";
-    return `${(weightInGrams / 1000).toFixed(3)} kg`;
-  };
-  
-  // Get the picker name from either picker field or pickedBy field
-  const getPickerName = () => {
-    if (order.picker) {
-      return order.picker;
-    } else if (order.pickedBy) {
-      // This is a fallback in case picker name isn't saved but ID is
-      return order.pickedBy;
-    }
-    return "N/A";
-  };
-
-  // Calculate total weight of all items with picked weights
-  const calculateTotalWeight = () => {
-    if (!order.items) return 0;
-    
-    const totalWeight = order.items.reduce((acc, item) => {
-      if (item.pickedWeight) {
-        return acc + Number(item.pickedWeight);
+      
+      // Check if product already exists in this batch
+      const existingProduct = summary[batchNumber].products.find(p => p.name === product.name);
+      
+      if (existingProduct) {
+        existingProduct.quantity += quantity;
+        existingProduct.weight += productWeight;
+      } else {
+        summary[batchNumber].products.push({
+          name: product.name,
+          quantity,
+          weight: productWeight
+        });
       }
-      return acc;
-    }, 0);
-    
-    return totalWeight;
-  };
-
-  const totalWeight = calculateTotalWeight();
-  
-  // Group items by box for display
-  const itemsByBox = order.items.reduce((acc, item) => {
-    const boxNumber = item.boxNumber || 0;
-    if (!acc[boxNumber]) {
-      acc[boxNumber] = [];
-    }
-    acc[boxNumber].push(item);
-    return acc;
-  }, {});
-
-  // Calculate items count and weight per box
-  const boxSummaries = Object.entries(itemsByBox).map(([boxNumber, items]) => {
-    const boxItems = items as typeof order.items;
-    const itemCount = boxItems.reduce((sum, item) => sum + item.quantity, 0);
-    const boxWeight = boxItems.reduce((sum, item) => {
-      if (item.pickedWeight) {
-        return sum + Number(item.pickedWeight);
-      }
-      return sum;
-    }, 0);
-    
-    return {
-      boxNumber: Number(boxNumber),
-      itemCount,
-      boxWeight
+      
+      summary[batchNumber].totalWeight += productWeight;
     };
-  });
-  
-  // Get all unique batch numbers used in this order
-  const orderBatchNumbers = getAllBatchNumbers();
-  
+    
+    // Process items in boxes first if available
+    if ((order.boxes && order.boxes.length > 0) || 
+        (order.boxDistributions && order.boxDistributions.length > 0)) {
+      
+      const boxes = order.boxDistributions || order.boxes || [];
+      
+      boxes.forEach(box => {
+        if (!box.items || box.items.length === 0) return;
+        
+        const boxBatch = box.batchNumber || 
+          order.batchNumber || 
+          (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : "Unknown");
+        
+        box.items.forEach(item => {
+          const batchToUse = item.batchNumber || boxBatch;
+          const weight = item.weight || 0;
+          
+          addToBatch(batchToUse, item.productId, item.quantity, weight);
+        });
+      });
+    } 
+    // If no boxes, use order items directly
+    else if (order.items && order.items.length > 0) {
+      const defaultBatch = order.batchNumber || 
+        (order.batchNumbers && order.batchNumbers.length > 0 ? order.batchNumbers[0] : "Unknown");
+      
+      order.items.forEach(item => {
+        const batchToUse = item.batchNumber || defaultBatch;
+        const weight = item.pickedWeight || 0;
+        
+        addToBatch(batchToUse, item.productId, item.quantity, weight);
+      });
+    }
+    
+    return Object.values(summary);
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -192,19 +125,9 @@ const ViewCompletedOrder: React.FC = () => {
           <Button variant="ghost" onClick={() => navigate("/completed-orders")} className="mr-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
           </Button>
-          <h2 className="text-2xl font-bold">Completed Order Details</h2>
+          <h2 className="text-2xl font-bold">View Completed Order</h2>
         </div>
       </div>
-
-      {changeDesc && (
-        <Card className="mb-6 border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <p className="text-red-600 font-medium">
-              This order has been modified. Changes: {changeDesc}
-            </p>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <Card>
@@ -219,18 +142,12 @@ const ViewCompletedOrder: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>
-                <dd className="col-span-2">{format(parseISO(order.orderDate), "MMMM d, yyyy")}</dd>
-              </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Completion Date:</dt>
-                <dd className="col-span-2">
-                  {order.updated ? format(parseISO(order.updated), "MMMM d, yyyy") : "N/A"}
-                </dd>
+                <dd className="col-span-2">{format(parseISO(order.orderDate || order.created), "MMMM d, yyyy")}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Status:</dt>
                 <dd className="col-span-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     {order.status}
                   </span>
                 </dd>
@@ -239,20 +156,24 @@ const ViewCompletedOrder: React.FC = () => {
                 <dt className="font-medium">Delivery Method:</dt>
                 <dd className="col-span-2">{order.deliveryMethod}</dd>
               </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Picker:</dt>
-                <dd className="col-span-2">{getPickerName()}</dd>
-              </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Blown Pouches:</dt>
-                <dd className="col-span-2">{order.totalBlownPouches || 0}</dd>
-              </div>
-              <div className="grid grid-cols-3">
-                <dt className="font-medium">Batch Numbers:</dt>
-                <dd className="col-span-2">
-                  {orderBatchNumbers.length > 0 ? orderBatchNumbers.join(", ") : "N/A"}
-                </dd>
-              </div>
+              {order.picker && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Picked By:</dt>
+                  <dd className="col-span-2">{order.picker}</dd>
+                </div>
+              )}
+              {order.batchNumber && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Batch Number:</dt>
+                  <dd className="col-span-2">{order.batchNumber}</dd>
+                </div>
+              )}
+              {order.batchNumbers && order.batchNumbers.length > 0 && (
+                <div className="grid grid-cols-3">
+                  <dt className="font-medium">Batch Numbers:</dt>
+                  <dd className="col-span-2">{order.batchNumbers.join(", ")}</dd>
+                </div>
+              )}
               {order.customerOrderNumber && (
                 <div className="grid grid-cols-3">
                   <dt className="font-medium">Customer Order #:</dt>
@@ -295,146 +216,161 @@ const ViewCompletedOrder: React.FC = () => {
                 <dt className="font-medium">Address:</dt>
                 <dd className="col-span-2">{order.customer.address}</dd>
               </div>
-              {order.customer.needsDetailedBoxLabels !== undefined && (
-                <div className="grid grid-cols-3">
-                  <dt className="font-medium">Detailed Box Labels:</dt>
-                  <dd className="col-span-2">
-                    {order.customer.needsDetailedBoxLabels ? "Required" : "Not Required"}
-                  </dd>
-                </div>
-              )}
             </dl>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Order Items</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Box</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Weight</TableHead>
-                  <TableHead>Batch Number</TableHead>
-                  <TableHead className="text-right">Blown Pouches</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {order.items.map((item) => {
-                  // Check if this specific item has changes
-                  const itemChanges = order.changes?.find(change => 
-                    change.productId === item.productId
-                  );
-                  
-                  return (
-                    <TableRow key={item.id} className={itemChanges ? "bg-red-50" : ""}>
-                      <TableCell>
-                        {item.product.name}
-                        {itemChanges && (
-                          <div className="text-red-600 text-xs mt-1">
-                            {itemChanges.originalQuantity === 0 
-                              ? "New item" 
-                              : itemChanges.newQuantity === 0
-                                ? "Item removed"
-                                : `Changed from ${itemChanges.originalQuantity}`
-                            }
-                          </div>
+      <Tabs defaultValue="order-items" className="mb-6">
+        <TabsList className="mb-4">
+          <TabsTrigger value="order-items">Order Items</TabsTrigger>
+          <TabsTrigger value="batch-summary">Batch Summary</TabsTrigger>
+          {(order.boxes || order.boxDistributions) && (
+            <TabsTrigger value="boxes">Boxes</TabsTrigger>
+          )}
+        </TabsList>
+        
+        <TabsContent value="order-items">
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left font-medium py-2">Product</th>
+                      <th className="text-left font-medium py-2">SKU</th>
+                      <th className="text-right font-medium py-2">Quantity</th>
+                      {order.items.some(item => item.boxNumber) && (
+                        <th className="text-right font-medium py-2">Box</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {order.items.map((item) => (
+                      <tr key={item.id} className="border-b">
+                        <td className="py-3">{item.product.name}</td>
+                        <td className="py-3">{item.product.sku}</td>
+                        <td className="py-3 text-right">{item.quantity}</td>
+                        {order.items.some(item => item.boxNumber) && (
+                          <td className="py-3 text-right">{item.boxNumber || "-"}</td>
                         )}
-                      </TableCell>
-                      <TableCell>{item.product.sku}</TableCell>
-                      <TableCell className="text-right">{item.boxNumber || "N/A"}</TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right">
-                        {item.product.requiresWeightInput 
-                          ? (item.pickedWeight ? formatWeight(item.pickedWeight) : "N/A")
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>{getItemBatchNumber(item)}</TableCell>
-                      <TableCell className="text-right">{getItemBlownPouches(item)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {boxSummaries.length > 1 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Box Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Box Number</TableHead>
-                    <TableHead className="text-right">Total Items</TableHead>
-                    <TableHead className="text-right">Box Weight</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {boxSummaries.map((box) => (
-                    <TableRow key={box.boxNumber}>
-                      <TableCell>{box.boxNumber === 0 ? "Unassigned" : `Box ${box.boxNumber}`}</TableCell>
-                      <TableCell className="text-right">{box.itemCount}</TableCell>
-                      <TableCell className="text-right">{formatWeight(box.boxWeight)}</TableCell>
-                    </TableRow>
+                      </tr>
+                    ))}
+                    <tr className="font-medium">
+                      <td colSpan={2} className="py-3">Total Items</td>
+                      <td colSpan={order.items.some(item => item.boxNumber) ? 2 : 1} className="py-3 text-right">{totalItems}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="batch-summary">
+          <Card>
+            <CardHeader>
+              <CardTitle>Batch Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {batchSummary.length === 0 ? (
+                <p className="text-gray-500 text-center py-6">No batch information available</p>
+              ) : (
+                <div className="space-y-6">
+                  {batchSummary.map((batch, index) => (
+                    <div key={index} className="border rounded-md p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-semibold flex items-center">
+                          <Barcode className="h-4 w-4 mr-2" />
+                          Batch: {batch.batchNumber}
+                        </h4>
+                        <span className="text-sm font-medium">
+                          Total: {(batch.totalWeight / 1000).toFixed(2)} kg
+                        </span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left font-medium py-2">Product</th>
+                              <th className="text-right font-medium py-2">Quantity</th>
+                              <th className="text-right font-medium py-2">Weight</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {batch.products.map((product, productIndex) => (
+                              <tr key={productIndex} className="border-b">
+                                <td className="py-2">{product.name}</td>
+                                <td className="py-2 text-right">{product.quantity}</td>
+                                <td className="py-2 text-right">
+                                  {(product.weight / 1000).toFixed(2)} kg
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   ))}
-                  <TableRow className="font-medium">
-                    <TableCell>Total</TableCell>
-                    <TableCell className="text-right">{totalItems}</TableCell>
-                    <TableCell className="text-right">{formatWeight(totalWeight)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {order.changes && order.changes.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Order Changes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Original Quantity</TableHead>
-                    <TableHead className="text-right">Updated Quantity</TableHead>
-                    <TableHead>Date Changed</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {order.changes.map((change, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{change.productName}</TableCell>
-                      <TableCell className="text-right">{change.originalQuantity}</TableCell>
-                      <TableCell className="text-right">{change.newQuantity}</TableCell>
-                      <TableCell>
-                        {change.date ? format(parseISO(change.date), "dd/MM/yyyy HH:mm") : "N/A"}
-                      </TableCell>
-                    </TableRow>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {(order.boxes || order.boxDistributions) && (
+          <TabsContent value="boxes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Boxes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {(order.boxDistributions || order.boxes || []).map((box, index) => (
+                    <div key={index} className="border rounded-md p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-semibold flex items-center">
+                          <Box className="h-4 w-4 mr-2" />
+                          Box #{box.boxNumber}
+                        </h4>
+                        {box.batchNumber && (
+                          <span className="text-sm font-medium">
+                            Batch: {box.batchNumber}
+                          </span>
+                        )}
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left font-medium py-2">Product</th>
+                              <th className="text-right font-medium py-2">Quantity</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {box.items.map((item, itemIndex) => {
+                              const product = products.find(p => p.id === item.productId);
+                              return (
+                                <tr key={itemIndex} className="border-b">
+                                  <td className="py-2">{product?.name || "Unknown Product"}</td>
+                                  <td className="py-2 text-right">{item.quantity}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 };
