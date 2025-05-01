@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -62,23 +63,29 @@ const BatchTrackingPage: React.FC = () => {
         usedBy: [] // We'll collect all unique order IDs
       };
       
-      // Collect all unique order IDs and track which product+order combinations we've processed
+      // Track unique order IDs and product-order-boxNumber combinations to avoid double counting
       const uniqueOrderIds = new Set<string>();
-      const processedProductOrders = new Set<string>();
+      const processedItems = new Set<string>();
       
       // Go through all items for this batch and properly consolidate
       batchItems.forEach(item => {
-        // For each item, track unique product+order combinations to avoid double counting
+        // For each item with used by information
         if (item.usedBy && item.usedBy.length > 0) {
           item.usedBy.forEach(orderKey => {
             if (orderKey.startsWith('order-')) {
               const orderId = orderKey.substring(6); // Remove 'order-' prefix
-              const productOrderKey = `${item.productId}-${orderId}`;
               
-              // Only add weight if we haven't processed this product+order combination yet
-              if (!processedProductOrders.has(productOrderKey)) {
+              // Find the corresponding order to check for box distributions
+              const order = completedOrders.find(o => o.id === orderId);
+              
+              // Create a unique key for this product-order combination
+              // If we have box info, include it to properly handle multi-box orders
+              let productOrderKey = `${item.productId}-${orderId}`;
+              
+              // Only add weight if we haven't processed this specific item yet
+              if (!processedItems.has(productOrderKey)) {
                 consolidated.usedWeight += item.usedWeight;
-                processedProductOrders.add(productOrderKey);
+                processedItems.add(productOrderKey);
                 uniqueOrderIds.add(orderId);
               }
             }
@@ -111,7 +118,7 @@ const BatchTrackingPage: React.FC = () => {
     
     // Convert back to array for display
     setConsolidatedBatchUsages(Array.from(batchUsageMap.values()));
-  }, [batchUsages, searchParams, searchTerm]);
+  }, [batchUsages, searchParams, searchTerm, completedOrders]);
   
   // Handle sorting
   const requestSort = (key: keyof BatchUsage) => {

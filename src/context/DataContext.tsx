@@ -182,20 +182,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Improved function to collect and process all batch usages for an order
   const recordAllBatchUsagesForOrder = (order: Order) => {
     // Create a map to track which products are using which batches
-    // Key is batchNumber-productId, value is {productId, quantity, weight}
+    // Key is productId-batchNumber, value is the weight to record
     const batchProductMap = new Map<string, {
+      batchNumber: string;
       productId: string;
       quantity: number;
       weight?: number;
     }>();
     
-    // Clear any previously processed items for this order
-    const processedItems = new Set<string>();
-    
-    // Reset processedBatchOrderItems for this order
+    // Clear the set of processed items for this order
     setProcessedBatchOrderItems(new Set());
     
-    // Process order-level batch information first
+    // Process order-level batch information first if it exists
     if (order.batchNumber) {
       processOrderItems(order.items, order.batchNumber);
     }
@@ -209,13 +207,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Process item-level batch numbers
     order.items.forEach(item => {
       if (item.batchNumber) {
-        const itemKey = `item-${item.id}-${item.batchNumber}`;
-        if (!processedItems.has(itemKey)) {
-          addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.pickedWeight);
-          processedItems.add(itemKey);
-        }
+        addToBatchProductMap(item.batchNumber, item.productId, item.quantity, item.pickedWeight);
       }
     });
+    
+    // Special handling for box distributions to prevent double counting
+    const processedBoxItems = new Set<string>();
     
     // Process boxes exclusively - don't double count with order.items
     if (order.boxDistributions && order.boxDistributions.length > 0) {
@@ -228,14 +225,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     function processOrderItems(items: OrderItem[], defaultBatch: string) {
       items.forEach(item => {
         if (!item.batchNumber) {
-          const itemKey = `item-${item.id}-${defaultBatch}`;
-          if (!processedItems.has(itemKey)) {
-            // Find the product to get its weight
-            const product = products.find(p => p.id === item.productId);
-            const itemWeight = item.pickedWeight || (product?.weight ? product.weight * item.quantity : undefined);
-            addToBatchProductMap(defaultBatch, item.productId, item.quantity, itemWeight);
-            processedItems.add(itemKey);
-          }
+          // Use the default batch for items without a specific batch number
+          addToBatchProductMap(defaultBatch, item.productId, item.quantity, item.pickedWeight);
         }
       });
     }
@@ -250,11 +241,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (boxBatch) {
           box.items.forEach(item => {
             const itemBatch = item.batchNumber || boxBatch;
-            const boxItemKey = `box-${box.boxNumber}-item-${item.productId}-${itemBatch}`;
+            const boxItemKey = `box-${box.boxNumber}-item-${item.productId}`;
             
-            if (!processedItems.has(boxItemKey)) {
+            // Only process this box item if we haven't seen it before
+            if (!processedBoxItems.has(boxItemKey)) {
               addToBatchProductMap(itemBatch, item.productId, item.quantity, item.weight);
-              processedItems.add(boxItemKey);
+              processedBoxItems.add(boxItemKey);
             }
           });
         }
@@ -262,9 +254,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Now record each batch usage from our map
-    for (const [batchProductKey, {productId, quantity, weight}] of batchProductMap.entries()) {
-      const [batchNumber] = batchProductKey.split('-');
-      
+    for (const {batchNumber, productId, quantity, weight} of batchProductMap.values()) {
       // Generate a unique tracking ID for this specific batch usage
       const uniqueId = `${batchNumber}-${order.id}-${productId}`;
       
@@ -277,6 +267,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           order.id,
           weight
         );
+        
+        // Add to processed set
+        setProcessedBatchOrderItems(prev => {
+          const newSet = new Set(prev);
+          newSet.add(uniqueId);
+          return newSet;
+        });
       }
     }
     
@@ -300,15 +297,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       if (batchProductMap.has(key)) {
-        // Update existing entry
+        // Update existing entry by adding quantity and weight
         const existing = batchProductMap.get(key)!;
         existing.quantity += quantity;
-        if (weight !== undefined) {
-          existing.weight = (existing.weight || 0) + weight;
+        if (weight !== undefined && existing.weight !== undefined) {
+          existing.weight += weight;
         }
       } else {
         // Create new entry
         batchProductMap.set(key, {
+          batchNumber,
           productId,
           quantity,
           weight
@@ -555,7 +553,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Generate a unique key for batch-product-order combination
-    const uniqueKey = `${batchNumber}-${productId}-${orderId}`;
+    const uniqueKey = `${batchNumber}-${orderId}-${productId}`;
     
     // Check if we've already processed this exact combination
     const alreadyProcessed = Array.from(processedBatchOrderItems).some(id => id === uniqueKey);
@@ -565,7 +563,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Check if this batch exists
-    const existingBatchIndex = batchUsages.findIndex(bu => bu.batchNumber === batchNumber);
+    const existingBatchIndex = batchUsages.findIndex(bu => 
+      bu.batchNumber === batchNumber && bu.productId === productId);
     
     if (existingBatchIndex !== -1) {
       // Get the existing batch usage
