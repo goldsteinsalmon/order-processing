@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { exportOrdersToCsv, generateCsvFilename } from "@/utils/exportUtils";
 import { Order } from "@/types";
-import { ArrowLeft, FileDown, Calendar, Check } from "lucide-react";
+import { ArrowLeft, FileDown, Calendar, Check, Undo } from "lucide-react";
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -121,7 +121,7 @@ const ExportOrdersPage: React.FC = () => {
     });
   };
   
-  // Mark selected orders as invoiced (without requiring invoice number)
+  // Mark selected orders as invoiced
   const handleMarkInvoiced = () => {
     if (selectedOrders.size === 0) {
       toast({
@@ -147,6 +147,36 @@ const ExportOrdersPage: React.FC = () => {
     toast({
       title: "Orders marked as invoiced",
       description: `Marked ${selectedOrders.size} orders as invoiced.`,
+    });
+  };
+  
+  // Unmark selected orders as invoiced
+  const handleUnmarkInvoiced = () => {
+    if (selectedOrders.size === 0) {
+      toast({
+        title: "No orders selected",
+        description: "Please select at least one order to unmark as invoiced.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Update each selected order
+    selectedOrders.forEach(id => {
+      const order = completedOrders.find(o => o.id === id);
+      if (order && order.invoiced) {
+        updateOrder({
+          ...order,
+          invoiced: false,
+          invoiceDate: undefined,
+          invoiceNumber: undefined,
+        });
+      }
+    });
+    
+    toast({
+      title: "Orders unmarked as invoiced",
+      description: `Unmarked ${selectedOrders.size} orders as invoiced.`,
     });
   };
   
@@ -248,6 +278,17 @@ const ExportOrdersPage: React.FC = () => {
               <Check className="mr-2 h-4 w-4" /> 
               Mark Selected as Invoiced ({selectedOrders.size})
             </Button>
+            
+            <Button 
+              className="w-full" 
+              onClick={handleUnmarkInvoiced}
+              disabled={selectedOrders.size === 0}
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <Undo className="mr-2 h-4 w-4" /> 
+              Unmark Selected as Invoiced ({selectedOrders.size})
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -312,9 +353,9 @@ const ExportOrdersPage: React.FC = () => {
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               Invoiced
                             </span>
-                            {order.invoiceNumber && (
+                            {order.invoiceDate && (
                               <span className="text-xs text-muted-foreground mt-1">
-                                #{order.invoiceNumber}
+                                {format(parseISO(order.invoiceDate), "dd/MM/yyyy")}
                               </span>
                             )}
                           </div>
