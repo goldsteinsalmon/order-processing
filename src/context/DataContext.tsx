@@ -170,7 +170,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     // Clear the processed batch items set before recording for this order
-    // This ensures we don't have stale data from previous operations
     setProcessedBatchOrderItems(new Set());
     
     // Record all batch usages for this order
@@ -569,8 +568,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Get a copy to update
       const updatedBatchUsage = { ...existingBatchUsage };
       
-      // Update weight
-      updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
+      // Check if this exact product has already been recorded for this batch
+      const existingProductEntry = batchUsages.find(bu => 
+        bu.batchNumber === batchNumber && bu.productId === productId
+      );
+      
+      // Update weight without double-counting
+      if (existingProductEntry) {
+        // This product is already tracked for this batch, so we only update if it's from a different order
+        const orderKey = `order-${orderId}`;
+        const orderAlreadyUsedBatch = existingProductEntry.usedBy && 
+                                       existingProductEntry.usedBy.includes(orderKey);
+                                       
+        if (!orderAlreadyUsedBatch) {
+          // Only add weight if this order hasn't used this batch+product before
+          updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
+        }
+      } else {
+        // First time this product is used with this batch
+        updatedBatchUsage.usedWeight = existingBatchUsage.usedWeight + totalWeight;
+      }
       
       // Create a unique key for this order
       const orderKey = `order-${orderId}`;

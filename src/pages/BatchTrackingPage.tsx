@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -160,9 +159,9 @@ const BatchTrackingPage: React.FC = () => {
           ...(usage.usedBy || [])
         ]);
         
-        // Don't add to the weight if this is the same batch + productId combination
-        // to prevent double-counting
+        // Update the consolidated batch entry without double-counting weights
         if (usage.productId !== existing.productId) {
+          // Different products - add the weights
           batchUsageMap.set(key, {
             ...existing,
             usedWeight: existing.usedWeight + usage.usedWeight,
@@ -172,7 +171,8 @@ const BatchTrackingPage: React.FC = () => {
             usedBy: Array.from(usedBySet)
           });
         } else {
-          // Same product + batch combination, use the maximum weight to avoid double counting
+          // Same product + batch combination, keep the existing weight to avoid double counting
+          // Only update the dates and order count
           batchUsageMap.set(key, {
             ...existing,
             firstUsed: firstUsedDate,
