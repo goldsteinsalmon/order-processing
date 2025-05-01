@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -38,6 +39,82 @@ const ViewCompletedOrder: React.FC = () => {
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
+  // Check if any items have a weight defined
+  const hasWeightedProducts = order.items.some(item => {
+    const product = products.find(p => p.id === item.productId);
+    return product?.requiresWeightInput || item.manualWeight || 
+           (order.boxDistributions && order.boxDistributions.some(box => 
+             box.items.some(boxItem => 
+               boxItem.productId === item.productId && boxItem.weight > 0
+             )
+           ));
+  });
+  
+  // Calculate total weight for items in grams
+  const totalWeight = order.items.reduce((acc, item) => {
+    // First check boxDistributions to get accurate manual weights
+    if (order.boxDistributions) {
+      // Find all box items for this product and sum their weights
+      const boxItemsWeight = order.boxDistributions.reduce((boxAcc, box) => {
+        const matchingBoxItems = box.items.filter(boxItem => boxItem.productId === item.productId);
+        return boxAcc + matchingBoxItems.reduce((itemAcc, boxItem) => itemAcc + (boxItem.weight || 0), 0);
+      }, 0);
+      
+      if (boxItemsWeight > 0) {
+        console.log(`[UI] Using box items total weight for ${item.product.name}: ${boxItemsWeight}g`);
+        return acc + boxItemsWeight;
+      }
+    }
+    
+    // If no box distribution weight, try other weight sources
+    if (item.manualWeight) {
+      console.log(`[UI] Using manual weight for ${item.product.name}: ${item.manualWeight}g`);
+      return acc + item.manualWeight;
+    } else if (item.pickedWeight) {
+      console.log(`[UI] Using picked weight for ${item.product.name}: ${item.pickedWeight}g`);
+      return acc + item.pickedWeight;
+    } else if (item.product.weight) {
+      const calculatedWeight = item.product.weight * item.quantity;
+      console.log(`[UI] Using calculated weight for ${item.product.name}: ${calculatedWeight}g`);
+      return acc + calculatedWeight;
+    }
+    
+    return acc;
+  }, 0);
+  
+  // Function to get the item weight in grams
+  const getItemWeight = (item) => {
+    // First check boxDistributions to get accurate manual weights
+    if (order.boxDistributions) {
+      // Find all box items for this product and sum their weights
+      const boxItemsWeight = order.boxDistributions.reduce((boxAcc, box) => {
+        const matchingBoxItems = box.items.filter(boxItem => boxItem.productId === item.productId);
+        return boxAcc + matchingBoxItems.reduce((itemAcc, boxItem) => itemAcc + (boxItem.weight || 0), 0);
+      }, 0);
+      
+      if (boxItemsWeight > 0) {
+        return boxItemsWeight;
+      }
+    }
+    
+    // If no box distribution weight, try other weight sources
+    if (item.manualWeight) {
+      return item.manualWeight;
+    } else if (item.pickedWeight) {
+      return item.pickedWeight;
+    } else if (item.product.weight) {
+      return item.product.weight * item.quantity;
+    }
+    
+    return 0;
+  };
+  
+  // Function to determine if an item has a required weight input
+  const isWeightedProduct = (item) => {
+    const product = products.find(p => p.id === item.productId);
+    return product?.requiresWeightInput;
+  };
+  
   // Create batch summary
   const batchSummary: BatchSummaryInfo[] = calculateBatchSummary();
   
@@ -54,6 +131,8 @@ const ViewCompletedOrder: React.FC = () => {
       
       // Use the provided explicit weight directly - this is critical for manual weights
       const productWeight = weight > 0 ? weight : (product.weight ? product.weight * quantity : 0);
+      
+      console.log(`[UI] Adding to batch ${batchNumber}: ${product.name}, qty: ${quantity}, weight: ${productWeight}g`);
       
       if (!summary[batchNumber]) {
         summary[batchNumber] = {
@@ -100,11 +179,9 @@ const ViewCompletedOrder: React.FC = () => {
           const batchToUse = item.batchNumber || boxBatch;
           
           // CRITICAL: For box items, the weight property directly represents the manually entered weight
-          // Use it without additional conditions
-          const weight = item.weight;
-          console.log(`[UI] Box ${box.boxNumber}, item ${itemIndex}: Using weight ${weight}g`);
+          console.log(`[UI] Box ${box.boxNumber}, item ${itemIndex}: Using weight ${item.weight}g`);
           
-          addToBatch(batchToUse, item.productId, item.quantity, weight);
+          addToBatch(batchToUse, item.productId, item.quantity, item.weight);
         });
       });
     } 
@@ -118,19 +195,9 @@ const ViewCompletedOrder: React.FC = () => {
       order.items.forEach((item, index) => {
         const batchToUse = item.batchNumber || defaultBatch;
         
-        // Prioritize weights in this order: manualWeight > pickedWeight > product.weight * quantity
-        let weight = 0;
-        
-        if (item.manualWeight !== undefined && item.manualWeight > 0) {
-          weight = item.manualWeight;
-          console.log(`[UI] Item ${index}: Using manual weight ${weight}g`);
-        } else if (item.pickedWeight !== undefined && item.pickedWeight > 0) {
-          weight = item.pickedWeight;
-          console.log(`[UI] Item ${index}: Using picked weight ${weight}g`);
-        } else if (item.product.weight) {
-          weight = item.product.weight * item.quantity;
-          console.log(`[UI] Item ${index}: Using calculated weight ${weight}g`);
-        }
+        // Get the weight for this item
+        const weight = getItemWeight(item);
+        console.log(`[UI] Item ${index}: Using weight ${weight}g for ${item.product.name}`);
         
         addToBatch(batchToUse, item.productId, item.quantity, weight);
       });
@@ -264,6 +331,9 @@ const ViewCompletedOrder: React.FC = () => {
                       <th className="text-left font-medium py-2">Product</th>
                       <th className="text-left font-medium py-2">SKU</th>
                       <th className="text-right font-medium py-2">Quantity</th>
+                      {hasWeightedProducts && (
+                        <th className="text-right font-medium py-2">Weight</th>
+                      )}
                       {order.items.some(item => item.boxNumber) && (
                         <th className="text-right font-medium py-2">Box</th>
                       )}
@@ -272,17 +342,36 @@ const ViewCompletedOrder: React.FC = () => {
                   <tbody>
                     {order.items.map((item) => (
                       <tr key={item.id} className="border-b">
-                        <td className="py-3">{item.product.name}</td>
+                        <td className="py-3">
+                          {item.product.name}
+                          {isWeightedProduct(item) && (
+                            <span className="text-xs text-gray-500 ml-1">(Weighed)</span>
+                          )}
+                        </td>
                         <td className="py-3">{item.product.sku}</td>
                         <td className="py-3 text-right">{item.quantity}</td>
+                        {hasWeightedProducts && (
+                          <td className="py-3 text-right">
+                            {getItemWeight(item) > 0 
+                              ? `${(getItemWeight(item) / 1000).toFixed(2)} kg` 
+                              : "-"}
+                          </td>
+                        )}
                         {order.items.some(item => item.boxNumber) && (
                           <td className="py-3 text-right">{item.boxNumber || "-"}</td>
                         )}
                       </tr>
                     ))}
                     <tr className="font-medium">
-                      <td colSpan={2} className="py-3">Total Items</td>
-                      <td colSpan={order.items.some(item => item.boxNumber) ? 2 : 1} className="py-3 text-right">{totalItems}</td>
+                      <td className="py-3">Total</td>
+                      <td className="py-3"></td>
+                      <td className="py-3 text-right">{totalItems}</td>
+                      {hasWeightedProducts && (
+                        <td className="py-3 text-right">
+                          {totalWeight > 0 ? `${(totalWeight / 1000).toFixed(2)} kg` : "-"}
+                        </td>
+                      )}
+                      {order.items.some(item => item.boxNumber) && <td></td>}
                     </tr>
                   </tbody>
                 </table>
@@ -369,6 +458,7 @@ const ViewCompletedOrder: React.FC = () => {
                             <tr className="border-b">
                               <th className="text-left font-medium py-2">Product</th>
                               <th className="text-right font-medium py-2">Quantity</th>
+                              <th className="text-right font-medium py-2">Weight</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -378,6 +468,9 @@ const ViewCompletedOrder: React.FC = () => {
                                 <tr key={itemIndex} className="border-b">
                                   <td className="py-2">{product?.name || "Unknown Product"}</td>
                                   <td className="py-2 text-right">{item.quantity}</td>
+                                  <td className="py-2 text-right">
+                                    {item.weight ? `${(item.weight / 1000).toFixed(2)} kg` : "-"}
+                                  </td>
                                 </tr>
                               );
                             })}
