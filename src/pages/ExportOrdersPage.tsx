@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -206,7 +205,7 @@ const ExportOrdersPage: React.FC = () => {
   
   return (
     <Layout>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <div className="flex items-center">
           <Button variant="ghost" onClick={() => navigate("/completed-orders")} className="mr-4">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back
@@ -215,11 +214,11 @@ const ExportOrdersPage: React.FC = () => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Search and Filter */}
+      <div className="grid grid-cols-1 gap-6 mb-4">
+        {/* Search and Filter Card */}
         <Card>
-          <CardHeader>
-            <CardTitle>Search & Filter</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">Search & Filter</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Search bar */}
@@ -236,37 +235,72 @@ const ExportOrdersPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Filter options */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Filter by</h3>
-              <RadioGroup 
-                value={filterMode} 
-                onValueChange={(value) => setFilterMode(value as "all" | "not-invoiced")}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="all" id="all" />
-                  <label htmlFor="all" className="text-sm">All orders</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Filter options */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Filter by</h3>
+                <RadioGroup 
+                  value={filterMode} 
+                  onValueChange={(value) => setFilterMode(value as "all" | "not-invoiced")}
+                  className="flex space-x-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="all" id="all" />
+                    <label htmlFor="all" className="text-sm">All orders</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="not-invoiced" id="not-invoiced" />
+                    <label htmlFor="not-invoiced" className="text-sm">Not invoiced</label>
+                  </div>
+                </RadioGroup>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex flex-col space-y-2">
+                <Button 
+                  className="w-full" 
+                  onClick={handleExport}
+                  disabled={selectedOrders.size === 0}
+                >
+                  <FileDown className="mr-2 h-4 w-4" /> 
+                  Export Selected ({selectedOrders.size})
+                </Button>
+                
+                <div className="flex space-x-2">
+                  <Button 
+                    className="flex-1" 
+                    onClick={handleMarkInvoiced}
+                    disabled={selectedOrders.size === 0}
+                    variant="outline"
+                  >
+                    <Check className="mr-1 h-4 w-4" /> 
+                    Mark as Invoiced
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleUnmarkInvoiced}
+                    disabled={selectedOrders.size === 0}
+                    variant="outline"
+                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <Undo className="mr-1 h-4 w-4" /> 
+                    Unmark Invoiced
+                  </Button>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="not-invoiced" id="not-invoiced" />
-                  <label htmlFor="not-invoiced" className="text-sm">Not invoiced</label>
-                </div>
-              </RadioGroup>
+              </div>
             </div>
             
             {/* Date range - only shown when filter mode is "all" */}
             {filterMode === "all" && (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium">Date Range</h3>
-                <div className="flex flex-col space-y-2">
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[180px]">
                   <span className="text-sm font-medium">From</span>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full mt-1 justify-start text-left font-normal",
                           !fromDate && "text-muted-foreground"
                         )}
                       >
@@ -285,14 +319,14 @@ const ExportOrdersPage: React.FC = () => {
                   </Popover>
                 </div>
                 
-                <div className="flex flex-col space-y-2">
+                <div className="flex-1 min-w-[180px]">
                   <span className="text-sm font-medium">To</span>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full mt-1 justify-start text-left font-normal",
                           !toDate && "text-muted-foreground"
                         )}
                       >
@@ -314,49 +348,12 @@ const ExportOrdersPage: React.FC = () => {
             )}
           </CardContent>
         </Card>
-        
-        {/* Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              className="w-full" 
-              onClick={handleExport}
-              disabled={selectedOrders.size === 0}
-            >
-              <FileDown className="mr-2 h-4 w-4" /> 
-              Export Selected Orders ({selectedOrders.size})
-            </Button>
-            
-            <Button 
-              className="w-full" 
-              onClick={handleMarkInvoiced}
-              disabled={selectedOrders.size === 0}
-              variant="outline"
-            >
-              <Check className="mr-2 h-4 w-4" /> 
-              Mark Selected as Invoiced ({selectedOrders.size})
-            </Button>
-            
-            <Button 
-              onClick={handleUnmarkInvoiced}
-              disabled={selectedOrders.size === 0}
-              variant="outline"
-              className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-            >
-              <Undo className="mr-2 h-4 w-4" /> 
-              Unmark Selected as Invoiced ({selectedOrders.size})
-            </Button>
-          </CardContent>
-        </Card>
       </div>
       
       {/* Orders Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Orders ({filteredOrders.length})</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xl">Orders ({filteredOrders.length})</CardTitle>
           {filteredOrders.length > 0 && (
             <Button 
               variant="outline" 
