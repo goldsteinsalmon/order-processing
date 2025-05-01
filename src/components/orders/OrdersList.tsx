@@ -1,4 +1,3 @@
-
 import React, { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { Edit, FilePlus, ClipboardList } from "lucide-react";
@@ -6,7 +5,7 @@ import { useData } from "@/context/DataContext";
 import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { adaptCustomerToCamelCase } from "@/lib/utils";
+import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
 
 interface OrdersListProps {
   searchTerm?: string;

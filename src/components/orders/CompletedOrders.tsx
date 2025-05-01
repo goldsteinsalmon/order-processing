@@ -6,7 +6,7 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { adaptCustomerToCamelCase } from "@/lib/utils";
+import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
 import {
   Table,
   TableBody,
