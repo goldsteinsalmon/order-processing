@@ -25,9 +25,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { Loader, RefreshCw, UserPlus } from "lucide-react";
+import { userService } from "@/services/userService";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -53,19 +53,8 @@ const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setRefreshing(true);
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .order("name");
-
-      if (error) throw error;
-
-      const typedUsers = data ? data.map(user => ({
-        ...user,
-        role: user.role as "Admin" | "User" | "Manager"
-      })) : [];
-      
-      setUsers(typedUsers);
+      const users = await userService.fetchUsers();
+      setUsers(users);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({
@@ -91,64 +80,40 @@ const UserManagement: React.FC = () => {
         return;
       }
 
-      const { data, error } = await supabase.from("users").insert([
-        {
-          name: newUser.name,
-          email: newUser.email,
-          password: newUser.password,
-          role: newUser.role,
-          active: newUser.active,
-        },
-      ]).select();
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to add user.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data) {
-        // Add the new user to the users state with proper typing
-        const newUserWithTypedRole = {
-          ...data[0],
-          role: data[0].role as "Admin" | "User" | "Manager"
-        };
-        
-        setUsers([...users, newUserWithTypedRole]);
-        
-        // Reset form
-        setNewUser({
-          name: "",
-          email: "",
-          password: "",
-          role: "User" as "Admin" | "User" | "Manager",
-          active: true,
-        });
-        
-        // Close dialog
-        setIsDialogOpen(false);
-        
-        // Show success toast
-        toast({
-          title: "Success",
-          description: "User added successfully.",
-        });
-      }
+      const addedUser = await userService.addUser(newUser);
+      
+      // Add the new user to the users state
+      setUsers([...users, addedUser]);
+      
+      // Reset form
+      setNewUser({
+        name: "",
+        email: "",
+        password: "",
+        role: "User" as "Admin" | "User" | "Manager",
+        active: true,
+      });
+      
+      // Close dialog
+      setIsDialogOpen(false);
+      
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "User added successfully.",
+      });
     } catch (error) {
       console.error("Error adding user:", error);
       toast({
         title: "Error",
-        description: "Failed to add user.",
+        description: error.message || "Failed to add user.",
         variant: "destructive",
       });
     }
   };
 
   const openEditDialog = (user: User) => {
-    setEditingUser({ ...user });
+    setEditingUser({ ...user, password: "" }); // Reset password field when editing
     setIsDialogOpen(true);
   };
 
@@ -156,25 +121,7 @@ const UserManagement: React.FC = () => {
     if (!editingUser) return;
 
     try {
-      const { error } = await supabase
-        .from("users")
-        .update({
-          name: editingUser.name,
-          email: editingUser.email,
-          role: editingUser.role,
-          active: editingUser.active,
-          ...(editingUser.password ? { password: editingUser.password } : {}),
-        })
-        .eq("id", editingUser.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update user.",
-          variant: "destructive",
-        });
-        return;
-      }
+      await userService.updateUser(editingUser);
 
       // Update user in state
       setUsers(users.map((user) => (user.id === editingUser.id ? editingUser : user)));
@@ -192,7 +139,7 @@ const UserManagement: React.FC = () => {
       console.error("Error updating user:", error);
       toast({
         title: "Error",
-        description: "Failed to update user.",
+        description: error.message || "Failed to update user.",
         variant: "destructive",
       });
     }
@@ -200,19 +147,7 @@ const UserManagement: React.FC = () => {
 
   const handleToggleUserStatus = async (user: User) => {
     try {
-      const { error } = await supabase
-        .from("users")
-        .update({ active: !user.active })
-        .eq("id", user.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update user status.",
-          variant: "destructive",
-        });
-        return;
-      }
+      await userService.toggleUserActive(user);
 
       // Update user in state
       setUsers(
@@ -228,7 +163,7 @@ const UserManagement: React.FC = () => {
       console.error("Error toggling user status:", error);
       toast({
         title: "Error",
-        description: "Failed to update user status.",
+        description: error.message || "Failed to update user status.",
         variant: "destructive",
       });
     }
@@ -238,19 +173,7 @@ const UserManagement: React.FC = () => {
     if (!userToDelete) return;
     
     try {
-      const { error } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", userToDelete.id);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete user.",
-          variant: "destructive",
-        });
-        return;
-      }
+      await userService.deleteUser(userToDelete.id);
 
       // Remove user from state
       setUsers(users.filter(user => user.id !== userToDelete.id));
@@ -268,7 +191,7 @@ const UserManagement: React.FC = () => {
       console.error("Error deleting user:", error);
       toast({
         title: "Error",
-        description: "Failed to delete user.",
+        description: error.message || "Failed to delete user.",
         variant: "destructive",
       });
     }
