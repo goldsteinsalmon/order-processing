@@ -1,4 +1,3 @@
-
 import Papa from "papaparse";
 import { Order, OrderItem } from "@/types";
 import { format } from "date-fns";
@@ -20,12 +19,13 @@ export const exportOrdersToCsv = (orders: Order[], filename = "orders-export.csv
   orders.forEach(order => {
     // For each order, create a row for each product
     order.items.forEach(item => {
-      const productWeight = getItemWeight(item);
+      // We now ONLY care about manual weights - ignore standard product weights completely
+      const hasManualWeight = item.manualWeight && item.manualWeight > 0;
       
       // For the quantity column: show quantity only if there's no manual weight
-      // For the weight column: show weight only if there is weight data
-      const quantityValue = productWeight > 0 && item.manualWeight ? "" : item.quantity.toString();
-      const weightValue = productWeight > 0 ? `${(productWeight / 1000).toFixed(2)} kg` : "";
+      // For the weight column: show weight only if there is manual weight data
+      const quantityValue = hasManualWeight ? "" : item.quantity.toString();
+      const weightValue = hasManualWeight ? `${(item.manualWeight! / 1000).toFixed(2)} kg` : "";
       
       rows.push({
         accountNumber: order.customer.accountNumber || "",
@@ -61,19 +61,12 @@ export const exportOrdersToCsv = (orders: Order[], filename = "orders-export.csv
   document.body.removeChild(link);
 };
 
-// Helper to calculate item weight considering all possible sources
+// This helper function is no longer needed as we're only concerned with manual weights
+// and we access them directly in the main function
+// Keeping the function for reference but it's not used
 const getItemWeight = (item: OrderItem): number => {
   if (item.manualWeight && item.manualWeight > 0) {
     return item.manualWeight;
-  }
-  
-  if (item.pickedWeight && item.pickedWeight > 0) {
-    return item.pickedWeight;
-  }
-  
-  // If product has a standard weight, calculate total based on quantity
-  if (item.product.weight) {
-    return item.product.weight * item.quantity;
   }
   
   return 0;
