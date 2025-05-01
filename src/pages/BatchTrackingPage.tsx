@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -58,18 +57,33 @@ const BatchTrackingPage: React.FC = () => {
       // Initialize the consolidated entry
       const consolidated: BatchUsage = {
         ...firstItem,
-        usedWeight: 0, // We'll sum all weights
+        usedWeight: 0, // We'll correctly sum all weights
         ordersCount: 0, // We'll count unique orders
         usedBy: [] // We'll collect all unique order IDs
       };
       
-      // Collect all unique order IDs
+      // Collect all unique order IDs and track which product+order combinations we've processed
       const uniqueOrderIds = new Set<string>();
+      const processedProductOrders = new Set<string>();
       
       // Go through all items for this batch and properly consolidate
       batchItems.forEach(item => {
-        // Add weight
-        consolidated.usedWeight += item.usedWeight;
+        // For each item, track unique product+order combinations to avoid double counting
+        if (item.usedBy && item.usedBy.length > 0) {
+          item.usedBy.forEach(orderKey => {
+            if (orderKey.startsWith('order-')) {
+              const orderId = orderKey.substring(6); // Remove 'order-' prefix
+              const productOrderKey = `${item.productId}-${orderId}`;
+              
+              // Only add weight if we haven't processed this product+order combination yet
+              if (!processedProductOrders.has(productOrderKey)) {
+                consolidated.usedWeight += item.usedWeight;
+                processedProductOrders.add(productOrderKey);
+                uniqueOrderIds.add(orderId);
+              }
+            }
+          });
+        }
         
         // Track earliest and latest use dates
         const itemFirstDate = new Date(item.firstUsed);
@@ -82,16 +96,6 @@ const BatchTrackingPage: React.FC = () => {
         const consolidatedLastDate = new Date(consolidated.lastUsed);
         if (itemLastDate > consolidatedLastDate) {
           consolidated.lastUsed = item.lastUsed;
-        }
-        
-        // Add order IDs
-        if (item.usedBy && item.usedBy.length > 0) {
-          item.usedBy.forEach(orderKey => {
-            if (orderKey.startsWith('order-')) {
-              const orderId = orderKey.substring(6); // Remove 'order-' prefix
-              uniqueOrderIds.add(orderId);
-            }
-          });
         }
       });
       
