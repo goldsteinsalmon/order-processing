@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ProductsPage from "./pages/ProductsPage";
 import OrdersPage from "./pages/OrdersPage";
 import CompletedOrdersPage from "./pages/CompletedOrdersPage";
@@ -28,51 +28,198 @@ import ViewCompletedOrderPage from "./pages/ViewCompletedOrderPage";
 import BatchTrackingPage from "./pages/BatchTrackingPage";
 import ExportOrdersPage from "./pages/ExportOrdersPage";
 import ExportOrdersViewPage from "./pages/ExportOrdersViewPage";
+import LoginPage from "./pages/LoginPage";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const App: React.FC = () => {
   return (
     <DataProvider>
-      <Routes>
-        <Route path="/" element={<OrdersPage />} />
-        <Route path="/orders" element={<OrdersPage />} />
-        
-        <Route path="/customers" element={<CustomersPage />} />
-        <Route path="/customer-details/:id" element={<CustomerDetailsPage />} />
-        <Route path="/create-customer" element={<CreateCustomerPage />} />
-        
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/product-details/:id" element={<ProductDetailsPage />} />
-        <Route path="/create-product" element={<CreateProductPage />} />
-        
-        <Route path="/order-details/:id" element={<OrderDetailsPage />} />
-        <Route path="/create-order" element={<CreateOrderPage />} />
-        <Route path="/completed-orders" element={<CompletedOrdersPage />} />
-        <Route path="/edit-order/:id" element={<EditCompletedOrderPage />} />
-        <Route path="/edit-completed-order/:id" element={<EditCompletedOrderPage />} />
-        <Route path="/view-completed-order/:id" element={<ViewCompletedOrderPage />} />
-        <Route path="/picking-list" element={<PickingListPage />} />
-        <Route path="/picking-list/:id" element={<PickingListPage />} />
-        <Route path="/export-orders" element={<ExportOrdersPage />} />
-        <Route path="/export-orders-view" element={<ExportOrdersViewPage />} />
-        
-        <Route path="/standing-orders" element={<StandingOrdersPage />} />
-        <Route path="/standing-order-details/:id" element={<StandingOrderDetailsPage />} />
-        <Route path="/create-standing-order" element={<CreateStandingOrderPage />} />
-        <Route path="/edit-standing-order/:id" element={<EditStandingOrderPage />} />
-        <Route path="/standing-order-schedule/:id" element={<StandingOrderSchedulePage />} />
-        <Route path="/edit-standing-order-delivery/:id" element={<EditStandingOrderDeliveryPage />} />
-        
-        <Route path="/returns" element={<ReturnsPage />} />
-        
-        <Route path="/missing-items" element={<MissingItemsPage />} />
-        
-        <Route path="/print-box-label" element={<PrintBoxLabelPage />} />
-        <Route path="/print-box-label/:id" element={<PrintBoxLabelPage />} />
-        
-        <Route path="/admin" element={<AdminPage />} />
-        
-        <Route path="/batch-tracking" element={<BatchTrackingPage />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Default redirect to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
+          {/* Protected routes - require authentication */}
+          <Route path="/orders" element={
+            <ProtectedRoute>
+              <OrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/customers" element={
+            <ProtectedRoute>
+              <CustomersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/customer-details/:id" element={
+            <ProtectedRoute>
+              <CustomerDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-customer" element={
+            <ProtectedRoute>
+              <CreateCustomerPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/products" element={
+            <ProtectedRoute>
+              <ProductsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/product-details/:id" element={
+            <ProtectedRoute>
+              <ProductDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-product" element={
+            <ProtectedRoute>
+              <CreateProductPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/order-details/:id" element={
+            <ProtectedRoute>
+              <OrderDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-order" element={
+            <ProtectedRoute>
+              <CreateOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/completed-orders" element={
+            <ProtectedRoute>
+              <CompletedOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-order/:id" element={
+            <ProtectedRoute>
+              <EditCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-completed-order/:id" element={
+            <ProtectedRoute>
+              <EditCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/view-completed-order/:id" element={
+            <ProtectedRoute>
+              <ViewCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/picking-list" element={
+            <ProtectedRoute>
+              <PickingListPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/picking-list/:id" element={
+            <ProtectedRoute>
+              <PickingListPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/export-orders" element={
+            <ProtectedRoute>
+              <ExportOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/export-orders-view" element={
+            <ProtectedRoute>
+              <ExportOrdersViewPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/standing-orders" element={
+            <ProtectedRoute>
+              <StandingOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/standing-order-details/:id" element={
+            <ProtectedRoute>
+              <StandingOrderDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-standing-order" element={
+            <ProtectedRoute>
+              <CreateStandingOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-standing-order/:id" element={
+            <ProtectedRoute>
+              <EditStandingOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/standing-order-schedule/:id" element={
+            <ProtectedRoute>
+              <StandingOrderSchedulePage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-standing-order-delivery/:id" element={
+            <ProtectedRoute>
+              <EditStandingOrderDeliveryPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/returns" element={
+            <ProtectedRoute>
+              <ReturnsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/missing-items" element={
+            <ProtectedRoute>
+              <MissingItemsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/print-box-label" element={
+            <ProtectedRoute>
+              <PrintBoxLabelPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/print-box-label/:id" element={
+            <ProtectedRoute>
+              <PrintBoxLabelPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin-only route */}
+          <Route path="/admin" element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/batch-tracking" element={
+            <ProtectedRoute>
+              <BatchTrackingPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </AuthProvider>
     </DataProvider>
   );
 };

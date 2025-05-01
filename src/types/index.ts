@@ -208,18 +208,13 @@ export interface Complaint {
   updated?: string;
 }
 
+// User type
 export interface User {
   id: string;
   name: string;
-  email: string;
-  role: "Admin" | "Manager" | "User" | "Picker";
-  active: boolean;
-  password?: string; // Added optional password field
-}
-
-export interface Picker {
-  id: string;
-  name: string;
+  email: string; // This is used as the username
+  password?: string; // Added password field
+  role: "Admin" | "User" | "Manager";
   active: boolean;
 }
 

@@ -1,3 +1,4 @@
+
 import { Customer, Product, Order, StandingOrder, Return, Complaint, MissingItem, User, Picker, BatchUsage } from "../types";
 import { addDays, subDays, format } from "date-fns";
 
@@ -250,20 +251,29 @@ export const missingItems: MissingItem[] = [
 export const users: User[] = [
   {
     id: "u1",
-    name: "Admin User",
-    email: "admin@example.com",
+    name: "Nick Goldstein",
+    email: "nickgoldstein",
+    password: "Bigfish1!",
     role: "Admin",
     active: true,
   },
   {
     id: "u2",
+    name: "Nila",
+    email: "nila",
+    password: "Bigfish1!",
+    role: "User",
+    active: true,
+  },
+  {
+    id: "u3",
     name: "Manager User",
     email: "manager@example.com",
     role: "Manager",
     active: true,
   },
   {
-    id: "u3",
+    id: "u4",
     name: "Regular User",
     email: "user@example.com",
     role: "User",
