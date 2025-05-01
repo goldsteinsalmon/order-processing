@@ -1,9 +1,12 @@
-
-import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { format, parseISO } from "date-fns";
-import { ArrowLeft, Edit, ClipboardList, Trash2 } from "lucide-react";
-import { useData } from "@/context/DataContext";
+import React from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { useData } from '@/context/DataContext';
+import { 
+  getOrderDate, 
+  getDeliveryMethod, 
+  getCustomerOrderNumber 
+} from '@/utils/propertyHelpers';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -18,12 +21,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Trash2, ArrowLeft, Edit, ClipboardList } from "lucide-react";
 
 // Helper function to safely format dates
 const safeFormatDate = (dateString?: string | null) => {
   if (!dateString) return "Not specified";
   try {
-    return format(parseISO(dateString), "MMMM d, yyyy");
+    return format(new Date(dateString), "MMMM d, yyyy");
   } catch (error) {
     console.error("Error formatting date:", dateString, error);
     return "Invalid date";
@@ -116,7 +120,7 @@ const OrderDetails: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>
-                <dd className="col-span-2">{safeFormatDate(order.orderDate)}</dd>
+                <dd className="col-span-2">{safeFormatDate(getOrderDate(order))}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Status:</dt>
@@ -128,12 +132,12 @@ const OrderDetails: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Delivery Method:</dt>
-                <dd className="col-span-2">{order.deliveryMethod}</dd>
+                <dd className="col-span-2">{getDeliveryMethod(order)}</dd>
               </div>
-              {order.customerOrderNumber && (
+              {getCustomerOrderNumber(order) && (
                 <div className="grid grid-cols-3">
                   <dt className="font-medium">Customer Order #:</dt>
-                  <dd className="col-span-2">{order.customerOrderNumber}</dd>
+                  <dd className="col-span-2">{getCustomerOrderNumber(order)}</dd>
                 </div>
               )}
               {order.notes && (

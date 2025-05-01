@@ -7,6 +7,7 @@ import { useReactToPrint } from 'react-to-print';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
+import { getOrderDate, getPickedBy, getPickedAt } from '@/utils/propertyHelpers';
 
 const ViewCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -44,22 +45,22 @@ const ViewCompletedOrder: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-gray-500">Order Date</div>
-                <div>{format(new Date(selectedOrder.order_date), 'MMMM d, yyyy')}</div>
+                <div>{format(new Date(getOrderDate(selectedOrder)), 'MMMM d, yyyy')}</div>
               </div>
               <div>
                 <div className="text-sm text-gray-500">Delivery Method</div>
                 <div>{selectedOrder.delivery_method}</div>
               </div>
-              {selectedOrder.picked_by && (
+              {getPickedBy(selectedOrder) && (
                 <div>
                   <div className="text-sm text-gray-500">Picked By</div>
-                  <div>{selectedOrder.picked_by}</div>
+                  <div>{getPickedBy(selectedOrder)}</div>
                 </div>
               )}
-              {selectedOrder.picked_at && (
+              {getPickedAt(selectedOrder) && (
                 <div>
                   <div className="text-sm text-gray-500">Picked At</div>
-                  <div>{format(new Date(selectedOrder.picked_at), 'MMMM d, yyyy h:mm a')}</div>
+                  <div>{format(new Date(getPickedAt(selectedOrder) as string), 'MMMM d, yyyy h:mm a')}</div>
                 </div>
               )}
             </div>

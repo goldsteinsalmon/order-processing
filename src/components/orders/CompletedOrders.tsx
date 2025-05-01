@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Eye, Edit, Printer, ArrowUp, ArrowDown } from "lucide-react";
@@ -7,6 +6,18 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
+import { 
+  getBatchNumbers, 
+  getBoxDistributions,
+  getBoxBatchNumber,
+  getBoxItemBatchNumber,
+  getPickedBy,
+  getTotalBlownPouches,
+  getHasChanges,
+  getOrderDate,
+  getInvoiceDate,
+  getInvoiced
+} from "@/utils/propertyHelpers";
 import {
   Table,
   TableBody,
@@ -96,8 +107,8 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         // Check if any box or box item uses this batch number
         if (order.box_distributions) {
           return order.box_distributions.some(box => 
-            box.batchNumber === batchFilterParam || 
-            box.items.some(item => item.batchNumber === batchFilterParam)
+            getBoxBatchNumber(box) === batchFilterParam || 
+            box.items.some(item => getBoxItemBatchNumber(item) === batchFilterParam)
           );
         }
         
@@ -162,19 +173,19 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         return sortMultiplier * a.customer.name.localeCompare(b.customer.name);
       
       case "orderDate":
-        const dateA = new Date(a.order_date).getTime();
-        const dateB = new Date(b.order_date).getTime();
+        const dateA = new Date(getOrderDate(a)).getTime();
+        const dateB = new Date(getOrderDate(b)).getTime();
         return sortMultiplier * (dateA - dateB);
         
       case "completedDate":
         // Use updated timestamp if available (which indicates when the order was completed)
-        const completedA = a.updated ? new Date(a.updated).getTime() : new Date(a.order_date).getTime();
-        const completedB = b.updated ? new Date(b.updated).getTime() : new Date(b.order_date).getTime();
+        const completedA = a.updated ? new Date(a.updated).getTime() : new Date(getOrderDate(a)).getTime();
+        const completedB = b.updated ? new Date(b.updated).getTime() : new Date(getOrderDate(b)).getTime();
         return sortMultiplier * (completedA - completedB);
         
       case "batchNumbers":
-        const batchA = getBatchNumbers(a) || "";
-        const batchB = getBatchNumbers(b) || "";
+        const batchA = getBatchNumbersAsString(a) || "";
+        const batchB = getBatchNumbersAsString(b) || "";
         return sortMultiplier * batchA.localeCompare(batchB);
         
       case "picker":
@@ -183,20 +194,20 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         return sortMultiplier * pickerA.localeCompare(pickerB);
         
       case "blownPouches":
-        const blownA = a.total_blown_pouches || 0;
-        const blownB = b.total_blown_pouches || 0;
+        const blownA = getTotalBlownPouches(a) || 0;
+        const blownB = getTotalBlownPouches(b) || 0;
         return sortMultiplier * (blownA - blownB);
       
       case "invoiceStatus":
         // Sort by invoice status (invoiced first) and then by invoice date
-        if (a.invoiced === b.invoiced) {
+        if (getInvoiced(a) === getInvoiced(b)) {
           // If both are invoiced or both are not invoiced, sort by invoice date
-          const invoiceDateA = a.invoice_date ? new Date(a.invoice_date).getTime() : 0;
-          const invoiceDateB = b.invoice_date ? new Date(b.invoice_date).getTime() : 0;
+          const invoiceDateA = getInvoiceDate(a) ? new Date(getInvoiceDate(a) as string).getTime() : 0;
+          const invoiceDateB = getInvoiceDate(b) ? new Date(getInvoiceDate(b) as string).getTime() : 0;
           return sortMultiplier * (invoiceDateA - invoiceDateB);
         }
         // Otherwise, sort by invoiced status (true comes first)
-        return sortMultiplier * (a.invoiced ? -1 : 1);
+        return sortMultiplier * (getInvoiced(a) ? -1 : 1);
         
       default:
         return 0;
@@ -222,9 +233,10 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   };
 
   // Helper function to get batch numbers as a string
-  const getBatchNumbers = (order) => {
-    if (order.batch_numbers && order.batch_numbers.length > 0) {
-      return order.batch_numbers.join(", ");
+  const getBatchNumbersAsString = (order) => {
+    const batchNumbers = getBatchNumbers(order);
+    if (batchNumbers && batchNumbers.length > 0) {
+      return batchNumbers.join(", ");
     }
     
     if (order.batch_number) {
@@ -232,16 +244,19 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     }
     
     // Check boxes for batch numbers
-    if (order.box_distributions) {
+    const boxDistributions = getBoxDistributions(order);
+    if (boxDistributions) {
       const batchSet = new Set<string>();
-      order.box_distributions.forEach(box => {
-        if (box.batchNumber) {
-          batchSet.add(box.batchNumber);
+      boxDistributions.forEach(box => {
+        const batchNumber = getBoxBatchNumber(box);
+        if (batchNumber) {
+          batchSet.add(batchNumber);
         }
         
         box.items.forEach(item => {
-          if (item.batchNumber) {
-            batchSet.add(item.batchNumber);
+          const itemBatchNumber = getBoxItemBatchNumber(item);
+          if (itemBatchNumber) {
+            batchSet.add(itemBatchNumber);
           }
         });
       });
@@ -258,9 +273,9 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   const getPickerName = (order) => {
     if (order.picker) {
       return order.picker;
-    } else if (order.picked_by) {
+    } else if (getPickedBy(order)) {
       // This is a fallback in case picker name isn't saved but ID is
-      return order.picked_by;
+      return getPickedBy(order);
     }
     return "N/A";
   };
@@ -364,12 +379,12 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
             ) : (
               sortedOrders.map((order) => {
                 const changeDesc = getChangeDescription(order);
-                const batchNumbers = getBatchNumbers(order);
+                const batchNumbers = getBatchNumbersAsString(order);
                 
                 return (
                   <TableRow 
                     key={order.id} 
-                    className={order.has_changes ? "bg-red-50" : ""}
+                    className={getHasChanges(order) ? "bg-red-50" : ""}
                   >
                     <TableCell>{order.id.substring(0, 8)}</TableCell>
                     <TableCell>
@@ -378,21 +393,21 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      {format(parseISO(order.order_date), "dd/MM/yyyy")}
+                      {format(parseISO(getOrderDate(order)), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell>{formatCompletedDate(order)}</TableCell>
                     <TableCell>{batchNumbers}</TableCell>
                     <TableCell>{getPickerName(order)}</TableCell>
-                    <TableCell>{order.total_blown_pouches || 0}</TableCell>
+                    <TableCell>{getTotalBlownPouches(order) || 0}</TableCell>
                     <TableCell>
-                      {order.invoiced ? (
+                      {getInvoiced(order) ? (
                         <div className="flex flex-col">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             Invoiced
                           </span>
-                          {order.invoice_date && (
+                          {getInvoiceDate(order) && (
                             <span className="text-xs text-muted-foreground mt-1">
-                              {format(parseISO(order.invoice_date), "dd/MM/yyyy")}
+                              {format(parseISO(getInvoiceDate(order) as string), "dd/MM/yyyy")}
                             </span>
                           )}
                         </div>

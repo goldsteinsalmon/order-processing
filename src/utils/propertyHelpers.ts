@@ -78,3 +78,11 @@ export const getBoxNumber = (box: Box): number =>
   box.boxNumber || box.box_number;
 export const getBoxOrderId = (box: Box): string => 
   box.orderId || box.order_id;
+export const getBoxBatchNumber = (box: Box): string | undefined => 
+  box.batchNumber || box.batch_number;
+
+// BoxItem related helpers
+export const getBoxItemBatchNumber = (boxItem: BoxItem): string | undefined => 
+  boxItem.batchNumber || boxItem.batch_number;
+export const getBoxItemProductId = (boxItem: BoxItem): string => 
+  boxItem.productId || boxItem.product_id;
