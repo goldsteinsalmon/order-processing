@@ -129,7 +129,7 @@ const ProductsPage = () => {
                       <TableCell>{product.name}</TableCell>
                       <TableCell>{product.weight || "N/A"}</TableCell>
                       <TableCell>{product.requiresWeightInput ? "Yes" : "No"}</TableCell>
-                      <TableCell>{product.stockLevel || 0}</TableCell>
+                      <TableCell>{product.stock_level || 0}</TableCell>
                       <TableCell>
                         <Input 
                           type="number" 
