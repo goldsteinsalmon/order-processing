@@ -52,39 +52,50 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   useEffect(() => {
-    // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        console.log("Auth state change:", event);
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        
-        // Handle session changes - but don't navigate in the initial load
-        // Instead of redirecting directly, we'll set appropriate state
-        // and let components handle navigation if needed
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          // Only redirect if this is an actual auth event, not the initial session check
-          if (isLoading === false) {
-            redirectAfterAuth(event);
-          }
-        }
+    console.log("Setting up auth state listener");
+    let authListener: { data: { subscription: { unsubscribe: () => void } } };
+    
+    // Set initial loading state
+    setIsLoading(true);
+    
+    // Initial session check
+    const checkSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        console.log("Initial session check:", data.session);
+        setSession(data.session);
+        setUser(data.session?.user || null);
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setIsLoading(false);
       }
-    );
-
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log("Current session:", currentSession);
-      console.log("User metadata:", currentSession?.user?.user_metadata);
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      setIsLoading(false);
+    };
+    
+    // Check session first
+    checkSession();
+    
+    // Set up auth state listener
+    authListener = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log("Auth state change:", event, newSession?.user?.id);
+      
+      // Update session and user state
+      setSession(newSession);
+      setUser(newSession?.user || null);
+      
+      // Handle auth state changes after initial load
+      if (!isLoading && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+        redirectAfterAuth(event);
+      }
     });
-
+    
     // Cleanup subscription
     return () => {
-      subscription.unsubscribe();
+      if (authListener) {
+        authListener.data.subscription.unsubscribe();
+      }
     };
-  }, [toast, navigate, isLoading]);
+  }, [navigate, toast]);
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {

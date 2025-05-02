@@ -1,13 +1,36 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays } from "date-fns";
+import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
+import { Navigate } from "react-router-dom";
 
 const HomePage: React.FC = () => {
   const { orders, completedOrders, products, customers, missingItems } = useData();
+  const { user, isLoading } = useSupabaseAuth();
+
+  useEffect(() => {
+    // Debug logging for authentication state on homepage
+    console.log("HomePage rendering:", { isAuthenticated: !!user, isLoading, userRole: user?.user_metadata?.role });
+  }, [user, isLoading]);
+
+  // If we're still loading, show a loading spinner
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // If user is not authenticated, redirect to login
+  if (!user) {
+    console.log("HomePage: Not authenticated, redirecting to login");
+    return <Navigate to="/login" replace />;
+  }
 
   // Count orders by status
   const orderStatusCounts = React.useMemo(() => {

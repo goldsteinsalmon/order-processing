@@ -46,14 +46,14 @@ const LoginPage: React.FC = () => {
       const { success, error } = await signIn(email, password);
       
       if (success) {
-        // Use React Router for navigation instead of redirectAfterAuth
+        // Success message
         toast({
           title: "Success",
           description: "You have been signed in successfully.",
         });
         
         // Navigate to the redirect path
-        navigate(from, { replace: true });
+        navigate("/orders", { replace: true });
       } else {
         toast({
           title: "Error",

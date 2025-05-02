@@ -12,10 +12,22 @@ interface ProtectedRouteProps {
 const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   requireAdmin = false,
-  allowUserAccess = false 
+  allowUserAccess = true 
 }) => {
   const { user, isLoading } = useSupabaseAuth();
   const location = useLocation();
+  
+  useEffect(() => {
+    // Debug logging
+    console.log("Protected route rendering with:", { 
+      isLoading, 
+      hasUser: !!user, 
+      userRole: user?.user_metadata?.role,
+      requireAdmin,
+      allowUserAccess,
+      path: location.pathname
+    });
+  }, [isLoading, user, requireAdmin, allowUserAccess, location]);
   
   // Show loading state
   if (isLoading) {
@@ -28,6 +40,7 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // Redirect to login if not authenticated
   if (!user) {
+    console.log("No user found, redirecting to login", location);
     // Remember the current location to redirect back after login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
