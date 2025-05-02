@@ -62,19 +62,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     }, {} as Record<number, ExtendedOrderItem[]>);
   }, [items, groupByBox]);
 
-  // Helper function to check if a box is complete
+  // Helper function to check if a box is complete enough to print
+  // Removed batch number requirement - only check if all items are checked
   const isBoxComplete = (boxItems: ExtendedOrderItem[]): boolean => {
-    // First check if all items are checked
+    // Check if all items are checked
     if (!boxItems.length || !boxItems.every(item => item.checked)) {
       return false;
     }
     
-    // Then check if all items have batch numbers
-    if (!boxItems.every(item => item.batchNumber?.trim())) {
-      return false;
-    }
-    
-    // Finally check if all items that require weight have weights entered
+    // Check if all items that require weight have weights entered
     const weightInputComplete = boxItems
       .filter(item => item.product.requiresWeightInput)
       .every(item => (item.pickedWeight) && 
@@ -177,16 +173,20 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       placeholder="Enter batch #"
                     />
                   </TableCell>
-                  {item.product.requiresWeightInput && (
+                  {boxItems.some(item => item.product.requiresWeightInput) && (
                     <TableCell>
-                      <Input
-                        type="number"
-                        value={(item.pickedWeight || '').toString()}
-                        onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
-                        className="w-full"
-                        placeholder="Weight"
-                      />
-                      <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
+                      {item.product.requiresWeightInput ? (
+                        <div>
+                          <Input
+                            type="number"
+                            value={(item.pickedWeight || '').toString()}
+                            onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
+                            className="w-full"
+                            placeholder="Weight"
+                          />
+                          <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
+                        </div>
+                      ) : null}
                     </TableCell>
                   )}
                   <TableCell>

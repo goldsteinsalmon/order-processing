@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -276,7 +277,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         newStatus = "Picking";
       }
 
-      // Record batch usage for each item
+      // Record batch usage for each item that has a batch number
       updatedOrderItems.forEach(item => {
         if (item.batchNumber && item.checked) {
           recordBatchUsage(
