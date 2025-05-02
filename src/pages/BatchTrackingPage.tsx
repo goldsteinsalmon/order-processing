@@ -1,254 +1,254 @@
-
 import React, { useState, useEffect } from "react";
-import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
-import { format, parseISO } from "date-fns";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { 
-  Table, 
-  TableHeader, 
-  TableBody, 
-  TableHead, 
-  TableRow, 
-  TableCell 
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Search, ChevronDown, ChevronUp } from "lucide-react";
-import { BatchUsage, BatchSummary } from "@/types";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Search, Calendar, Package, ArrowUpDown, Info } from "lucide-react";
+import Layout from "@/components/Layout";
+import { format, parseISO, isValid } from "date-fns";
+import { BatchUsage } from "@/types";
+import { adaptBatchUsageToCamelCase } from "@/utils/typeAdapters";
 
 const BatchTrackingPage: React.FC = () => {
-  const { completedOrders } = useData();
+  const { batchUsages } = useData();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("batch") || "");
-  const [batchData, setBatchData] = useState<BatchUsage[]>([]);
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof BatchUsage | null;
-    direction: 'ascending' | 'descending';
-  }>({
-    key: 'first_used',
-    direction: 'descending'
-  });
-
-  // Collect batch data directly from completed orders
+  
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [sortField, setSortField] = useState<string>("lastUsed");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [filteredBatches, setFilteredBatches] = useState<BatchUsage[]>([]);
+  
+  // Process batch data to ensure consistent property naming
+  const processBatchData = (batchData: any[]) => {
+    return batchData.map(batch => adaptBatchUsageToCamelCase(batch));
+  };
+  
   useEffect(() => {
-    // If the URL has a batch parameter, set it as the search term
-    const batchParam = searchParams.get("batch");
-    if (batchParam && searchTerm !== batchParam) {
-      setSearchTerm(batchParam);
+    // Apply search filter and sorting
+    let filtered = [...batchUsages];
+    
+    // Apply search filter if there's a search term
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(batch => 
+        batch.batchNumber.toLowerCase().includes(lowerSearchTerm) ||
+        batch.productName.toLowerCase().includes(lowerSearchTerm)
+      );
     }
     
-    // Create a map to store consolidated batch information
-    const batchMap = new Map<string, BatchUsage>();
-    
-    // Process all completed orders
-    completedOrders.forEach(order => {
-      // Skip orders without batch information
-      if (!order.batchSummaries || order.batchSummaries.length === 0) return;
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortField as keyof BatchUsage];
+      let bValue: any = b[sortField as keyof BatchUsage];
       
-      // Process each batch summary in the order
-      order.batchSummaries.forEach((summary: BatchSummary) => {
-        const batchNumber = summary.batchNumber;
-        const weight = summary.totalWeight;
-        
-        // Skip entries with no batch number
-        if (!batchNumber || batchNumber === "Unknown") return;
-        
-        // Get existing entry or create a new one
-        if (!batchMap.has(batchNumber)) {
-          batchMap.set(batchNumber, {
-            id: `batch-${batchNumber}`,
-            batch_number: batchNumber,
-            product_id: "", // Not needed when consolidating by batch
-            product_name: "", // Not needed when consolidating by batch
-            total_weight: 0,
-            used_weight: 0,
-            orders_count: 0,
-            first_used: order.created || order.order_date,
-            last_used: order.created || order.order_date,
-            usedBy: []
-          });
-        }
-        
-        const batchEntry = batchMap.get(batchNumber)!;
-        
-        // Update the weight
-        batchEntry.used_weight += weight;
-        
-        // Update order count if this is a new order
-        if (!batchEntry.usedBy!.includes(`order-${order.id}`)) {
-          batchEntry.usedBy!.push(`order-${order.id}`);
-          batchEntry.orders_count += 1;
-        }
-        
-        // Update dates if needed
-        const orderDate = new Date(order.created || order.order_date);
-        const firstUsedDate = new Date(batchEntry.first_used);
-        const lastUsedDate = new Date(batchEntry.last_used);
-        
-        if (orderDate < firstUsedDate) {
-          batchEntry.first_used = order.created || order.order_date;
-        }
-        
-        if (orderDate > lastUsedDate) {
-          batchEntry.last_used = order.created || order.order_date;
-        }
-      });
+      // Handle date fields
+      if (sortField === "firstUsed" || sortField === "lastUsed") {
+        aValue = new Date(aValue || 0).getTime();
+        bValue = new Date(bValue || 0).getTime();
+      }
+      
+      // Handle numeric fields
+      if (sortField === "totalWeight" || sortField === "usedWeight" || sortField === "ordersCount") {
+        aValue = Number(aValue || 0);
+        bValue = Number(bValue || 0);
+      }
+      
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
     });
     
-    // Convert map to array
-    setBatchData(Array.from(batchMap.values()));
-  }, [completedOrders, searchParams, searchTerm]);
+    setFilteredBatches(filtered);
+  }, [batchUsages, searchTerm, sortField, sortDirection]);
   
-  // Handle sorting
-  const requestSort = (key: keyof BatchUsage) => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
+  const handleSort = (field: string) => {
+    if (field === sortField) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Set new field and default to ascending
+      setSortField(field);
+      setSortDirection("asc");
     }
-    setSortConfig({ key, direction });
   };
   
-  // Apply sorting function
-  const sortedBatchData = [...batchData].sort((a, b) => {
-    if (sortConfig.key === null) {
-      return 0;
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return "-";
+    try {
+      const date = parseISO(dateString);
+      return isValid(date) ? format(date, "dd/MM/yyyy") : "-";
+    } catch (error) {
+      return "-";
     }
-    
-    if (sortConfig.key === 'first_used' || sortConfig.key === 'last_used') {
-      const aDate = new Date(a[sortConfig.key]).getTime();
-      const bDate = new Date(b[sortConfig.key]).getTime();
-      return sortConfig.direction === 'ascending' ? aDate - bDate : bDate - aDate;
-    }
-    
-    if (sortConfig.key === 'used_weight' || sortConfig.key === 'orders_count') {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-      return sortConfig.direction === 'ascending' ? aValue - bValue : bValue - aValue;
-    }
-    
-    const aValue = String(a[sortConfig.key]);
-    const bValue = String(b[sortConfig.key]);
-    return sortConfig.direction === 'ascending'
-      ? aValue.localeCompare(bValue)
-      : bValue.localeCompare(aValue);
-  });
-    
-  // Filter batch usages based on search term
-  const filteredBatchData = sortedBatchData
-    .filter(batch => searchTerm === "" || batch.batch_number.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-  // Handle clicking on orders count - navigate to completed orders with batch filter
-  const handleOrdersClick = (batchNumber: string) => {
-    // Navigate to completed orders with this batch number as a query param
-    navigate(`/completed-orders?batch=${batchNumber}`);
   };
   
-  // Render sort indicator
-  const renderSortIndicator = (key: keyof BatchUsage) => {
-    if (sortConfig.key !== key) {
-      return null;
-    }
-    return sortConfig.direction === 'ascending' ? (
-      <ChevronUp className="ml-1 h-4 w-4 inline" />
-    ) : (
-      <ChevronDown className="ml-1 h-4 w-4 inline" />
-    );
+  const calculateUsagePercentage = (used: number, total: number) => {
+    if (!total) return 0;
+    return Math.round((used / total) * 100);
   };
-
+  
+  const getUsageStatusColor = (percentage: number) => {
+    if (percentage >= 90) return "bg-red-500";
+    if (percentage >= 70) return "bg-amber-500";
+    return "bg-green-500";
+  };
+  
+  const viewBatchDetails = (batchNumber: string) => {
+    navigate(`/batch/${batchNumber}`);
+  };
+  
   return (
     <Layout>
-      <h2 className="text-2xl font-bold mb-6">Batch Tracking</h2>
-      
-      <div className="space-y-4">
-        <div className="flex items-center mb-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by batch number..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
+      <div className="container mx-auto py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Batch Tracking</h1>
+          <div className="flex items-center space-x-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                type="search"
+                placeholder="Search batches..."
+                className="pl-8 w-[250px]"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </div>
         
         <Card>
-          <CardHeader>
-            <CardTitle>Batch Details</CardTitle>
-            <CardDescription>
-              Track batch usage across all orders
-            </CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle>Batch Usage</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[150px] cursor-pointer" onClick={() => handleSort("batchNumber")}>
+                    <div className="flex items-center">
+                      Batch Number
+                      {sortField === "batchNumber" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("productName")}>
+                    <div className="flex items-center">
+                      Product
+                      {sortField === "productName" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("totalWeight")}>
+                    <div className="flex items-center">
+                      Total Weight
+                      {sortField === "totalWeight" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("usedWeight")}>
+                    <div className="flex items-center">
+                      Used
+                      {sortField === "usedWeight" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead>Usage</TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("ordersCount")}>
+                    <div className="flex items-center">
+                      Orders
+                      {sortField === "ordersCount" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("firstUsed")}>
+                    <div className="flex items-center">
+                      First Used
+                      {sortField === "firstUsed" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort("lastUsed")}>
+                    <div className="flex items-center">
+                      Last Used
+                      {sortField === "lastUsed" && (
+                        <ArrowUpDown className={`ml-1 h-4 w-4 ${sortDirection === "asc" ? "transform rotate-180" : ""}`} />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBatches.length === 0 ? (
                   <TableRow>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => requestSort('batch_number')}
-                    >
-                      Batch Number {renderSortIndicator('batch_number')}
-                    </TableHead>
-                    <TableHead className="text-right cursor-pointer"
-                      onClick={() => requestSort('used_weight')}
-                    >
-                      Total Weight (kg) {renderSortIndicator('used_weight')}
-                    </TableHead>
-                    <TableHead className="text-right cursor-pointer"
-                      onClick={() => requestSort('orders_count')}
-                    >
-                      Orders {renderSortIndicator('orders_count')}
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer"
-                      onClick={() => requestSort('first_used')}
-                    >
-                      First Used {renderSortIndicator('first_used')}
-                    </TableHead>
-                    <TableHead
-                      className="cursor-pointer"
-                      onClick={() => requestSort('last_used')}
-                    >
-                      Last Used {renderSortIndicator('last_used')}
-                    </TableHead>
+                    <TableCell colSpan={8} className="text-center py-4">
+                      No batch data found
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredBatchData.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-gray-500 py-8">
-                        No batch usage records found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredBatchData.map((batch) => (
+                ) : (
+                  filteredBatches.map((batch) => {
+                    const usagePercentage = calculateUsagePercentage(
+                      batch.usedWeight,
+                      batch.totalWeight
+                    );
+                    const statusColor = getUsageStatusColor(usagePercentage);
+                    
+                    return (
                       <TableRow key={batch.id}>
-                        <TableCell className="font-medium">{batch.batch_number}</TableCell>
-                        <TableCell className="text-right">
-                          {(batch.used_weight / 1000).toFixed(2)}
+                        <TableCell className="font-medium">
+                          <Badge variant="outline" className="font-mono">
+                            {batch.batchNumber}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{batch.productName}</TableCell>
+                        <TableCell>{batch.totalWeight.toLocaleString()}g</TableCell>
+                        <TableCell>{batch.usedWeight.toLocaleString()}g</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <div className="w-full bg-gray-200 rounded-full h-2.5 mr-2">
+                              <div
+                                className={`h-2.5 rounded-full ${statusColor}`}
+                                style={{ width: `${usagePercentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs">{usagePercentage}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{batch.ordersCount}</Badge>
+                        </TableCell>
+                        <TableCell className="flex items-center">
+                          <Calendar className="h-3.5 w-3.5 mr-1 text-gray-500" />
+                          {formatDate(batch.firstUsed)}
+                        </TableCell>
+                        <TableCell className="flex items-center">
+                          <Calendar className="h-3.5 w-3.5 mr-1 text-gray-500" />
+                          {formatDate(batch.lastUsed)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="link" 
-                            className="p-0 h-auto text-blue-600 hover:text-blue-800"
-                            onClick={() => handleOrdersClick(batch.batch_number)}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => viewBatchDetails(batch.batchNumber)}
                           >
-                            {batch.orders_count}
+                            <Info className="h-4 w-4 mr-1" /> Details
                           </Button>
                         </TableCell>
-                        <TableCell>{format(parseISO(batch.first_used), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell>{format(parseISO(batch.last_used), 'dd/MM/yyyy')}</TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>

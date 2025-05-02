@@ -135,7 +135,7 @@ const ExportOrdersPage: React.FC = () => {
       const hasSearchTerm = searchTerm.trim().length > 0;
       const matchesSearchTerm = !hasSearchTerm || (
         order.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (order.customer?.account_number || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (order.customer?.accountNumber || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (order.customer_order_number || "").toLowerCase().includes(searchTerm.toLowerCase())
       );
       
@@ -338,7 +338,7 @@ const ExportOrdersPage: React.FC = () => {
                       <TableCell>{order.id.substring(0, 8)}</TableCell>
                       <TableCell>{format(parseISO(order.order_date), "dd/MM/yyyy")}</TableCell>
                       <TableCell>{order.customer.name}</TableCell>
-                      <TableCell>{order.customer.account_number || "N/A"}</TableCell>
+                      <TableCell>{order.customer.accountNumber || "-"}</TableCell>
                       <TableCell>{order.customer_order_number || "N/A"}</TableCell>
                       <TableCell>
                         {order.invoiced ? (

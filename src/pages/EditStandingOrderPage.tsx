@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -110,7 +109,7 @@ const EditStandingOrderPage: React.FC = () => {
     
     const newItem: StandingOrderItem = {
       id: uuidv4(),
-      product_id: product.id,
+      productId: product.id,
       product,
       quantity: productQuantity
     };

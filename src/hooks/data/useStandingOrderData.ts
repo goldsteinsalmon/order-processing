@@ -1,7 +1,6 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { StandingOrder, Order } from "@/types";
+import { StandingOrder, Order, StandingOrderItem } from "@/types";
 import { format, addDays, addWeeks, addMonths, parseISO } from "date-fns";
 
 export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Promise<Order | null>) => {
@@ -14,8 +13,8 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       const { data: soData, error: soError } = await supabase
         .from('standing_orders')
         .insert({
-          customer_id: standingOrder.customer_id,
-          customer_order_number: standingOrder.customer_order_number,
+          customer_id: standingOrder.customerId,
+          customer_order_number: standingOrder.customerOrderNumber,
           frequency: standingOrder.schedule.frequency,
           day_of_week: standingOrder.schedule.dayOfWeek,
           day_of_month: standingOrder.schedule.dayOfMonth,
@@ -34,7 +33,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       // Insert standing order items
       const soItemsToInsert = standingOrder.items.map(item => ({
         standing_order_id: newStandingOrderId,
-        product_id: item.product_id,
+        product_id: item.productId,
         quantity: item.quantity
       }));
       
@@ -70,7 +69,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       // Map to our expected StandingOrder type
       const newStandingOrder: StandingOrder = {
         id: newSOData.id,
-        customer_id: newSOData.customer_id,
+        customerId: newSOData.customer_id,
         customer: {
           id: newSOData.customer.id,
           name: newSOData.customer.name,
@@ -83,7 +82,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
           holdReason: newSOData.customer.hold_reason,
           needsDetailedBoxLabels: newSOData.customer.needs_detailed_box_labels
         },
-        customer_order_number: newSOData.customer_order_number,
+        customerOrderNumber: newSOData.customer_order_number,
         schedule: {
           frequency: newSOData.frequency as "Weekly" | "Bi-Weekly" | "Monthly",
           dayOfWeek: newSOData.day_of_week,
@@ -93,8 +92,8 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
         },
         items: newItemsData.map((item: any) => ({
           id: item.id,
-          product_id: item.product_id,
-          standing_order_id: item.standing_order_id,
+          productId: item.product_id,
+          standingOrderId: item.standing_order_id,
           product: {
             id: item.product.id,
             name: item.product.name,
@@ -102,7 +101,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
             description: item.product.description,
             stock_level: item.product.stock_level,
             weight: item.product.weight,
-            requires_weight_input: item.product.requires_weight_input || false,
+            requiresWeightInput: item.product.requires_weight_input || false,
             unit: item.product.unit,
             required: item.product.required || false
           },
@@ -110,8 +109,8 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
         })),
         notes: newSOData.notes,
         active: newSOData.active || true,
-        next_processing_date: newSOData.next_processing_date,
-        last_processed_date: newSOData.last_processed_date
+        nextProcessingDate: newSOData.next_processing_date,
+        lastProcessedDate: newSOData.last_processed_date
       };
       
       setStandingOrders([...standingOrders, newStandingOrder]);
@@ -134,8 +133,8 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       const { error: soError } = await supabase
         .from('standing_orders')
         .update({
-          customer_id: standingOrder.customer_id,
-          customer_order_number: standingOrder.customer_order_number,
+          customer_id: standingOrder.customerId,
+          customer_order_number: standingOrder.customerOrderNumber,
           frequency: standingOrder.schedule.frequency,
           day_of_week: standingOrder.schedule.dayOfWeek,
           day_of_month: standingOrder.schedule.dayOfMonth,
@@ -161,7 +160,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       // Then insert updated items
       const soItemsToInsert = standingOrder.items.map(item => ({
         standing_order_id: standingOrder.id,
-        product_id: item.product_id,
+        product_id: item.productId,
         quantity: item.quantity
       }));
       
@@ -188,6 +187,26 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
     }
   };
 
+  const mapStandingOrderItemsToClient = (items: any[]): StandingOrderItem[] => {
+    return items.map(item => ({
+      id: item.id,
+      productId: item.product_id,
+      standingOrderId: item.standing_order_id,
+      product: {
+        id: item.product.id,
+        name: item.product.name,
+        sku: item.product.sku,
+        description: item.product.description,
+        stock_level: item.product.stock_level,
+        weight: item.product.weight,
+        requiresWeightInput: item.product.requires_weight_input,
+        unit: item.product.unit,
+        required: item.product.required
+      },
+      quantity: item.quantity
+    }));
+  };
+
   // Process standing orders (create orders from standing orders)
   const processStandingOrders = async (): Promise<void> => {
     try {
@@ -199,31 +218,39 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
         so.active && 
         so.schedule.nextDeliveryDate && 
         format(parseISO(so.schedule.nextDeliveryDate), 'yyyy-MM-dd') <= todayStr &&
-        !so.last_processed_date
+        !so.lastProcessedDate
       );
       
       // Process each standing order
       for (const standingOrder of standingOrdersToProcess) {
+        const newOrderId = crypto.randomUUID();
+        const orderDate = new Date().toISOString();
+        const deliveryDate = standingOrder.schedule.nextDeliveryDate;
+
+        const standingOrderItems = standingOrder.items;
+
+        const orderItems = standingOrderItems.map(item => ({
+          id: crypto.randomUUID(),
+          orderId: newOrderId,
+          productId: item.productId,
+          product: item.product,
+          quantity: item.quantity
+        }));
+        
         // Create a new order from the standing order
         const newOrder: Order = {
-          id: "", // Will be generated by Supabase
-          customer_id: standingOrder.customer_id,
+          id: newOrderId,
+          customerId: standingOrder.customerId,
           customer: standingOrder.customer,
-          customer_order_number: standingOrder.customer_order_number,
-          order_date: new Date().toISOString(),
-          required_date: standingOrder.schedule.nextDeliveryDate,
-          delivery_method: standingOrder.schedule.deliveryMethod,
-          items: standingOrder.items.map(item => ({
-            id: "", // Will be generated by Supabase
-            order_id: "",
-            product_id: item.product_id,
-            product: item.product,
-            quantity: item.quantity
-          })),
+          customerOrderNumber: standingOrder.customerOrderNumber,
+          orderDate: orderDate,
+          requiredDate: deliveryDate,
+          deliveryMethod: standingOrder.schedule.deliveryMethod,
+          items: orderItems,
           notes: standingOrder.notes,
           status: "Pending",
           created: new Date().toISOString(),
-          from_standing_order: standingOrder.id
+          fromStandingOrder: standingOrder.id
         };
         
         // Add the order
@@ -266,7 +293,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
                     ...so.schedule,
                     nextDeliveryDate: nextDeliveryDate?.toISOString()
                   },
-                  last_processed_date: today.toISOString()
+                  lastProcessedDate: today.toISOString()
                 };
               }
               return so;

@@ -1,7 +1,7 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types";
+import { adaptProductToCamelCase, adaptProductToSnakeCase } from "@/utils/typeAdapters";
 
 export const useProductData = (toast: any) => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -17,18 +17,8 @@ export const useProductData = (toast: any) => {
         throw error;
       }
 
-      // Convert snake_case to camelCase
-      const formattedProducts: Product[] = data.map(product => ({
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        description: product.description,
-        stock_level: product.stock_level,
-        weight: product.weight,
-        requiresWeightInput: product.requires_weight_input,
-        unit: product.unit,
-        required: product.required,
-      }));
+      // Convert snake_case to camelCase using adapter
+      const formattedProducts: Product[] = data.map(adaptProductToCamelCase);
       
       setProducts(formattedProducts);
     } catch (error) {
@@ -44,18 +34,8 @@ export const useProductData = (toast: any) => {
   const addProduct = async (newProduct: Product | Product[]): Promise<Product | Product[] | null> => {
     try {
       if (Array.isArray(newProduct)) {
-        // Batch insert
-        const dbProducts = newProduct.map(product => ({
-          id: product.id,
-          name: product.name,
-          sku: product.sku,
-          description: product.description,
-          stock_level: product.stock_level,
-          weight: product.weight,
-          requires_weight_input: product.requiresWeightInput,
-          unit: product.unit,
-          required: product.required,
-        }));
+        // Batch insert - convert each product to snake_case
+        const dbProducts = newProduct.map(adaptProductToSnakeCase);
         
         const { data, error } = await supabase
           .from('products')
@@ -66,35 +46,15 @@ export const useProductData = (toast: any) => {
           throw error;
         }
 
-        // Convert the returned data to camelCase
-        const addedProducts: Product[] = data.map(product => ({
-          id: product.id,
-          name: product.name,
-          sku: product.sku,
-          description: product.description,
-          stock_level: product.stock_level,
-          weight: product.weight,
-          requiresWeightInput: product.requires_weight_input,
-          unit: product.unit,
-          required: product.required,
-        }));
+        // Convert the returned data to camelCase using adapter
+        const addedProducts: Product[] = data.map(adaptProductToCamelCase);
         
         setProducts(prevProducts => [...prevProducts, ...addedProducts]);
         
         return addedProducts;
       } else {
-        // Single insert
-        const dbProduct = {
-          id: newProduct.id,
-          name: newProduct.name,
-          sku: newProduct.sku,
-          description: newProduct.description,
-          stock_level: newProduct.stock_level,
-          weight: newProduct.weight,
-          requires_weight_input: newProduct.requiresWeightInput,
-          unit: newProduct.unit,
-          required: newProduct.required,
-        };
+        // Single insert - convert to snake_case
+        const dbProduct = adaptProductToSnakeCase(newProduct);
         
         const { data, error } = await supabase
           .from('products')
@@ -105,18 +65,8 @@ export const useProductData = (toast: any) => {
           throw error;
         }
 
-        // Convert the returned data to camelCase
-        const addedProduct: Product = {
-          id: data[0].id,
-          name: data[0].name,
-          sku: data[0].sku,
-          description: data[0].description,
-          stock_level: data[0].stock_level,
-          weight: data[0].weight,
-          requiresWeightInput: data[0].requires_weight_input,
-          unit: data[0].unit,
-          required: data[0].required,
-        };
+        // Convert the returned data to camelCase using adapter
+        const addedProduct = adaptProductToCamelCase(data[0]);
         
         setProducts(prevProducts => [...prevProducts, addedProduct]);
         
@@ -136,18 +86,12 @@ export const useProductData = (toast: any) => {
   // Update product
   const updateProduct = async (product: Product): Promise<boolean> => {
     try {
+      // Convert to snake_case for database
+      const productForDb = adaptProductToSnakeCase(product);
+      
       const { error } = await supabase
         .from('products')
-        .update({
-          name: product.name,
-          sku: product.sku,
-          description: product.description,
-          stock_level: product.stock_level,
-          weight: product.weight,
-          requires_weight_input: product.requires_weight_input,
-          unit: product.unit,
-          required: product.required
-        })
+        .update(productForDb)
         .eq('id', product.id);
       
       if (error) throw error;

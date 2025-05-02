@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -11,17 +10,20 @@ export const useOrderData = (toast: any) => {
   // Add order
   const addOrder = async (order: Order): Promise<Order | null> => {
     try {
+      // Convert to snake_case for database
+      const orderForDb = adaptOrderToSnakeCase(order);
+      
       // Insert order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          customer_id: order.customer_id,
-          customer_order_number: order.customer_order_number,
-          order_date: order.order_date,
-          required_date: order.required_date,
-          delivery_method: order.delivery_method,
-          notes: order.notes,
-          status: order.status,
+          customer_id: orderForDb.customer_id,
+          customer_order_number: orderForDb.customer_order_number,
+          order_date: orderForDb.order_date,
+          required_date: orderForDb.required_date,
+          delivery_method: orderForDb.delivery_method,
+          notes: orderForDb.notes,
+          status: orderForDb.status,
           created: new Date().toISOString()
         })
         .select();
@@ -31,18 +33,20 @@ export const useOrderData = (toast: any) => {
       const newOrderId = orderData[0].id;
       
       // Insert order items
-      const orderItemsToInsert = order.items.map(item => ({
-        order_id: newOrderId,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        original_quantity: item.quantity
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsToInsert);
-      
-      if (itemsError) throw itemsError;
+      if (order.items && order.items.length > 0) {
+        const orderItemsToInsert = order.items.map(item => ({
+          order_id: newOrderId,
+          product_id: item.productId,
+          quantity: item.quantity,
+          original_quantity: item.quantity
+        }));
+        
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItemsToInsert);
+        
+        if (itemsError) throw itemsError;
+      }
       
       // Fetch the newly created order with joined customer and items
       const { data: newOrderData, error: fetchError } = await supabase
@@ -67,72 +71,13 @@ export const useOrderData = (toast: any) => {
       
       if (newItemsError) throw newItemsError;
       
-      // Convert to our expected Order type
-      const newOrder: Order = {
-        id: newOrderData.id,
-        customer_id: newOrderData.customer_id,
-        customer: {
-          id: newOrderData.customer.id,
-          name: newOrderData.customer.name,
-          email: newOrderData.customer.email,
-          phone: newOrderData.customer.phone,
-          address: newOrderData.customer.address,
-          type: newOrderData.customer.type as "Private" | "Trade",
-          accountNumber: newOrderData.customer.account_number,
-          onHold: newOrderData.customer.on_hold,
-          holdReason: newOrderData.customer.hold_reason,
-          needsDetailedBoxLabels: newOrderData.customer.needs_detailed_box_labels
-        },
-        customer_order_number: newOrderData.customer_order_number,
-        order_date: newOrderData.order_date,
-        required_date: newOrderData.required_date,
-        delivery_method: newOrderData.delivery_method as "Delivery" | "Collection",
-        notes: newOrderData.notes,
-        status: newOrderData.status as "Pending" | "Processing" | "Completed" | "Cancelled" | "Missing Items" | "Modified" | "Partially Picked",
-        picker: newOrderData.picker,
-        is_picked: newOrderData.is_picked || false,
-        total_blown_pouches: newOrderData.total_blown_pouches || 0,
-        is_modified: newOrderData.is_modified || false,
-        created: newOrderData.created,
-        updated: newOrderData.updated,
-        batch_number: newOrderData.batch_number,
-        has_changes: newOrderData.has_changes || false,
-        from_standing_order: newOrderData.from_standing_order,
-        picked_by: newOrderData.picked_by,
-        picked_at: newOrderData.picked_at,
-        picking_in_progress: newOrderData.picking_in_progress || false,
-        invoiced: newOrderData.invoiced || false,
-        invoice_number: newOrderData.invoice_number,
-        invoice_date: newOrderData.invoice_date,
-        items: newItemsData.map((item: any): OrderItem => ({
-          id: item.id,
-          product_id: item.product_id,
-          order_id: item.order_id,
-          product: {
-            id: item.product.id,
-            name: item.product.name,
-            sku: item.product.sku,
-            description: item.product.description,
-            stock_level: item.product.stock_level,
-            weight: item.product.weight,
-            requires_weight_input: item.product.requires_weight_input || false,
-            unit: item.product.unit,
-            required: item.product.required || false
-          },
-          quantity: item.quantity,
-          unavailable_quantity: item.unavailable_quantity,
-          is_unavailable: item.is_unavailable,
-          blown_pouches: item.blown_pouches,
-          batch_number: item.batch_number,
-          checked: item.checked,
-          missing_quantity: item.missing_quantity,
-          picked_quantity: item.picked_quantity,
-          picked_weight: item.picked_weight,
-          original_quantity: item.original_quantity,
-          box_number: item.box_number,
-          manual_weight: item.manual_weight
-        }))
+      // Convert database data to our Order type using adapter
+      const rawOrder = {
+        ...newOrderData,
+        items: newItemsData || []
       };
+      
+      const newOrder = adaptOrderToCamelCase(rawOrder);
       
       setOrders([...orders, newOrder]);
       return newOrder;
@@ -153,30 +98,33 @@ export const useOrderData = (toast: any) => {
       // Check if the order is in orders list or completedOrders
       const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
       
+      // Convert to snake_case for database
+      const orderForDb = adaptOrderToSnakeCase(updatedOrder);
+      
       // Update the order details
       const { error: orderError } = await supabase
         .from('orders')
         .update({
-          customer_id: updatedOrder.customer_id,
-          customer_order_number: updatedOrder.customer_order_number,
-          order_date: updatedOrder.order_date,
-          required_date: updatedOrder.required_date,
-          delivery_method: updatedOrder.delivery_method,
-          notes: updatedOrder.notes,
-          status: updatedOrder.status,
-          picker: updatedOrder.picker,
-          is_picked: updatedOrder.is_picked,
-          total_blown_pouches: updatedOrder.total_blown_pouches,
-          is_modified: updatedOrder.is_modified,
+          customer_id: orderForDb.customer_id,
+          customer_order_number: orderForDb.customer_order_number,
+          order_date: orderForDb.order_date,
+          required_date: orderForDb.required_date,
+          delivery_method: orderForDb.delivery_method,
+          notes: orderForDb.notes,
+          status: orderForDb.status,
+          picker: orderForDb.picker,
+          is_picked: orderForDb.is_picked,
+          total_blown_pouches: orderForDb.total_blown_pouches,
+          is_modified: orderForDb.is_modified,
           updated: new Date().toISOString(),
-          batch_number: updatedOrder.batch_number,
-          has_changes: updatedOrder.has_changes,
-          picked_by: updatedOrder.picked_by,
-          picked_at: updatedOrder.picked_at,
-          picking_in_progress: updatedOrder.picking_in_progress,
-          invoiced: updatedOrder.invoiced,
-          invoice_number: updatedOrder.invoice_number,
-          invoice_date: updatedOrder.invoice_date
+          batch_number: orderForDb.batch_number,
+          has_changes: orderForDb.has_changes,
+          picked_by: orderForDb.picked_by,
+          picked_at: orderForDb.picked_at,
+          picking_in_progress: orderForDb.picking_in_progress,
+          invoiced: orderForDb.invoiced,
+          invoice_number: orderForDb.invoice_number,
+          invoice_date: orderForDb.invoice_date
         })
         .eq('id', updatedOrder.id);
       

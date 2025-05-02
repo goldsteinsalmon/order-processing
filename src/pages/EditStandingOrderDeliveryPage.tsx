@@ -1,452 +1,221 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
-import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { OrderItem, StandingOrderItem } from "@/types";
-import { ArrowLeft, Plus, Minus, Save } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
-import { Calendar } from "@/components/ui/calendar";
-import { 
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar"
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { isBusinessDay } from "@/utils/dateUtils";
+} from "@/components/ui/popover"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import { CalendarIcon } from "lucide-react"
+import { Order, StandingOrder, StandingOrderItem } from "@/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 const EditStandingOrderDeliveryPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const [searchParams] = useSearchParams();
-  const deliveryDateParam = searchParams.get("date");
-  
+  const { id, deliveryDate } = useParams<{ id: string; deliveryDate: string }>();
   const navigate = useNavigate();
-  const { standingOrders, addOrder, updateStandingOrder, products } = useData();
-  const { toast } = useToast();
-  
-  // State for order form
-  const [customerId, setCustomerId] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [orderDate, setOrderDate] = useState<Date | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
-  const [customerOrderNumber, setCustomerOrderNumber] = useState("");
-  const [notes, setNotes] = useState("");
-  const [orderItems, setOrderItems] = useState<{ 
-    id: string; 
-    product_id: string; 
-    quantity: number;
-    product?: any;
-  }[]>([]);
-  
-  // Product addition state
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
-  
-  const standingOrder = standingOrders.find(order => order.id === id);
-  
+  const { standingOrders, updateStandingOrder, addOrder } = useData();
+
+  const [standingOrder, setStandingOrder] = useState<StandingOrder | null>(null);
+  const [modifiedDelivery, setModifiedDelivery] = useState<{ date: string; notes?: string; items?: StandingOrderItem[] }>({ date: deliveryDate || "" });
+  const [isModified, setIsModified] = useState(false);
+  const [orderItems, setOrderItems] = useState<StandingOrderItem[]>([]);
+
   useEffect(() => {
-    if (standingOrder && deliveryDateParam) {
-      const parsedDate = new Date(deliveryDateParam);
-      
-      // Set up form with standing order data
-      setCustomerId(standingOrder.customer_id);
-      setCustomerName(standingOrder.customer?.name || "");
-      setOrderDate(parsedDate);
-      setDeliveryMethod(standingOrder.schedule.deliveryMethod);
-      setCustomerOrderNumber(standingOrder.customer_order_number || "");
-      setNotes(standingOrder.notes || "");
-      
-      // Convert order items for the form
-      setOrderItems(
-        standingOrder.items.map(item => ({
-          id: uuidv4(),
-          product_id: item.product_id,
-          quantity: item.quantity,
-          product: item.product
-        }))
-      );
+    if (id) {
+      const foundStandingOrder = standingOrders.find(so => so.id === id);
+      if (foundStandingOrder) {
+        setStandingOrder(foundStandingOrder);
+        setOrderItems(foundStandingOrder.items);
+      }
     }
-  }, [standingOrder, deliveryDateParam]);
-  
-  if (!standingOrder || !deliveryDateParam || !orderDate) {
-    return (
-      <Layout>
-        <div className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">Standing order or delivery date not found</h2>
-          <Button variant="outline" onClick={() => navigate("/standing-orders")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Standing Orders
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
-  
-  const handleAddItem = () => {
-    if (!selectedProductId) {
-      toast({
-        title: "No product selected",
-        description: "Please select a product to add to the order.",
-        variant: "destructive",
-      });
-      return;
+  }, [id, standingOrders]);
+
+  useEffect(() => {
+    if (standingOrder) {
+      const parsedDeliveryDate = deliveryDate ? new Date(deliveryDate) : null;
+      if (parsedDeliveryDate) {
+        setModifiedDelivery(prev => ({ ...prev, date: parsedDeliveryDate.toISOString() }));
+      }
     }
+  }, [standingOrder, deliveryDate]);
 
-    const product = products.find(p => p.id === selectedProductId);
+  const handleSave = async () => {
+    if (!standingOrder) return;
 
-    const newItem = {
-      id: uuidv4(),
-      product_id: selectedProductId,
-      quantity: selectedQuantity,
-      product: product
-    };
+    // Create a new order based on the standing order and modifications
+    const newOrderId = crypto.randomUUID();
+    const deliveryDate = modifiedDelivery.date || standingOrder.schedule.nextDeliveryDate;
 
-    setOrderItems([...orderItems, newItem]);
-    setSelectedProductId("");
-    setSelectedQuantity(1);
-    
-    // Success toast
-    toast({
-      title: "Item added",
-      description: "The item has been added to the order."
-    });
-  };
+    // Map standing order items to order items
+    const mappedItems = orderItems.map(item => ({
+      id: crypto.randomUUID(),
+      orderId: newOrderId,
+      productId: item.productId,
+      product: item.product,
+      quantity: item.quantity
+    }));
 
-  const handleRemoveItem = (itemId: string) => {
-    setOrderItems(orderItems.filter(item => item.id !== itemId));
-  };
-
-  const handleItemChange = (id: string, field: "product_id" | "quantity", value: string | number) => {
-    setOrderItems(
-      orderItems.map(item => {
-        if (item.id === id) {
-          const updatedItem = { ...item, [field]: value };
-          if (field === 'product_id') {
-            updatedItem.product = products.find(p => p.id === value);
-          }
-          return updatedItem;
-        }
-        return item;
-      })
-    );
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (orderItems.length === 0) {
-      toast({
-        title: "No products added",
-        description: "Please add at least one product to the order.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Create full order items with product data
-    const fullOrderItems: OrderItem[] = orderItems
-      .filter(item => item.product_id && item.quantity > 0)
-      .map(item => {
-        return {
-          id: item.id,
-          product_id: item.product_id,
-          order_id: "",
-          product: item.product,
-          quantity: item.quantity,
-        };
-      });
-    
-    if (fullOrderItems.length === 0) {
-      toast({
-        title: "Invalid items",
-        description: "Please ensure all items have a product and quantity.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Create the new order using the scheduled delivery date
-    const newOrder = {
-      id: uuidv4(),
-      customer_id: standingOrder.customer_id,
+    const newOrder: Order = {
+      id: newOrderId,
+      customerId: standingOrder.customerId,
       customer: standingOrder.customer,
-      customer_order_number: customerOrderNumber,
-      order_date: orderDate.toISOString(), // Use the scheduled date from the standing order
-      required_date: orderDate.toISOString(),
-      delivery_method: deliveryMethod,
-      items: fullOrderItems,
-      notes: notes ? 
-        `${notes} (Processed from Standing Order #${standingOrder.id.substring(0, 8)})` : 
-        `Processed from Standing Order #${standingOrder.id.substring(0, 8)}`,
-      status: "Pending" as const,
-      created: new Date().toISOString(),
-      from_standing_order: standingOrder.id,
+      customerOrderNumber: standingOrder.customerOrderNumber,
+      orderDate: new Date().toISOString(),
+      requiredDate: deliveryDate,
+      deliveryMethod: standingOrder.deliveryMethod,
+      notes: modifiedDelivery.notes || standingOrder.notes,
+      status: "Pending",
+      fromStandingOrder: standingOrder.id,
+      items: mappedItems
     };
-    
-    // Mark the date as processed in the standing order
-    const updatedStandingOrder = { ...standingOrder };
-    
-    // Initialize processedDates if it doesn't exist
-    if (!updatedStandingOrder.schedule.processedDates) {
-      updatedStandingOrder.schedule.processedDates = [];
-    }
-    
-    // Add this date to processedDates if not already there
-    const deliveryDateStr = format(orderDate, "yyyy-MM-dd");
-    const alreadyProcessed = updatedStandingOrder.schedule.processedDates.some(
-      d => format(new Date(d), "yyyy-MM-dd") === deliveryDateStr
-    );
-    
-    if (!alreadyProcessed) {
-      updatedStandingOrder.schedule.processedDates.push(orderDate.toISOString());
-    }
-    
-    // Update the standing order with the processed date
-    updateStandingOrder(updatedStandingOrder);
-    
-    // Add the new order
-    addOrder(newOrder);
-    
-    // Show success message
-    toast({
-      title: "Order created",
-      description: "The order has been created from the standing order."
-    });
-    
-    // Navigate back
-    navigate(`/standing-order-schedule/${standingOrder.id}`);
+
+    // Save the new order
+    await addOrder(newOrder);
+
+    // Update the standing order's modified deliveries
+    const updatedStandingOrder = {
+      ...standingOrder,
+      schedule: {
+        ...standingOrder.schedule,
+        modifiedDeliveries: [
+          ...(standingOrder.schedule.modifiedDeliveries || []),
+          {
+            date: deliveryDate,
+            modifications: {
+              notes: !!modifiedDelivery.notes,
+              items: isModified
+            }
+          }
+        ]
+      }
+    };
+
+    // Save the updated standing order
+    await updateStandingOrder(updatedStandingOrder);
+
+    // Navigate back to the standing order details page
+    navigate(`/standing-orders/${id}`);
   };
-  
+
+  const handleCancel = () => {
+    navigate(`/standing-orders/${id}`);
+  };
+
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setModifiedDelivery(prev => ({ ...prev, notes: e.target.value }));
+  };
+
+  const handleItemQuantityChange = (itemId: string, quantity: number) => {
+    setIsModified(true);
+    setOrderItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  if (!standingOrder) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <Layout>
-      <div className="flex items-center mb-6">
-        <Button variant="ghost" onClick={() => navigate(`/standing-order-schedule/${standingOrder.id}`)} className="mr-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back
-        </Button>
-        <h2 className="text-2xl font-bold">Edit Standing Order Delivery</h2>
-      </div>
-      
-      <Card className="mb-6">
+    <div className="container mx-auto p-4">
+      <Card>
         <CardHeader>
-          <CardTitle>Delivery Information</CardTitle>
+          <CardTitle>Edit Delivery for {format(new Date(modifiedDelivery.date), "PPP")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div className="flex space-x-2">
-              <dt className="font-medium">Customer:</dt>
-              <dd>{customerName}</dd>
-            </div>
-            <div className="flex space-x-2">
-              <dt className="font-medium">Delivery Date:</dt>
-              <dd>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      {orderDate ? format(orderDate, "EEEE, MMMM d, yyyy") : "Select date..."}
+          <div className="mb-4">
+            <Label htmlFor="deliveryDate">Delivery Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !modifiedDelivery.date && "text-muted-foreground"
+                  )}
+                >
+                  {modifiedDelivery.date ? (
+                    format(new Date(modifiedDelivery.date), "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={modifiedDelivery.date ? new Date(modifiedDelivery.date) : undefined}
+                  onSelect={(date) => setModifiedDelivery(prev => ({ ...prev, date: date?.toISOString() || "" }))}
+                  disabled={(date) =>
+                    date < new Date()
+                  }
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="mb-4">
+            <Label htmlFor="notes">Delivery Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Delivery Instructions"
+              value={modifiedDelivery.notes || standingOrder.notes}
+              onChange={handleNotesChange}
+            />
+          </div>
+
+          <div className="mb-4">
+            <h3>Items</h3>
+            <ul>
+              {orderItems.map(item => (
+                <li key={item.id} className="flex items-center justify-between py-2 border-b">
+                  <span>{item.product.name}</span>
+                  <div className="flex items-center">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleItemQuantityChange(item.id, Math.max(0, item.quantity - 1))}
+                    >
+                      -
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={orderDate}
-                      onSelect={(date) => date && setOrderDate(date)}
-                      disabled={(date) => !isBusinessDay(date)}
-                      initialFocus
+                    <Input
+                      type="number"
+                      className="w-20 mx-2 text-center"
+                      value={item.quantity}
+                      onChange={(e) => handleItemQuantityChange(item.id, parseInt(e.target.value))}
                     />
-                  </PopoverContent>
-                </Popover>
-              </dd>
-            </div>
-            <div className="flex space-x-2">
-              <dt className="font-medium">Delivery Method:</dt>
-              <dd>
-                <Select value={deliveryMethod} onValueChange={(value) => setDeliveryMethod(value as "Delivery" | "Collection")}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Delivery">Delivery</SelectItem>
-                    <SelectItem value="Collection">Collection</SelectItem>
-                  </SelectContent>
-                </Select>
-              </dd>
-            </div>
-          </dl>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleItemQuantityChange(item.id, item.quantity + 1)}
+                    >
+                      +
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="flex justify-between">
+            <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
+            <Button onClick={handleSave}>Save Delivery</Button>
+          </div>
         </CardContent>
       </Card>
-      
-      <form onSubmit={handleSubmit}>
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Order Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label htmlFor="customerOrderNumber" className="block text-sm font-medium mb-1">
-                Customer Order Number (Optional)
-              </label>
-              <Input
-                id="customerOrderNumber"
-                value={customerOrderNumber}
-                onChange={(e) => setCustomerOrderNumber(e.target.value)}
-                placeholder="Enter customer's order number"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium mb-1">
-                Notes (Optional)
-              </label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any special instructions or notes"
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6 flex flex-col gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                <div className="md:col-span-4">
-                  <label className="block text-sm font-medium mb-1">Product</label>
-                  <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map(product => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} ({product.sku})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-sm font-medium mb-1">Quantity</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={selectedQuantity}
-                    onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
-                  />
-                </div>
-                <div className="md:col-span-1">
-                  <Button 
-                    type="button" 
-                    className="w-full" 
-                    onClick={handleAddItem}
-                  >
-                    <Plus className="h-4 w-4 mr-2" /> Add
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left font-medium py-2">Product</th>
-                    <th className="text-left font-medium py-2">SKU</th>
-                    <th className="text-center font-medium py-2">Quantity</th>
-                    <th className="text-right font-medium py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orderItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-4 text-center text-gray-500">
-                        No items added to this order
-                      </td>
-                    </tr>
-                  ) : (
-                    orderItems.map((item) => {
-                      const product = products.find(p => p.id === item.product_id);
-                      return (
-                        <tr key={item.id} className="border-b">
-                          <td className="py-3">
-                            <Select 
-                              value={item.product_id} 
-                              onValueChange={(value) => handleItemChange(item.id, "product_id", value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue>
-                                  {product ? product.name : "Select product"}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {products.map(p => (
-                                  <SelectItem key={p.id} value={p.id}>
-                                    {p.name} ({p.sku})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          <td className="py-3">{product ? product.sku : ""}</td>
-                          <td className="py-3 text-center">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.quantity}
-                              onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 0)}
-                              className="w-20 mx-auto text-center"
-                            />
-                          </td>
-                          <td className="py-3 text-right">
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleRemoveItem(item.id)}
-                            >
-                              <Minus className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <div className="flex justify-end mt-6 space-x-4">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => navigate(`/standing-order-schedule/${standingOrder.id}`)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit">
-            <Save className="mr-2 h-4 w-4" />
-            Create Order
-          </Button>
-        </div>
-      </form>
-    </Layout>
+    </div>
   );
 };
 

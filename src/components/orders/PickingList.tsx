@@ -343,7 +343,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   // Print handler - fixed to use correct options format
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.id.substring(0, 8)}`,
-    content: () => printRef.current,
+    contentRef: printRef,
   });
   
   // Filter items for a specific box

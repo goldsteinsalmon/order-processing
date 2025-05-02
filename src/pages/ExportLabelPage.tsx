@@ -19,7 +19,7 @@ const ExportLabelPage: React.FC = () => {
   
   const handlePrint = useReactToPrint({
     documentTitle: `Label-${orderId?.substring(0, 8)}`,
-    content: () => printRef.current,
+    contentRef: printRef,
   });
   
   const handleBack = () => {

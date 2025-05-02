@@ -40,7 +40,7 @@ const BoxLabelPage: React.FC = () => {
 
   const handlePrint = useReactToPrint({
     documentTitle: `Box-${boxNumber}-${orderId?.substring(0, 8)}`,
-    content: () => printRef.current,
+    contentRef: printRef,
   });
 
   const handleBack = () => {
