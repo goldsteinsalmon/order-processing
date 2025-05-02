@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -40,7 +39,7 @@ const BoxLabelPage: React.FC = () => {
 
   const handlePrint = useReactToPrint({
     documentTitle: `Box-${boxNumber}-${orderId?.substring(0, 8)}`,
-    content: () => printRef.current,
+    contentRef: printRef,
   });
 
   const handleBack = () => {
