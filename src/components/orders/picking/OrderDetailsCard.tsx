@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 
 interface OrderDetailsCardProps {
   selectedOrder: Order;
@@ -25,6 +25,17 @@ const OrderDetailsCard: React.FC<OrderDetailsCardProps> = ({
   onPickerChange, 
   pickers 
 }) => {
+  // Format date safely - add validation to prevent invalid date errors
+  const formatSafeDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return isValid(date) ? format(date, "MMMM d, yyyy") : "Invalid date";
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
+    }
+  };
+  
   return (
     <Card className="mb-6">
       <CardContent className="p-6">
@@ -42,7 +53,9 @@ const OrderDetailsCard: React.FC<OrderDetailsCardProps> = ({
               <div>
                 <Label className="text-gray-500 block mb-1">Order Date</Label>
                 <div className="font-medium">
-                  {format(new Date(selectedOrder.order_date), "MMMM d, yyyy")}
+                  {selectedOrder.order_date ? 
+                    formatSafeDate(selectedOrder.order_date) : 
+                    "No date specified"}
                 </div>
               </div>
               
