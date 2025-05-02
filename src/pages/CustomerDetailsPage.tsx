@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -170,12 +171,15 @@ const CustomerDetailsPage: React.FC = () => {
         updated: new Date().toISOString()
       };
       
-      updateCustomer(updatedCustomer);
-      
-      toast({
-        title: "Hold removed",
-        description: `${processedCustomer.name}'s account is now active.`
-      });
+      updateCustomer(updatedCustomer)
+        .then(success => {
+          if (success) {
+            toast({
+              title: "Hold removed",
+              description: `${processedCustomer.name}'s account is now active.`
+            });
+          }
+        });
     } else {
       // Show dialog to get hold reason
       setHoldReason("");
@@ -193,13 +197,16 @@ const CustomerDetailsPage: React.FC = () => {
       updated: new Date().toISOString()
     };
     
-    updateCustomer(updatedCustomer);
-    setShowHoldDialog(false);
-    
-    toast({
-      title: "Account on hold",
-      description: `${processedCustomer.name}'s account has been placed on hold.`
-    });
+    updateCustomer(updatedCustomer)
+      .then(success => {
+        if (success) {
+          setShowHoldDialog(false);
+          toast({
+            title: "Account on hold",
+            description: `${processedCustomer.name}'s account has been placed on hold.`
+          });
+        }
+      });
   };
 
   const handleDeleteCustomer = async () => {
