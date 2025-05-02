@@ -363,7 +363,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         completedBoxes,
         completed_boxes: completedBoxes, // Add this for database compatibility
         savedBoxes,
-        saved_boxes: savedBoxes // Add this for database compatibility
+        saved_boxes: savedBoxes // Fix: Change to match the expected type
       };
       
       console.log("Saving order with status:", newStatus);

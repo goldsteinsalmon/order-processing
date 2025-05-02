@@ -2,6 +2,19 @@
 -- Set the order_number_seq to start at 1001
 SELECT setval('public.order_number_seq', 1000, true);
 
+-- Create a function to set the order number sequence
+CREATE OR REPLACE FUNCTION public.set_order_number_sequence(start_value integer)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  -- Set the sequence to the specified start value
+  PERFORM setval('public.order_number_seq', start_value, true);
+  RETURN true;
+END;
+$function$;
+
 -- Ensure the trigger function exists
 CREATE OR REPLACE FUNCTION public.set_order_number()
  RETURNS trigger

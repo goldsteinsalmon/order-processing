@@ -10,8 +10,10 @@ export async function runOrderNumberMigration() {
     // Read migration SQL from file
     const migrationSQL = fs.readFileSync(path.resolve(__dirname, '../../supabase/migration.sql'), 'utf8');
     
-    // Execute the migration
-    const { data, error } = await supabase.rpc('exec_sql', { sql: migrationSQL });
+    // Execute the migration by creating a function to execute SQL
+    const { data, error } = await supabase.rpc('set_order_number_sequence', { 
+      start_value: 1000
+    });
     
     if (error) {
       console.error("Error running migration:", error);

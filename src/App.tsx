@@ -1,3 +1,4 @@
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -27,6 +28,7 @@ import LoginPage from "@/pages/LoginPage";
 import EditStandingOrderDeliveryPage from "@/pages/EditStandingOrderDeliveryPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import SupabaseProtectedRoute from "@/components/SupabaseProtectedRoute";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { SupabaseDataProvider } from "@/context/SupabaseDataContext";
 import DataProvider from "@/context/DataContext";
 import { SupabaseAuthProvider } from "@/context/SupabaseAuthContext";

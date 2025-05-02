@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { runOrderNumberMigration } from "@/scripts/runMigration";
 
 const AdminMigrationPage: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
@@ -17,8 +18,8 @@ const AdminMigrationPage: React.FC = () => {
     
     try {
       // Set the order_number_seq to start at 1001
-      const { error } = await supabase.rpc('exec_sql', { 
-        sql: "SELECT setval('public.order_number_seq', 1000, true);" 
+      const { error } = await supabase.rpc('set_order_number_sequence', { 
+        start_value: 1000
       });
       
       if (error) throw error;
