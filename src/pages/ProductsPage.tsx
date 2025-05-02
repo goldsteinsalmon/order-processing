@@ -8,7 +8,8 @@ import { PlusCircle, Search, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DebugLoader } from "@/components/ui/debug-loader";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,28 +44,22 @@ const ProductsPage = () => {
   return (
     <Layout>
       <div className="flex items-center justify-between mb-4">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <div className="flex gap-2">
-          {isLoading && (
-            <Button variant="outline" onClick={handleRetryFetch}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Retry
-            </Button>
-          )}
-          <Button onClick={() => navigate("/create-product")}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Product
-          </Button>
-        </div>
+        <h1 className="text-2xl font-bold">Products</h1>
+        <Button onClick={() => navigate("/create-product")}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Product
+        </Button>
+      </div>
+      
+      <div className="relative w-full max-w-md mb-6">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search products by name or SKU..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-8"
+        />
       </div>
 
       <DebugLoader 
@@ -76,13 +71,19 @@ const ProductsPage = () => {
 
       {isLoading ? (
         <div className="space-y-2">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="p-4 border rounded-md">
-              <Skeleton className="h-4 w-[80%] mb-2" />
-              <Skeleton className="h-4 w-[60%] mb-2" />
-              <Skeleton className="h-4 w-[40%]" />
+          <div className="border rounded-md overflow-hidden">
+            <div className="bg-muted p-3">
+              <Skeleton className="h-5 w-full" />
             </div>
-          ))}
+            <div className="p-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="py-3 space-y-1">
+                  <Skeleton className="h-4 w-[60%] mb-1" />
+                  <Skeleton className="h-4 w-[80%]" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : sortedProducts.length === 0 ? (
         <Card className="w-full">
@@ -100,42 +101,90 @@ const ProductsPage = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {sortedProducts.map((product) => (
-            <div key={product.id} className="p-4 border rounded-md bg-white shadow-sm">
-              <div className="flex justify-between items-center">
-                <h3 className="font-medium text-lg">{product.name}</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/edit-product/${product.id}`)}
-                >
-                  Edit
-                </Button>
-              </div>
-              <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Description</p>
-                  <p className="text-sm">{product.description || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">SKU</p>
-                  <p className="text-sm">{product.sku || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Barcode</p>
-                  <p className="text-sm">{product.barcode || "N/A"}</p>
-                </div>
-              </div>
-              <div className="mt-2 text-sm">
-                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${
-                  product.active !== false ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                }`}>
-                  {product.active !== false ? "Active" : "Inactive"}
-                </span>
-              </div>
+        <div className="space-y-8">
+          <div className="border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Weight (g)</TableHead>
+                  <TableHead>Requires Weight</TableHead>
+                  <TableHead>Stock Level</TableHead>
+                  <TableHead>Add Stock</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      No products found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>{product.sku || "N/A"}</TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.weight || "N/A"}</TableCell>
+                      <TableCell>{product.requiresWeightInput ? "Yes" : "No"}</TableCell>
+                      <TableCell>{product.stockLevel || 0}</TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number" 
+                          className="w-20" 
+                          placeholder="0"
+                          disabled
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/edit-product/${product.id}`)}
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Stock Forecast Section */}
+          <div>
+            <h2 className="text-xl font-semibold mb-1">Stock Forecast (Next 7 Working Days)</h2>
+            <p className="text-sm text-gray-500 mb-4">Shows products needed for pending orders by date</p>
+            
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Current Stock</TableHead>
+                    <TableHead>05/05<br/>Mon</TableHead>
+                    <TableHead>06/05<br/>Tue</TableHead>
+                    <TableHead>07/05<br/>Wed</TableHead>
+                    <TableHead>08/05<br/>Thu</TableHead>
+                    <TableHead>09/05<br/>Fri</TableHead>
+                    <TableHead>12/05<br/>Mon</TableHead>
+                    <TableHead>13/05<br/>Tue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">
+                      No products found
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </Layout>
