@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -145,7 +144,7 @@ const CustomersPage: React.FC = () => {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            onClick={() => navigate(`/customer-details/${customer.id}`)}
+                            onClick={() => navigate(`/customers/${customer.id}`)}
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View Details

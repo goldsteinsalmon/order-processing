@@ -167,7 +167,6 @@ const ProductsPage: React.FC = () => {
 
   return (
     <Layout>
-      {/* Keep existing UI code */}
       <div className="flex justify-between mb-6">
         <h2 className="text-2xl font-bold">Products</h2>
         <Button onClick={() => navigate("/create-product")}>
@@ -184,7 +183,6 @@ const ProductsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Keep existing UI code for the table */}
       <div className="space-y-6">
         <div className="flex items-center mb-4">
           <div className="relative w-full max-w-sm">
@@ -253,7 +251,7 @@ const ProductsPage: React.FC = () => {
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={() => navigate(`/product-details/${product.id}`)}
+                          onClick={() => navigate(`/products/${product.id}`)}
                         >
                           <Eye className="h-4 w-4 mr-1" /> View Details
                         </Button>
