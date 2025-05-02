@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from "react";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -5,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
-import { getCompletedBoxes, getPickingInProgress, getPickedAt } from "@/utils/propertyHelpers";
+import { getBoxDistributions, getCompletedBoxes, getSavedBoxes } from "@/utils/boxPropertyHelpers";
 import { getPickedBy } from "@/utils/pickerPropertyHelpers";
+import { getPickedAt } from "@/utils/propertyHelpers";
 
 const PrintBoxLabelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +37,7 @@ const PrintBoxLabelPage: React.FC = () => {
       if (boxNum > 0) {
         // Create copies to avoid directly mutating state
         const updatedCompletedBoxes = [...(getCompletedBoxes(order) || [])];
-        const updatedSavedBoxes = [...(order.savedBoxes || [])];
+        const updatedSavedBoxes = [...(getSavedBoxes(order) || [])];
         
         // Mark the box as completed if not already
         if (!updatedCompletedBoxes.includes(boxNum)) {
@@ -103,7 +105,7 @@ const PrintBoxLabelPage: React.FC = () => {
         const currentBoxNum = parseInt(boxNumber);
         
         // Find all possible box numbers from the order's box distributions
-        const boxNumbers = order.boxDistributions
+        const boxNumbers = getBoxDistributions(order)
           ?.map(box => box.boxNumber)
           .filter(num => num > 0)
           .sort((a, b) => a - b) || [];

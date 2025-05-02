@@ -75,7 +75,9 @@ export interface OrderBase {
   picking_progress?: any;
   box_distributions?: any[];
   completed_boxes?: number[];
+  saved_boxes?: number[]; // Added missing property
   missing_items?: any[];
   invoice_number?: string;
   invoice_date?: string;
+  batch_summaries?: any[]; // Added missing property
 }
