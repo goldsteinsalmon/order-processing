@@ -1,4 +1,3 @@
-
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -240,8 +239,6 @@ function App() {
                   }
                 />
                 
-                {/* Adding Missing Routes */}
-                
                 <Route
                   path="/completed-orders"
                   element={
@@ -290,9 +287,9 @@ function App() {
                 <Route
                   path="/admin/migrations"
                   element={
-                    <ProtectedRoute>
+                    <SupabaseProtectedRoute requireAdmin={true}>
                       <AdminMigrationPage />
-                    </ProtectedRoute>
+                    </SupabaseProtectedRoute>
                   }
                 />
                 

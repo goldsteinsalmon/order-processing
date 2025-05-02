@@ -1,6 +1,6 @@
 
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 import React from "react";
 
 interface ProtectedRouteProps {
@@ -12,22 +12,25 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   requireAdmin = false,
-  allowUserAccess = false // By default, don't allow users
+  allowUserAccess = true // By default, allow users
 }) => {
-  const { isAuthenticated, isAdmin, currentUser } = useAuth();
+  const { user } = useSupabaseAuth();
 
-  if (!isAuthenticated) {
+  if (!user) {
     // User is not authenticated, redirect to login
     return <Navigate to="/login" replace />;
   }
   
-  if (requireAdmin && !isAdmin()) {
+  // Get user role from Supabase metadata
+  const userRole = user?.user_metadata?.role || 'User';
+  
+  if (requireAdmin && userRole !== 'Admin') {
     // User is authenticated but not an admin, redirect to orders
     return <Navigate to="/orders" replace />;
   }
 
   // Check if the user is a regular user and if this route is not allowed for users
-  if (currentUser?.role === "User" && !allowUserAccess) {
+  if (userRole === "User" && !allowUserAccess) {
     // Regular user trying to access a restricted route, redirect to orders
     return <Navigate to="/orders" replace />;
   }

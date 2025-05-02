@@ -1,28 +1,14 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import fs from 'fs';
-import path from 'path';
 
 export async function runOrderNumberMigration() {
   try {
     console.log("Running order number migration...");
     
-    // Read migration SQL from file (keeping this for reference)
-    const migrationSQL = fs.readFileSync(path.resolve(__dirname, '../../supabase/migration.sql'), 'utf8');
-    
-    // Execute the migration by directly running the correct RPC function
+    // Execute the migration by directly calling the RPC function
     const { data, error } = await supabase
-      .from('orders')
-      .select('id')
-      .limit(1)
-      .then(async ({ data, error }) => {
-        if (error) throw error;
-        
-        // Call the set_order_number_sequence function with the start value parameter
-        return await supabase.rpc('set_order_number_sequence', {
-          start_value: 1000
-        })
-        .then(() => ({ data: { success: true }, error: null }));
+      .rpc('set_order_number_sequence', {
+        start_value: 1000
       });
     
     if (error) {
