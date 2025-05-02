@@ -29,7 +29,7 @@ import LoginPage from "@/pages/LoginPage";
 import EditStandingOrderDeliveryPage from "@/pages/EditStandingOrderDeliveryPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 import SupabaseProtectedRoute from "@/components/SupabaseProtectedRoute";
-import SupabaseDataProvider from "@/context/SupabaseDataContext";
+import { SupabaseDataProvider } from "@/context/SupabaseDataContext";
 import DataProvider from "@/context/DataContext";
 import { SupabaseAuthProvider } from "@/context/SupabaseAuthContext";
 import PrintBoxLabelPage from "@/pages/PrintBoxLabelPage";
