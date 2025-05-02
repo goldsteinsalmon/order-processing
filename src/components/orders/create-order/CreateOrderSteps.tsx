@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -266,6 +267,9 @@ const CreateOrderSteps: React.FC = () => {
       return;
     }
 
+    // Set submitting state to prevent double submissions
+    setIsSubmitting(true);
+
     // Validate form
     form.trigger().then(isValid => {
       if (!isValid) {
@@ -274,6 +278,7 @@ const CreateOrderSteps: React.FC = () => {
           description: "Please fill in all required fields.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
       
@@ -288,6 +293,7 @@ const CreateOrderSteps: React.FC = () => {
           description: "Please ensure all items have a product and a positive quantity.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -303,6 +309,7 @@ const CreateOrderSteps: React.FC = () => {
             description: "Please assign all items to boxes before submitting.",
             variant: "destructive",
           });
+          setIsSubmitting(false);
           return;
         }
         
@@ -314,6 +321,7 @@ const CreateOrderSteps: React.FC = () => {
             description: "Please remove any empty boxes before submitting.",
             variant: "destructive",
           });
+          setIsSubmitting(false);
           return;
         }
       }
