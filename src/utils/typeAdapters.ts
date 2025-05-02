@@ -19,6 +19,8 @@ export const adaptCustomerToCamelCase = (customer: any): Customer => {
 
   console.log("adaptCustomerToCamelCase - Input:", customer);
   console.log("adaptCustomerToCamelCase - Output:", result);
+  console.log("adaptCustomerToCamelCase - Account number:", result.accountNumber || "EMPTY");
+  console.log("adaptCustomerToCamelCase - On hold status:", result.onHold);
   
   return result;
 };
@@ -42,6 +44,8 @@ export const adaptCustomerToSnakeCase = (customer: Customer): any => {
   
   console.log("adaptCustomerToSnakeCase - Input:", customer);
   console.log("adaptCustomerToSnakeCase - Output:", result);
+  console.log("adaptCustomerToSnakeCase - Account number:", result.account_number || "EMPTY");
+  console.log("adaptCustomerToSnakeCase - On hold status:", result.on_hold);
   
   return result;
 };

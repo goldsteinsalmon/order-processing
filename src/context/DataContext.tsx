@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect } from "react";
 import { SupabaseDataProvider, useSupabaseData } from "./SupabaseDataContext";
 import { 
@@ -116,15 +115,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Wrap the updateCustomer function to convert camelCase back to snake_case
   const updateCustomer = async (camelCaseCustomer: Customer): Promise<boolean> => {
     console.log("DataContext updateCustomer called with:", camelCaseCustomer);
-    const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
+    console.log("DataContext updateCustomer - accountNumber:", camelCaseCustomer.accountNumber || "EMPTY");
+    console.log("DataContext updateCustomer - onHold:", camelCaseCustomer.onHold);
+    
+    // Make sure we have a valid customer with all properties
+    const completeCustomer = {
+      ...camelCaseCustomer,
+      accountNumber: camelCaseCustomer.accountNumber || "",
+      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels || false
+    };
+    
+    const snakeCaseCustomer = adaptCustomerToSnakeCase(completeCustomer);
     console.log("Converted to snake_case:", snakeCaseCustomer);
-    return await supabaseData.updateCustomer(snakeCaseCustomer);
+    console.log("DataContext updateCustomer - snake_case account_number:", snakeCaseCustomer.account_number || "EMPTY");
+    
+    const result = await supabaseData.updateCustomer(snakeCaseCustomer);
+    
+    if (result) {
+      // Force refresh the customers list to ensure UI is updated
+      const index = customers.findIndex(c => c.id === camelCaseCustomer.id);
+      if (index !== -1) {
+        const updatedCustomers = [...customers];
+        updatedCustomers[index] = completeCustomer;
+      }
+    }
+    
+    return result;
   };
   
   // Wrap the addCustomer function to ensure proper data handling
   const addCustomer = async (camelCaseCustomer: Customer): Promise<Customer | null> => {
     console.log("DataContext addCustomer called with:", camelCaseCustomer);
-    const snakeCaseCustomer = adaptCustomerToSnakeCase(camelCaseCustomer);
+    console.log("DataContext addCustomer - accountNumber:", camelCaseCustomer.accountNumber || "EMPTY");
+    console.log("DataContext addCustomer - onHold:", camelCaseCustomer.onHold);
+    
+    // Make sure we have a valid customer with all properties
+    const completeCustomer = {
+      ...camelCaseCustomer,
+      accountNumber: camelCaseCustomer.accountNumber || "",
+      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels || false
+    };
+    
+    const snakeCaseCustomer = adaptCustomerToSnakeCase(completeCustomer);
     console.log("Converted to snake_case for add:", snakeCaseCustomer);
     const result = await supabaseData.addCustomer(snakeCaseCustomer);
     if (result) {

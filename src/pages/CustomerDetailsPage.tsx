@@ -48,8 +48,10 @@ const CustomerDetailsPage: React.FC = () => {
   useEffect(() => {
     if (processedCustomer) {
       console.log("CustomerDetailsPage - Customer details:", processedCustomer);
-      console.log("CustomerDetailsPage - Account number:", processedCustomer.accountNumber);
+      console.log("CustomerDetailsPage - Account number:", processedCustomer.accountNumber || "EMPTY");
       console.log("CustomerDetailsPage - Needs detailed box labels:", processedCustomer.needsDetailedBoxLabels);
+      console.log("CustomerDetailsPage - On hold status:", processedCustomer.onHold);
+      console.log("CustomerDetailsPage - Hold reason:", processedCustomer.holdReason || "EMPTY");
     } else if (customer) {
       console.log("CustomerDetailsPage - Raw customer before processing:", customer);
     }
@@ -82,8 +84,9 @@ const CustomerDetailsPage: React.FC = () => {
 
       console.log("CustomerDetailsPage - Form data set from customer:", {
         name: processedCustomer.name,
-        accountNumber: processedCustomer.accountNumber,
-        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels
+        accountNumber: processedCustomer.accountNumber || "EMPTY",
+        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels,
+        onHold: processedCustomer.onHold
       });
     }
   }, [processedCustomer]);
@@ -163,32 +166,36 @@ const CustomerDetailsPage: React.FC = () => {
     if (!processedCustomer) return;
     
     console.log("toggleHoldStatus - Current customer state:", processedCustomer);
+    console.log("toggleHoldStatus - Current account number:", processedCustomer.accountNumber || "EMPTY");
+    console.log("toggleHoldStatus - Current onHold status:", processedCustomer.onHold);
     
     if (processedCustomer.onHold) {
-      // Remove hold
+      // Remove hold - make a deep copy to avoid reference issues
       const updatedCustomer = {
         ...processedCustomer,
         onHold: false,
         holdReason: undefined,
-        // Make sure we preserve all important fields
-        accountNumber: processedCustomer.accountNumber,
-        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels,
+        // Explicitly copy these fields to ensure they're preserved
+        accountNumber: processedCustomer.accountNumber || "",
+        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels || false,
         updated: new Date().toISOString()
       };
       
       console.log("toggleHoldStatus - Removing hold, updated customer:", updatedCustomer);
+      console.log("toggleHoldStatus - With account number:", updatedCustomer.accountNumber);
       
       updateCustomer(updatedCustomer)
         .then(success => {
           if (success) {
-            // Force refresh the customer data
-            const refreshedCustomer = customers.find(c => c.id === processedCustomer.id);
-            
-            console.log("toggleHoldStatus - Hold removed, refreshed customer:", refreshedCustomer);
-            
             toast({
               title: "Hold removed",
               description: `${processedCustomer.name}'s account is now active.`
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to remove hold status.",
+              variant: "destructive"
             });
           }
         });
@@ -203,32 +210,35 @@ const CustomerDetailsPage: React.FC = () => {
     if (!processedCustomer) return;
     
     console.log("applyHold - Current customer state:", processedCustomer);
+    console.log("applyHold - Current account number:", processedCustomer.accountNumber || "EMPTY");
     
+    // Make a deep copy of the customer to avoid reference issues
     const updatedCustomer = {
       ...processedCustomer,
       onHold: true,
       holdReason: holdReason,
-      // Make sure we preserve all important fields
-      accountNumber: processedCustomer.accountNumber,
-      needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels,
+      // Explicitly copy these fields to ensure they're preserved
+      accountNumber: processedCustomer.accountNumber || "",
+      needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels || false,
       updated: new Date().toISOString()
     };
     
     console.log("applyHold - Adding hold, updated customer:", updatedCustomer);
+    console.log("applyHold - With account number:", updatedCustomer.accountNumber);
     
     updateCustomer(updatedCustomer)
       .then(success => {
         if (success) {
           setShowHoldDialog(false);
-          
-          // Force refresh the customer data
-          const refreshedCustomer = customers.find(c => c.id === processedCustomer.id);
-          
-          console.log("applyHold - Hold applied, refreshed customer:", refreshedCustomer);
-          
           toast({
             title: "Account on hold",
             description: `${processedCustomer.name}'s account has been placed on hold.`
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to place account on hold.",
+            variant: "destructive"
           });
         }
       });
@@ -473,6 +483,12 @@ const CustomerDetailsPage: React.FC = () => {
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Phone:</span>
                       <span className="col-span-2 font-medium">{processedCustomer.phone || 'N/A'}</span>
+                    </div>
+                    <div className="grid grid-cols-3 border-b pb-2">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`col-span-2 font-medium ${processedCustomer.onHold ? 'text-red-600' : 'text-green-600'}`}>
+                        {processedCustomer.onHold ? 'On Hold' : 'Active'}
+                      </span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Detailed Box Labels:</span>
