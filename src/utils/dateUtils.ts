@@ -150,3 +150,27 @@ export const getOrderProcessingDate = async (deliveryDate: Date): Promise<Date> 
   
   return processingDate;
 };
+
+/**
+ * Convert display frequency to database frequency
+ */
+export const displayToDbFrequency = (displayFreq: string): "Weekly" | "Bi-Weekly" | "Monthly" => {
+  switch (displayFreq) {
+    case "Every Week": return "Weekly";
+    case "Every 2 Weeks": return "Bi-Weekly";
+    case "Every 4 Weeks": return "Monthly"; // Using Monthly for Every 4 Weeks
+    default: return "Weekly";
+  }
+};
+
+/**
+ * Convert database frequency to display frequency
+ */
+export const dbToDisplayFrequency = (dbFreq: string): "Every Week" | "Every 2 Weeks" | "Every 4 Weeks" => {
+  switch (dbFreq) {
+    case "Weekly": return "Every Week";
+    case "Bi-Weekly": return "Every 2 Weeks";
+    case "Monthly": return "Every 4 Weeks"; // Using Every 4 Weeks for Monthly
+    default: return "Every Week";
+  }
+};

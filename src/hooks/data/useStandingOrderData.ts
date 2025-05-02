@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StandingOrder, Order, StandingOrderItem } from "@/types";
-import { format, addDays, addWeeks, addMonths, parseISO } from "date-fns";
+import { format, addDays, addWeeks, parseISO } from "date-fns";
 
 export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Promise<Order | null>) => {
   const [standingOrders, setStandingOrders] = useState<StandingOrder[]>([]);
@@ -92,23 +92,7 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
           nextDeliveryDate: newSOData.next_delivery_date,
           modifiedDeliveries: [] // Initialize with empty array
         },
-        items: newItemsData.map((item: any) => ({
-          id: item.id,
-          productId: item.product_id,
-          standingOrderId: item.standing_order_id,
-          product: {
-            id: item.product.id,
-            name: item.product.name,
-            sku: item.product.sku,
-            description: item.product.description,
-            stock_level: item.product.stock_level,
-            weight: item.product.weight,
-            requiresWeightInput: item.product.requires_weight_input || false,
-            unit: item.product.unit,
-            required: item.product.required || false
-          },
-          quantity: item.quantity
-        })),
+        items: mapStandingOrderItemsToClient(newItemsData),
         notes: newSOData.notes,
         active: newSOData.active || true,
         nextProcessingDate: newSOData.next_processing_date,
@@ -274,8 +258,8 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
             case "Bi-Weekly":
               nextDeliveryDate = addWeeks(parseISO(standingOrder.schedule.nextDeliveryDate as string), 2);
               break;
-            case "Monthly":
-              nextDeliveryDate = addMonths(parseISO(standingOrder.schedule.nextDeliveryDate as string), 1);
+            case "Monthly": // This is now treated as Every 4 Weeks
+              nextDeliveryDate = addWeeks(parseISO(standingOrder.schedule.nextDeliveryDate as string), 4);
               break;
           }
           

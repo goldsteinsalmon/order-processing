@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Plus, X, Search } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,9 +12,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getOrderProcessingDate } from "@/utils/dateUtils";
+import { getOrderProcessingDate, dbToDisplayFrequency, displayToDbFrequency } from "@/utils/dateUtils";
 import { StandingOrderItem, Product } from "@/types";
 import { v4 as uuidv4 } from "uuid";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const EditStandingOrderPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,29 +37,35 @@ const EditStandingOrderPage: React.FC = () => {
   
   const order = standingOrders.find(order => order.id === id);
   
-  const [frequency, setFrequency] = useState<"Weekly" | "Bi-Weekly" | "Monthly">("Weekly");
-  const [dayOfWeek, setDayOfWeek] = useState<number>(1);
-  const [dayOfMonth, setDayOfMonth] = useState<number>(1);
+  const [frequency, setFrequency] = useState<"Every Week" | "Every 2 Weeks" | "Every 4 Weeks">("Every Week");
   const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
   const [active, setActive] = useState(true);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<StandingOrderItem[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [showAddProduct, setShowAddProduct] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<string>("");
-  const [productQuantity, setProductQuantity] = useState<number>(1);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
   
   // Available products (excluding those already in the order)
-  const availableProducts = products.filter(
-    product => !items.some(item => item.product_id === product.id)
-  );
+  const filteredProducts = React.useMemo(() => {
+    const availableProducts = products.filter(
+      product => !items.some(item => item.productId === product.id)
+    );
+    
+    if (!productSearchQuery) return availableProducts;
+    
+    const searchLower = productSearchQuery.toLowerCase();
+    return availableProducts.filter(product => 
+      product.name.toLowerCase().includes(searchLower) ||
+      product.sku.toLowerCase().includes(searchLower)
+    );
+  }, [products, items, productSearchQuery]);
   
   // Load initial values
   useEffect(() => {
     if (order) {
-      setFrequency(order.schedule.frequency);
-      setDayOfWeek(order.schedule.dayOfWeek || 1);
-      setDayOfMonth(order.schedule.dayOfMonth || 1);
+      setFrequency(dbToDisplayFrequency(order.schedule.frequency));
       setDeliveryMethod(order.schedule.deliveryMethod);
       setActive(order.active);
       setNotes(order.notes || "");
@@ -59,9 +79,7 @@ const EditStandingOrderPage: React.FC = () => {
       const itemsChanged = JSON.stringify(items) !== JSON.stringify(order.items);
       
       const changes = 
-        frequency !== order.schedule.frequency ||
-        (frequency === "Weekly" || frequency === "Bi-Weekly") && dayOfWeek !== order.schedule.dayOfWeek ||
-        frequency === "Monthly" && dayOfMonth !== order.schedule.dayOfMonth ||
+        displayToDbFrequency(frequency) !== order.schedule.frequency ||
         deliveryMethod !== order.schedule.deliveryMethod ||
         active !== order.active ||
         notes !== (order.notes || "") ||
@@ -69,7 +87,7 @@ const EditStandingOrderPage: React.FC = () => {
       
       setHasChanges(changes);
     }
-  }, [frequency, dayOfWeek, dayOfMonth, deliveryMethod, active, notes, items, order]);
+  }, [frequency, deliveryMethod, active, notes, items, order]);
   
   if (!order) {
     return (
@@ -83,12 +101,6 @@ const EditStandingOrderPage: React.FC = () => {
       </Layout>
     );
   }
-
-  // Get day of week name
-  const getDayOfWeekName = (day: number) => {
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    return days[day];
-  };
   
   // Handle quantity change
   const handleQuantityChange = (index: number, value: string) => {
@@ -120,6 +132,10 @@ const EditStandingOrderPage: React.FC = () => {
     setShowAddProduct(false);
   };
   
+  // States for add product form
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [productQuantity, setProductQuantity] = useState<number>(1);
+  
   // Handle remove product
   const handleRemoveProduct = (index: number) => {
     const newItems = [...items];
@@ -131,30 +147,15 @@ const EditStandingOrderPage: React.FC = () => {
     // Calculate next delivery date based on frequency settings
     let nextDeliveryDate = new Date();
     
-    if (frequency === "Weekly" || frequency === "Bi-Weekly") {
-      // Set to the next occurrence of the selected day of week
-      const currentDayOfWeek = nextDeliveryDate.getDay();
-      let daysToAdd = dayOfWeek - currentDayOfWeek;
-      
-      if (daysToAdd <= 0) {
-        // If the day has already occurred this week, go to next week
-        daysToAdd += 7;
-      }
-      
-      nextDeliveryDate.setDate(nextDeliveryDate.getDate() + daysToAdd);
-      
-      // Add another week for Bi-Weekly
-      if (frequency === "Bi-Weekly") {
-        nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 7);
-      }
-    } else if (frequency === "Monthly") {
-      // Set to the selected day of the current month
-      nextDeliveryDate.setDate(dayOfMonth);
-      
-      // If the day has already occurred this month, go to next month
-      if (nextDeliveryDate < new Date()) {
-        nextDeliveryDate.setMonth(nextDeliveryDate.getMonth() + 1);
-      }
+    if (frequency === "Every Week") {
+      // Set to one week from now
+      nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 7);
+    } else if (frequency === "Every 2 Weeks") {
+      // Set to two weeks from now
+      nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 14);
+    } else if (frequency === "Every 4 Weeks") {
+      // Set to four weeks from now
+      nextDeliveryDate.setDate(nextDeliveryDate.getDate() + 28);
     }
     
     // Get the processing date asynchronously
@@ -165,16 +166,16 @@ const EditStandingOrderPage: React.FC = () => {
         ...order,
         schedule: {
           ...order.schedule,
-          frequency,
-          ...(frequency === "Weekly" || frequency === "Bi-Weekly" ? { dayOfWeek } : {}),
-          ...(frequency === "Monthly" ? { dayOfMonth } : {}),
+          frequency: displayToDbFrequency(frequency),
+          dayOfWeek: undefined,
+          dayOfMonth: undefined,
           deliveryMethod,
           nextDeliveryDate: nextDeliveryDate.toISOString()
         },
         items: items,
         active,
         notes: notes || undefined,
-        next_processing_date: nextProcessingDate.toISOString(),
+        nextProcessingDate: nextProcessingDate.toISOString(),
         updated: new Date().toISOString()
       };
       
@@ -220,10 +221,10 @@ const EditStandingOrderPage: React.FC = () => {
                 <dt className="font-medium">Order ID:</dt>
                 <dd>{order.id}</dd>
               </div>
-              {order.customer_order_number && (
+              {order.customerOrderNumber && (
                 <div className="flex space-x-2">
                   <dt className="font-medium">Customer Order #:</dt>
-                  <dd>{order.customer_order_number}</dd>
+                  <dd>{order.customerOrderNumber}</dd>
                 </div>
               )}
             </dl>
@@ -248,27 +249,60 @@ const EditStandingOrderPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                   <div className="md:col-span-3">
                     <Label htmlFor="product">Product</Label>
-                    <Select
-                      value={selectedProduct}
-                      onValueChange={setSelectedProduct}
+                    <Popover 
+                      open={productSearchOpen} 
+                      onOpenChange={setProductSearchOpen}
                     >
-                      <SelectTrigger id="product">
-                        <SelectValue placeholder="Select a product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableProducts.length > 0 ? (
-                          availableProducts.map(product => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} ({product.sku})
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="none" disabled>
-                            All products already added
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={productSearchOpen}
+                          className="justify-between w-full text-left"
+                          id="product"
+                        >
+                          {selectedProduct ? (
+                            <>
+                              {products.find(p => p.id === selectedProduct)?.name}
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({products.find(p => p.id === selectedProduct)?.sku})
+                              </span>
+                            </>
+                          ) : (
+                            "Select a product"
+                          )}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search products..." 
+                            value={productSearchQuery}
+                            onValueChange={setProductSearchQuery}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No products found.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredProducts.map((product) => (
+                                <CommandItem
+                                  key={product.id}
+                                  onSelect={() => {
+                                    setSelectedProduct(product.id);
+                                    setProductSearchOpen(false);
+                                  }}
+                                >
+                                  <span>{product.name}</span>
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({product.sku})
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div>
                     <Label htmlFor="quantity">Quantity</Label>
@@ -284,7 +318,7 @@ const EditStandingOrderPage: React.FC = () => {
                   <div>
                     <Button 
                       onClick={handleAddProduct}
-                      disabled={!selectedProduct || productQuantity <= 0 || availableProducts.length === 0}
+                      disabled={!selectedProduct || productQuantity <= 0 || filteredProducts.length === 0}
                     >
                       Add
                     </Button>
@@ -349,70 +383,32 @@ const EditStandingOrderPage: React.FC = () => {
           <CardContent className="space-y-4">
             <div>
               <Label>Frequency</Label>
-              <RadioGroup value={frequency} onValueChange={(value: "Weekly" | "Bi-Weekly" | "Monthly") => setFrequency(value)} className="flex space-x-4">
+              <RadioGroup 
+                value={frequency} 
+                onValueChange={(value: "Every Week" | "Every 2 Weeks" | "Every 4 Weeks") => setFrequency(value)} 
+                className="flex flex-wrap gap-4 pt-2"
+              >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Weekly" id="weekly" />
-                  <Label htmlFor="weekly">Weekly</Label>
+                  <RadioGroupItem value="Every Week" id="weekly" />
+                  <Label htmlFor="weekly">Every Week</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Bi-Weekly" id="biweekly" />
-                  <Label htmlFor="biweekly">Bi-Weekly</Label>
+                  <RadioGroupItem value="Every 2 Weeks" id="biweekly" />
+                  <Label htmlFor="biweekly">Every 2 Weeks</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Monthly" id="monthly" />
-                  <Label htmlFor="monthly">Monthly</Label>
+                  <RadioGroupItem value="Every 4 Weeks" id="fourweekly" />
+                  <Label htmlFor="fourweekly">Every 4 Weeks</Label>
                 </div>
               </RadioGroup>
             </div>
-            
-            {(frequency === "Weekly" || frequency === "Bi-Weekly") && (
-              <div>
-                <Label>Day of Week</Label>
-                <Select 
-                  value={dayOfWeek.toString()} 
-                  onValueChange={(value) => setDayOfWeek(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select day of week" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5].map(day => (
-                      <SelectItem key={day} value={day.toString()}>
-                        {getDayOfWeekName(day)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            {frequency === "Monthly" && (
-              <div>
-                <Label>Day of Month</Label>
-                <Select 
-                  value={dayOfMonth.toString()} 
-                  onValueChange={(value) => setDayOfMonth(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select day of month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                      <SelectItem key={day} value={day.toString()}>
-                        {day}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             
             <div>
               <Label>Delivery Method</Label>
               <RadioGroup 
                 value={deliveryMethod} 
                 onValueChange={(value: "Delivery" | "Collection") => setDeliveryMethod(value)} 
-                className="flex space-x-4"
+                className="flex space-x-4 pt-2"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="Delivery" id="delivery" />
@@ -430,7 +426,7 @@ const EditStandingOrderPage: React.FC = () => {
               <RadioGroup 
                 value={active ? "active" : "inactive"} 
                 onValueChange={(value) => setActive(value === "active")} 
-                className="flex space-x-4"
+                className="flex space-x-4 pt-2"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="active" id="active" />

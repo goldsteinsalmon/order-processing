@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addWeeks, addMonths } from "date-fns";
+import { format, addWeeks } from "date-fns";
 import {
   Form,
   FormControl,
@@ -25,21 +26,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useData } from "@/context/DataContext";
 import { StandingOrder, Product, OrderItem } from "@/types";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Search } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const standingOrderSchema = z.object({
   customerId: z.string().min(1, { message: "Customer ID is required." }),
   customerOrderNumber: z.string().optional(),
-  frequency: z.enum(["Weekly", "Bi-Weekly", "Monthly"], {
+  frequency: z.enum(["Every Week", "Every 2 Weeks", "Every 4 Weeks"], {
     required_error: "Please select an order frequency.",
   }),
-  dayOfWeek: z.string().optional(),
-  dayOfMonth: z.string().optional(),
   deliveryMethod: z.enum(["Delivery", "Collection"], {
     required_error: "Please select a delivery method.",
   }),
@@ -64,15 +76,17 @@ const CreateStandingOrderForm = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [productSearchOpen, setProductSearchOpen] = useState({});
+  const [productSearchQuery, setProductSearchQuery] = useState({});
 
   const form = useForm<StandingOrderFormValues>({
     resolver: zodResolver(standingOrderSchema),
     defaultValues: {
       customerId: "",
       customerOrderNumber: "",
-      frequency: "Weekly",
-      dayOfWeek: "0",
-      dayOfMonth: "1",
+      frequency: "Every Week",
       deliveryMethod: "Delivery",
       nextDeliveryDate: new Date(),
       notes: "",
@@ -83,16 +97,14 @@ const CreateStandingOrderForm = () => {
   const frequency = watch("frequency");
   const nextDeliveryDate = watch("nextDeliveryDate");
 
-  const getDayOfWeek = (frequency: string, dayOfWeek: string) => {
-    return frequency === "Weekly" || frequency === "Bi-Weekly" ? parseInt(dayOfWeek) : undefined;
-  };
-
-  const getDayOfMonth = (frequency: string, dayOfMonth: string) => {
-    return frequency === "Monthly" ? parseInt(dayOfMonth) : undefined;
-  };
-
   const handleAddItem = () => {
-    setStandingOrderItems([...standingOrderItems, { productId: "", quantity: 1, id: crypto.randomUUID() }]);
+    setStandingOrderItems([...standingOrderItems, { 
+      productId: "", 
+      quantity: 1, 
+      id: crypto.randomUUID() 
+    }]);
+    setProductSearchOpen(prev => ({...prev, [standingOrderItems.length]: false}));
+    setProductSearchQuery(prev => ({...prev, [standingOrderItems.length]: ""}));
   };
 
   const handleRemoveItem = (id: string) => {
@@ -112,6 +124,33 @@ const CreateStandingOrderForm = () => {
     );
   };
 
+  // Filter customers based on search
+  const filteredCustomers = React.useMemo(() => {
+    return customers.filter(customer => {
+      if (!customerSearchQuery) return true;
+      
+      const searchLower = customerSearchQuery.toLowerCase();
+      return (
+        customer.name.toLowerCase().includes(searchLower) ||
+        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(searchLower)) ||
+        (customer.email && customer.email.toLowerCase().includes(searchLower))
+      );
+    });
+  }, [customers, customerSearchQuery]);
+
+  // Filter products based on search
+  const getFilteredProducts = (query: string) => {
+    return products.filter(product => {
+      if (!query) return true;
+      
+      const searchLower = query.toLowerCase();
+      return (
+        product.name.toLowerCase().includes(searchLower) ||
+        product.sku.toLowerCase().includes(searchLower)
+      );
+    });
+  };
+
   const handleSubmit = async (data: StandingOrderFormValues) => {
     // Validate items
     const hasInvalidItems = standingOrderItems.some(
@@ -127,14 +166,23 @@ const CreateStandingOrderForm = () => {
       return;
     }
 
+    // Determine frequency in database format
+    let dbFrequency: "Weekly" | "Bi-Weekly" | "Monthly";
+    switch (data.frequency) {
+      case "Every Week": dbFrequency = "Weekly"; break;
+      case "Every 2 Weeks": dbFrequency = "Bi-Weekly"; break;
+      case "Every 4 Weeks": dbFrequency = "Monthly"; break; // Using Monthly for 4 weeks
+      default: dbFrequency = "Weekly";
+    }
+
     const newStandingOrder = {
       id: crypto.randomUUID(),
       customerId: data.customerId,
       customerOrderNumber: data.customerOrderNumber,
       schedule: {
-        frequency: data.frequency as "Weekly" | "Bi-Weekly" | "Monthly",
-        dayOfWeek: getDayOfWeek(data.frequency, data.dayOfWeek),
-        dayOfMonth: getDayOfMonth(data.frequency, data.dayOfMonth),
+        frequency: dbFrequency,
+        dayOfWeek: undefined,
+        dayOfMonth: undefined,
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
         nextDeliveryDate: format(nextDeliveryDate, "yyyy-MM-dd"),
         processedDates: [],
@@ -207,12 +255,12 @@ const CreateStandingOrderForm = () => {
 
       // Calculate next delivery date based on frequency
       let nextDelivery: Date = nextDeliveryDate;
-      if (frequency === "Weekly") {
+      if (frequency === "Every Week") {
         nextDelivery = addWeeks(nextDeliveryDate, 1);
-      } else if (frequency === "Bi-Weekly") {
+      } else if (frequency === "Every 2 Weeks") {
         nextDelivery = addWeeks(nextDeliveryDate, 2);
-      } else if (frequency === "Monthly") {
-        nextDelivery = addMonths(nextDeliveryDate, 1);
+      } else if (frequency === "Every 4 Weeks") {
+        nextDelivery = addWeeks(nextDeliveryDate, 4);
       }
 
       // Format the next delivery date
@@ -230,6 +278,26 @@ const CreateStandingOrderForm = () => {
 
   const confirmCancel = () => {
     navigate("/standing-orders");
+  };
+
+  // Set up dropdown state for each product item
+  useEffect(() => {
+    const initialProductSearchState = {};
+    const initialProductQueryState = {};
+    standingOrderItems.forEach((item, idx) => {
+      initialProductSearchState[idx] = false;
+      initialProductQueryState[idx] = "";
+    });
+    setProductSearchOpen(initialProductSearchState);
+    setProductSearchQuery(initialProductQueryState);
+  }, []);
+
+  const toggleProductSearch = (idx: number) => {
+    setProductSearchOpen(prev => ({...prev, [idx]: !prev[idx]}));
+  };
+
+  const handleProductSearchChange = (idx: number, value: string) => {
+    setProductSearchQuery(prev => ({...prev, [idx]: value}));
   };
 
   return (
@@ -250,20 +318,53 @@ const CreateStandingOrderForm = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={customerSearchOpen}
+                            className="justify-between w-full"
+                          >
+                            {field.value
+                              ? customers.find((customer) => customer.id === field.value)?.name
+                              : "Select customer"}
+                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search customers..." 
+                            value={customerSearchQuery}
+                            onValueChange={setCustomerSearchQuery}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No customers found.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredCustomers.map((customer) => (
+                                <CommandItem
+                                  key={customer.id}
+                                  onSelect={() => {
+                                    setValue("customerId", customer.id);
+                                    setCustomerSearchOpen(false);
+                                  }}
+                                >
+                                  <span>{customer.name}</span>
+                                  {customer.accountNumber && (
+                                    <span className="ml-2 text-xs text-muted-foreground">
+                                      ({customer.accountNumber})
+                                    </span>
+                                  )}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -296,67 +397,15 @@ const CreateStandingOrderForm = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Weekly">Weekly</SelectItem>
-                        <SelectItem value="Bi-Weekly">Bi-Weekly</SelectItem>
-                        <SelectItem value="Monthly">Monthly</SelectItem>
+                        <SelectItem value="Every Week">Every Week</SelectItem>
+                        <SelectItem value="Every 2 Weeks">Every 2 Weeks</SelectItem>
+                        <SelectItem value="Every 4 Weeks">Every 4 Weeks</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              {frequency === "Weekly" || frequency === "Bi-Weekly" ? (
-                <FormField
-                  control={form.control}
-                  name="dayOfWeek"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Day of the Week</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a day" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {[...Array(7)].map((_, i) => (
-                            <SelectItem key={i} value={i.toString()}>
-                              {format(new Date(2023, 0, 1 + i), "EEEE")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : frequency === "Monthly" ? (
-                <FormField
-                  control={form.control}
-                  name="dayOfMonth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Day of the Month</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a day" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {[...Array(31)].map((_, i) => (
-                            <SelectItem key={i + 1} value={(i + 1).toString()}>
-                              {i + 1}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              ) : null}
 
               <FormField
                 control={form.control}
@@ -451,43 +500,84 @@ const CreateStandingOrderForm = () => {
               <div className="space-y-4">
                 {standingOrderItems.map((item, index) => (
                   <div key={item.id} className="flex items-center space-x-4">
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 flex-1">
                       <Label htmlFor={`productId-${item.id}`}>Product</Label>
-                      <Select
-                        value={item.productId}
-                        onValueChange={(value) => handleItemChange(item.id, "productId", value)}
+                      <Popover 
+                        open={productSearchOpen[index]} 
+                        onOpenChange={() => toggleProductSearch(index)}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={productSearchOpen[index]}
+                            className="justify-between w-full text-left"
+                          >
+                            {item.productId ? (
+                              <span>
+                                {products.find(p => p.id === item.productId)?.name}
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  ({products.find(p => p.id === item.productId)?.sku})
+                                </span>
+                              </span>
+                            ) : (
+                              "Select a product"
+                            )}
+                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Search products..." 
+                              value={productSearchQuery[index] || ""}
+                              onValueChange={(value) => handleProductSearchChange(index, value)}
+                            />
+                            <CommandList>
+                              <CommandEmpty>No products found.</CommandEmpty>
+                              <CommandGroup>
+                                {getFilteredProducts(productSearchQuery[index] || "").map((product) => (
+                                  <CommandItem
+                                    key={product.id}
+                                    onSelect={() => {
+                                      handleItemChange(item.id, "productId", product.id);
+                                      toggleProductSearch(index);
+                                    }}
+                                  >
+                                    <span>{product.name}</span>
+                                    <span className="ml-2 text-xs text-muted-foreground">
+                                      ({product.sku})
+                                    </span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 w-24">
                       <Label htmlFor={`quantity-${item.id}`}>Quantity</Label>
                       <Input
                         type="number"
                         id={`quantity-${item.id}`}
                         value={item.quantity}
-                        onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value))}
-                        className="w-24"
+                        onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 0)}
                         min={1}
+                        className="w-full"
                       />
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => handleRemoveItem(item.id)}
-                      disabled={standingOrderItems.length <= 1}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    <div className="pt-6">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => handleRemoveItem(item.id)}
+                        disabled={standingOrderItems.length <= 1}
+                        className="px-2"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 <Button type="button" variant="outline" onClick={handleAddItem}>
