@@ -26,7 +26,7 @@ function Calendar({
     loadNonWorkingDays();
   }, []);
   
-  // Create a custom disabled function that includes both weekends and non-working days
+  // Create a synchronous disabled function that uses preloaded data
   const isDateDisabled = (date: Date): boolean => {
     // First check if it's a weekend (built-in check)
     if (date.getDay() === 0 || date.getDay() === 6) {
@@ -43,7 +43,7 @@ function Calendar({
   
   // Merge the custom disabled function with any existing one
   const mergedDisabled = props.disabled 
-    ? (date: Date) => isDateDisabled(date) || (props.disabled && props.disabled(date))
+    ? (date: Date) => isDateDisabled(date) || (typeof props.disabled === 'function' ? props.disabled(date) : false)
     : isDateDisabled;
   
   return (

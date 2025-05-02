@@ -1,5 +1,4 @@
-
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { Edit, FilePlus, ClipboardList } from "lucide-react";
 import { useData } from "@/context/DataContext";
@@ -50,6 +49,42 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
       return diffA - diffB;
     });
   }, [filteredOrders]);
+
+  // State for tracking which orders are next day orders
+  const [nextDayOrders, setNextDayOrders] = useState<Set<string>>(new Set());
+  const [sameDayOrders, setSameDayOrders] = useState<Set<string>>(new Set());
+
+  // Check for same day and next day orders asynchronously
+  useEffect(() => {
+    const checkOrderDates = async () => {
+      const nextDayOrderIds = new Set<string>();
+      const sameDayOrderIds = new Set<string>();
+
+      for (const order of sortedOrders) {
+        try {
+          const orderDateStr = getOrderDate(order);
+          if (orderDateStr) {
+            if (isSameDayOrder(orderDateStr)) {
+              sameDayOrderIds.add(order.id);
+            }
+            
+            // Check asynchronously for next working day orders
+            const isNextDay = await isNextWorkingDayOrder(orderDateStr);
+            if (isNextDay) {
+              nextDayOrderIds.add(order.id);
+            }
+          }
+        } catch (e) {
+          console.error("Error checking order dates:", e);
+        }
+      }
+
+      setNextDayOrders(nextDayOrderIds);
+      setSameDayOrders(sameDayOrderIds);
+    };
+
+    checkOrderDates();
+  }, [sortedOrders]);
 
   // Helper function to generate change description
   const getChangeDescription = (order) => {
@@ -180,19 +215,9 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                     order.customer = adaptCustomerToCamelCase(order.customer);
                   }
                   
-                  // Safely check dates - avoid errors for invalid dates
-                  let isSameDay = false;
-                  let isNextDay = false;
-                  
-                  try {
-                    const orderDateStr = getOrderDate(order);
-                    if (orderDateStr) {
-                      isSameDay = isSameDayOrder(orderDateStr);
-                      isNextDay = isNextWorkingDayOrder(orderDateStr);
-                    }
-                  } catch (e) {
-                    console.error("Error checking order dates:", e);
-                  }
+                  // Use the precomputed checks from state
+                  const isSameDay = sameDayOrders.has(order.id);
+                  const isNextDay = nextDayOrders.has(order.id);
                   
                   const changeDesc = getChangeDescription(order);
                   const statusDisplay = getOrderStatusDisplay(order);

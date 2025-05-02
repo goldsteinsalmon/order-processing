@@ -127,7 +127,7 @@ const EditStandingOrderPage: React.FC = () => {
     setItems(newItems);
   };
   
-  const handleSave = () => {
+  const handleSave = async () => {
     // Calculate next delivery date based on frequency settings
     let nextDeliveryDate = new Date();
     
@@ -157,33 +157,43 @@ const EditStandingOrderPage: React.FC = () => {
       }
     }
     
-    const nextProcessingDate = getOrderProcessingDate(nextDeliveryDate);
-    
-    const updatedStandingOrder = {
-      ...order,
-      schedule: {
-        ...order.schedule,
-        frequency,
-        ...(frequency === "Weekly" || frequency === "Bi-Weekly" ? { dayOfWeek } : {}),
-        ...(frequency === "Monthly" ? { dayOfMonth } : {}),
-        deliveryMethod,
-        nextDeliveryDate: nextDeliveryDate.toISOString()
-      },
-      items: items,
-      active,
-      notes: notes || undefined,
-      next_processing_date: nextProcessingDate.toISOString(),
-      updated: new Date().toISOString()
-    };
-    
-    updateStandingOrder(updatedStandingOrder);
-    
-    toast({
-      title: "Standing Order Updated",
-      description: `Changes to standing order for ${order.customer?.name} have been saved.`
-    });
-    
-    navigate(`/standing-order-details/${order.id}`);
+    // Get the processing date asynchronously
+    try {
+      const nextProcessingDate = await getOrderProcessingDate(nextDeliveryDate);
+      
+      const updatedStandingOrder = {
+        ...order,
+        schedule: {
+          ...order.schedule,
+          frequency,
+          ...(frequency === "Weekly" || frequency === "Bi-Weekly" ? { dayOfWeek } : {}),
+          ...(frequency === "Monthly" ? { dayOfMonth } : {}),
+          deliveryMethod,
+          nextDeliveryDate: nextDeliveryDate.toISOString()
+        },
+        items: items,
+        active,
+        notes: notes || undefined,
+        next_processing_date: nextProcessingDate.toISOString(),
+        updated: new Date().toISOString()
+      };
+      
+      updateStandingOrder(updatedStandingOrder);
+      
+      toast({
+        title: "Standing Order Updated",
+        description: `Changes to standing order for ${order.customer?.name} have been saved.`
+      });
+      
+      navigate(`/standing-order-details/${order.id}`);
+    } catch (error) {
+      console.error("Error calculating processing date:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem updating the standing order. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

@@ -61,14 +61,22 @@ const CreateOrderSteps: React.FC = () => {
   
   // Get the default order date based on current time
   const getDefaultOrderDate = async () => {
-    const currentHour = new Date().getHours();
-    // If it's after 12 PM, set the default to 2 working days from now
-    if (currentHour >= 12) {
-      // Get next working day, then get next working day after that
-      const nextDay = await getNextWorkingDay(new Date());
-      return await getNextWorkingDay(nextDay);
-    } else {
-      return await getNextWorkingDay();
+    try {
+      const currentHour = new Date().getHours();
+      // If it's after 12 PM, set the default to 2 working days from now
+      if (currentHour >= 12) {
+        // Get next working day, then get next working day after that
+        const nextDay = await getNextWorkingDay(new Date());
+        return await getNextWorkingDay(nextDay);
+      } else {
+        return await getNextWorkingDay();
+      }
+    } catch (error) {
+      console.error("Error getting default order date:", error);
+      // Fallback to current date + 1 day if there's an error
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
     }
   };
 
@@ -83,8 +91,12 @@ const CreateOrderSteps: React.FC = () => {
   // Re-initialize form with updated default date when component mounts
   React.useEffect(() => {
     const initializeDefaultDate = async () => {
-      const defaultDate = await getDefaultOrderDate();
-      form.setValue("orderDate", defaultDate);
+      try {
+        const defaultDate = await getDefaultOrderDate();
+        form.setValue("orderDate", defaultDate);
+      } catch (error) {
+        console.error("Error setting default date:", error);
+      }
     };
     
     initializeDefaultDate();
@@ -111,14 +123,22 @@ const CreateOrderSteps: React.FC = () => {
     // Check for same day warning - only show when selecting today's date
     setShowSameDayWarning(isToday(orderDate));
     
-    // Check for cut-off warning - only show when selecting next working day after 12 PM
-    const currentHour = new Date().getHours();
-    const nextWorkingDay = getNextWorkingDay(new Date());
+    // Check for cut-off warning
+    const checkCutOffWarning = async () => {
+      try {
+        const currentHour = new Date().getHours();
+        const nextWorkingDayResult = await getNextWorkingDay(new Date());
+        
+        // Format both dates to compare just the date part (ignoring time)
+        const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDayResult, "yyyy-MM-dd");
+        
+        setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
+      } catch (error) {
+        console.error("Error checking cut-off warning:", error);
+      }
+    };
     
-    // Format both dates to compare just the date part (ignoring time)
-    const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDay, "yyyy-MM-dd");
-    
-    setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
+    checkCutOffWarning();
   }, [orderDate, manualDateChange]);
   
   // Update unassigned items when order items change
@@ -294,33 +314,16 @@ const CreateOrderSteps: React.FC = () => {
       // Get form values
       const data = form.getValues();
 
-      // Prepare order items array
-      const finalOrderItems = selectedCustomer?.needsDetailedBoxLabels 
-        ? boxDistributions.flatMap(box => 
-            box.items.map(item => ({
-              id: crypto.randomUUID(),
-              orderId: '', // Will be filled when the order is created
-              productId: item.productId,
-              product: products.find(p => p.id === item.productId)!,
-              quantity: item.quantity,
-              boxNumber: box.boxNumber
-            }))
-          )
-        : orderItems.map(item => ({
-            id: item.id,
-            orderId: '', // Will be filled when the order is created
-            productId: item.productId,
-            product: products.find(p => p.id === item.productId)!,
-            quantity: item.quantity
-          }));
-
+      // Process the order date - ensure it's a proper Date object
+      let orderDateValue = data.orderDate;
+      
       const newOrder = {
         id: crypto.randomUUID(),
         customerId: data.customerId,
         customer: customers.find(c => c.id === data.customerId)!,
         customerOrderNumber: data.customerOrderNumber,
-        orderDate: format(data.orderDate, "yyyy-MM-dd"),
-        requiredDate: format(data.orderDate, "yyyy-MM-dd"), // Default to same date
+        orderDate: format(orderDateValue, "yyyy-MM-dd"),
+        requiredDate: format(orderDateValue, "yyyy-MM-dd"), // Default to same date
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
         items: finalOrderItems,
         notes: data.notes,
@@ -344,13 +347,26 @@ const CreateOrderSteps: React.FC = () => {
   };
   
   const resetForm = () => {
+    // Initialize the form with a current date as fallback
     form.reset({
       customerId: "",
       customerOrderNumber: "",
-      orderDate: getDefaultOrderDate(),
+      orderDate: new Date(),
       deliveryMethod: "Delivery",
       notes: "",
     });
+    
+    // Then asynchronously update with the proper next working day
+    const updateWithWorkingDay = async () => {
+      try {
+        const nextWorkingDay = await getDefaultOrderDate();
+        form.setValue("orderDate", nextWorkingDay);
+      } catch (error) {
+        console.error("Error updating form with working day:", error);
+      }
+    };
+    updateWithWorkingDay();
+    
     setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
     setBoxDistributions([{ 
       id: crypto.randomUUID(),
