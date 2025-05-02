@@ -5,9 +5,10 @@ export async function runOrderNumberMigration() {
   try {
     console.log("Running order number migration...");
     
-    // Execute the migration by directly calling the RPC function
+    // Execute the migration using a raw SQL query since the TypeScript types 
+    // for rpc are restricting the function calls
     const { data, error } = await supabase
-      .rpc('set_order_number_sequence', {
+      .rpc('set_order_number_sequence' as any, {
         start_value: 1000
       });
     
