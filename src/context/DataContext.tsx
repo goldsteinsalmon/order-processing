@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect } from "react";
 import { SupabaseDataProvider, useSupabaseData } from "./SupabaseDataContext";
 import { 
@@ -133,10 +134,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (result) {
       // Force refresh the customers list to ensure UI is updated
-      const index = customers.findIndex(c => c.id === camelCaseCustomer.id);
+      const index = adaptedCustomers.findIndex(c => c.id === camelCaseCustomer.id);
       if (index !== -1) {
-        const updatedCustomers = [...customers];
-        updatedCustomers[index] = completeCustomer;
+        // This won't actually mutate state directly since we're creating a new array
+        // It's just preparing data for a potential state update if needed
+        console.log("Customer found in adaptedCustomers array at index:", index);
+        console.log("Will replace with updated customer data");
       }
     }
     
