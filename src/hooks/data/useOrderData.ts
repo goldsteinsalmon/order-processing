@@ -346,22 +346,36 @@ export const useOrderData = (toast: any) => {
       
       console.log(`Deleted ${deletedItems?.length || 0} order items`);
       
-      // Delete any boxes associated with this order
-      const { data: deletedBoxItems, error: boxItemsError } = await supabase
-        .from('box_items')
-        .delete()
-        .eq('box_id', (sb) => 
-          sb.from('boxes').select('id').eq('order_id', orderId)
-        )
-        .select();
+      // Get box IDs associated with this order
+      const { data: boxIds, error: boxQueryError } = await supabase
+        .from('boxes')
+        .select('id')
+        .eq('order_id', orderId);
         
-      if (boxItemsError) {
-        console.error("Error deleting box items:", boxItemsError);
+      if (boxQueryError) {
+        console.error("Error querying box IDs:", boxQueryError);
         // Continue anyway as this might not exist
       } else {
-        console.log(`Deleted ${deletedBoxItems?.length || 0} box items`);
+        // If boxes exist, delete their items
+        if (boxIds && boxIds.length > 0) {
+          const boxIdArray = boxIds.map(box => box.id);
+          
+          const { data: deletedBoxItems, error: boxItemsError } = await supabase
+            .from('box_items')
+            .delete()
+            .in('box_id', boxIdArray)
+            .select();
+          
+          if (boxItemsError) {
+            console.error("Error deleting box items:", boxItemsError);
+            // Continue anyway
+          } else {
+            console.log(`Deleted ${deletedBoxItems?.length || 0} box items`);
+          }
+        }
       }
       
+      // Delete the boxes
       const { data: deletedBoxes, error: boxesError } = await supabase
         .from('boxes')
         .delete()
