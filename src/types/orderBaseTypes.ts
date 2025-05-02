@@ -77,7 +77,7 @@ export interface OrderBase {
   picking_progress?: any;
   box_distributions?: any[];
   completed_boxes?: number[];
-  saved_boxes?: number[]; // Added this line to fix the TypeScript error
+  saved_boxes?: number[]; // Explicitly add the snake_case version for database compatibility
   missing_items?: any[];
   invoice_number?: string;
   invoice_date?: string;
