@@ -1,4 +1,3 @@
-
 export * from './order-types';
 export * from './orderBaseTypes';
 
@@ -25,6 +24,8 @@ export interface Product {
   requiresWeightInput?: boolean;
   unit?: string;
   required?: boolean;
+  barcode?: string;
+  active?: boolean;
 }
 
 export interface Order {

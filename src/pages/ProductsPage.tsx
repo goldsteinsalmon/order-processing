@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -46,7 +47,7 @@ const ProductsPage = () => {
       product.name.toLowerCase().includes(searchTermLower) ||
       product.description?.toLowerCase().includes(searchTermLower) ||
       product.sku?.toLowerCase().includes(searchTermLower) ||
-      product.barcode?.toLowerCase().includes(searchTermLower)
+      (product.barcode && product.barcode.toLowerCase().includes(searchTermLower))
     );
   });
 
@@ -54,8 +55,9 @@ const ProductsPage = () => {
     a.name.localeCompare(b.name)
   );
 
-  const activeProducts = sortedProducts.filter((product) => product.active);
-  const inactiveProducts = sortedProducts.filter((product) => !product.active);
+  // Default all products to active if not specified
+  const activeProducts = sortedProducts.filter((product) => product.active !== false);
+  const inactiveProducts = sortedProducts.filter((product) => product.active === false);
 
   return (
     <Layout>
@@ -130,7 +132,7 @@ const ProductsPage = () => {
                     <p>Description: {product.description || "N/A"}</p>
                     <p>SKU: {product.sku || "N/A"}</p>
                     <p>Barcode: {product.barcode || "N/A"}</p>
-                    <p>Active: {product.active ? "Yes" : "No"}</p>
+                    <p>Active: {product.active !== false ? "Yes" : "No"}</p>
                     <Button
                       variant="secondary"
                       size="sm"
