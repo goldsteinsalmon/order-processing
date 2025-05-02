@@ -22,8 +22,9 @@ export const adaptOrderItemToCamelCase = (item: any): OrderItem => {
     unavailableQuantity: item.unavailable_quantity,
     isUnavailable: item.is_unavailable,
     blownPouches: item.blown_pouches,
-    batchNumber: item.batch_number,
-    checked: item.checked,
+    // Always ensure batchNumber and checked are correctly mapped
+    batchNumber: item.batch_number || "",
+    checked: !!item.checked,
     missingQuantity: item.missing_quantity,
     pickedQuantity: item.picked_quantity,
     pickedWeight: item.picked_weight,
@@ -54,8 +55,8 @@ export const adaptOrderItemToSnakeCase = (item: OrderItem): any => {
     unavailable_quantity: item.unavailableQuantity,
     is_unavailable: item.isUnavailable,
     blown_pouches: item.blownPouches,
-    batch_number: item.batchNumber,
-    checked: item.checked,
+    batch_number: item.batchNumber || "",
+    checked: !!item.checked, // Ensure this is always a boolean
     missing_quantity: item.missingQuantity,
     picked_quantity: item.pickedQuantity,
     picked_weight: item.pickedWeight,

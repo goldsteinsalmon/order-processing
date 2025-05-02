@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -39,6 +40,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [selectedPickerId, setSelectedPickerId] = useState<string>("");
   const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
   const [pickingStartAttempted, setPickingStartAttempted] = useState<boolean>(false);
+  const [lastSavedItems, setLastSavedItems] = useState<ExtendedOrderItem[]>([]);
   
   // Load order data
   useEffect(() => {
@@ -64,12 +66,14 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     
     try {
       console.log("PickingList: Found order:", order);
+      console.log("PickingList: Order items:", order.items);
       
       // Set the order
       setSelectedOrder(order);
       
       // Set picker if exists
       if (order.picked_by) {
+        console.log("PickingList: Setting picker to:", order.picked_by);
         setSelectedPickerId(order.picked_by);
       }
       
@@ -85,6 +89,13 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         return;
       }
       
+      console.log("PickingList: Raw order items from DB:", items.map(item => ({
+        id: item.id,
+        name: item.product?.name,
+        checked: item.checked,
+        boxNumber: item.boxNumber || item.box_number
+      })));
+      
       // IMPORTANT: Force originalQuantity to undefined for all items in new orders
       // This ensures no items show as changed when they weren't
       const initialItems: ExtendedOrderItem[] = items.map(item => {
@@ -98,29 +109,35 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           ...item,
           checked: !!item.checked,
           boxNumber: item.boxNumber || item.box_number,
+          batchNumber: item.batchNumber || item.batch_number || "",
           // Only set originalQuantity if there's an actual recorded change
           originalQuantity: hasRecordedChange ? item.originalQuantity : undefined
         };
       });
       
-      console.log("PickingList: Initialized items with originalQuantity check:", 
+      console.log("PickingList: Initialized items with checked status:", 
         initialItems.map(item => ({
           name: item.product?.name,
           quantity: item.quantity,
+          checked: item.checked,
+          batchNumber: item.batchNumber,
           originalQuantity: item.originalQuantity,
           hasOriginalQuantity: item.originalQuantity !== undefined
         }))
       );
       
       setOrderItems(initialItems);
+      setLastSavedItems(initialItems);
       
       // Load existing completed boxes if any
       if (order.completedBoxes && order.completedBoxes.length > 0) {
+        console.log("PickingList: Loading completed boxes:", order.completedBoxes);
         setCompletedBoxes(order.completedBoxes);
       }
       
       // Load existing saved boxes if any
       if (order.savedBoxes && order.savedBoxes.length > 0) {
+        console.log("PickingList: Loading saved boxes:", order.savedBoxes);
         setSavedBoxes(order.savedBoxes);
       }
       
@@ -188,6 +205,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   };
   
   const handleBatchNumberChange = (itemId: string, batchNumber: string, boxNumber: number = 0) => {
+    console.log(`BatchNumber: Setting item ${itemId} batch to ${batchNumber}`);
     setOrderItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId ? { ...item, batchNumber, boxNumber } : item
@@ -196,6 +214,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   };
   
   const handleWeightChange = (itemId: string, weight: number) => {
+    console.log(`Weight: Setting item ${itemId} weight to ${weight}`);
     setOrderItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId ? { ...item, pickedWeight: weight } : item
@@ -204,6 +223,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   };
   
   const handlePickerChange = (pickerId: string) => {
+    console.log(`Picker: Setting picker to ${pickerId}`);
     setSelectedPickerId(pickerId);
   };
   
@@ -268,7 +288,12 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     
     try {
       console.log("Saving with picker:", selectedPickerId);
-      console.log("Current checked items:", orderItems.filter(item => item.checked).map(i => i.id));
+      console.log("Current checked items:", orderItems.filter(item => item.checked).map(i => ({
+        id: i.id,
+        name: i.product?.name,
+        checked: i.checked,
+        batchNumber: i.batchNumber
+      })));
       
       // Map the order items to the format expected by the database
       const updatedOrderItems = orderItems.map(item => {
@@ -322,7 +347,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Update the order with new items and status
       const updatedOrder: Order = {
         ...selectedOrder,
-        items: updatedOrderItems,
+        items: updatedOrderItems as OrderItem[],
         status: newStatus,
         isPicked: allChecked,
         totalBlownPouches: 0,
@@ -344,7 +369,15 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         recordAllBatchUsagesForOrder(updatedOrder);
         await completeOrder(updatedOrder);
       } else {
-        await updateOrder(updatedOrder);
+        const success = await updateOrder(updatedOrder);
+        
+        // If update was successful, update our local state reference
+        if (success) {
+          console.log("Order update successful, updating last saved items");
+          setLastSavedItems([...orderItems]);
+        } else {
+          console.error("Order update failed!");
+        }
       }
       
       toast({
@@ -385,6 +418,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     // Update saved boxes
     setSavedBoxes(prev => [...prev, boxNumber]);
     
+    // Also save the overall progress
+    handleSave();
+    
     toast({
       title: "Box progress saved",
       description: `Box ${boxNumber} progress has been saved.`
@@ -409,6 +445,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       
       // Trigger print
       handlePrint();
+      
+      // Save progress before redirecting
+      handleSave();
       
       // Redirect to continue picking
       setTimeout(() => {
@@ -491,6 +530,15 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   // Count missing items for the UI
   const missingItemCount = orderMissingItems.reduce((acc, item) => acc + item.quantity, 0);
   
+  // Compare current items to last saved items to detect unsaved changes
+  const hasUnsavedChanges = orderItems.some(item => {
+    const savedItem = lastSavedItems.find(si => si.id === item.id);
+    return !savedItem || 
+      savedItem.checked !== item.checked || 
+      savedItem.batchNumber !== item.batchNumber ||
+      savedItem.pickedWeight !== item.pickedWeight;
+  });
+  
   return (
     <div className="space-y-6">
       {/* Header with back button */}
@@ -522,9 +570,15 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
             <Printer className="h-4 w-4" />
             Print
           </Button>
-          <Button variant="outline" onClick={handleSave} className="flex items-center gap-2">
+          <Button 
+            variant={hasUnsavedChanges ? "default" : "outline"} 
+            onClick={handleSave} 
+            className="flex items-center gap-2"
+            disabled={isSaving}
+          >
             <Save className="h-4 w-4" />
             Save Progress
+            {hasUnsavedChanges && " *"}
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? (

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
 import { adaptOrderToCamelCase, adaptOrderToSnakeCase } from "@/utils/typeAdapters";
+import { adaptOrderItemToSnakeCase } from "@/utils/orderItemAdapters";
 
 export const useOrderData = (toast: any) => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -165,6 +166,9 @@ export const useOrderData = (toast: any) => {
       // Check if the order is in orders list or completedOrders
       const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
       
+      console.log("Updating order:", updatedOrder.id);
+      console.log("Order items count:", updatedOrder.items?.length);
+      
       // Convert to snake_case for database
       const orderForDb = adaptOrderToSnakeCase(updatedOrder);
       
@@ -195,7 +199,12 @@ export const useOrderData = (toast: any) => {
         })
         .eq('id', updatedOrder.id);
       
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Error updating order details:", orderError);
+        throw orderError;
+      }
+      
+      console.log("Order details successfully updated");
       
       // Handle item updates if they exist
       if (updatedOrder.items && updatedOrder.items.length > 0) {
@@ -205,7 +214,12 @@ export const useOrderData = (toast: any) => {
           .select('*')
           .eq('order_id', updatedOrder.id);
         
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error("Error fetching existing items:", itemsError);
+          throw itemsError;
+        }
+        
+        console.log(`Found ${existingItems.length} existing items in database`);
         
         // Create map of existing items by id
         const existingItemMap = new Map();
@@ -216,64 +230,84 @@ export const useOrderData = (toast: any) => {
         // Process each updated item
         for (const item of updatedOrder.items) {
           if (item.id && existingItemMap.has(item.id)) {
+            // Convert item to snake_case
+            const itemForDb = adaptOrderItemToSnakeCase(item);
+            console.log(`Updating item ${item.id}:`, {
+              checked: itemForDb.checked,
+              batch_number: itemForDb.batch_number
+            });
+            
             // Update existing item
             const { error: updateItemError } = await supabase
               .from('order_items')
               .update({
-                quantity: item.quantity,
-                unavailable_quantity: item.unavailable_quantity,
-                is_unavailable: item.is_unavailable,
-                blown_pouches: item.blown_pouches,
-                batch_number: item.batch_number,
-                checked: item.checked,
-                missing_quantity: item.missing_quantity,
-                picked_quantity: item.picked_quantity,
-                picked_weight: item.picked_weight,
-                original_quantity: item.original_quantity,
-                box_number: item.box_number,
-                manual_weight: item.manual_weight
+                quantity: itemForDb.quantity,
+                unavailable_quantity: itemForDb.unavailable_quantity,
+                is_unavailable: itemForDb.is_unavailable,
+                blown_pouches: itemForDb.blown_pouches,
+                batch_number: itemForDb.batch_number,
+                checked: itemForDb.checked,
+                missing_quantity: itemForDb.missing_quantity,
+                picked_quantity: itemForDb.picked_quantity,
+                picked_weight: itemForDb.picked_weight,
+                original_quantity: itemForDb.original_quantity,
+                box_number: itemForDb.box_number,
+                manual_weight: itemForDb.manual_weight
               })
               .eq('id', item.id);
             
-            if (updateItemError) throw updateItemError;
+            if (updateItemError) {
+              console.error(`Error updating item ${item.id}:`, updateItemError);
+              throw updateItemError;
+            }
             
             // Remove from map to track what's been processed
             existingItemMap.delete(item.id);
           } else {
             // Insert new item
+            console.log(`Inserting new item for product ${item.productId}`);
             const { error: insertItemError } = await supabase
               .from('order_items')
               .insert({
                 order_id: updatedOrder.id,
-                product_id: item.product_id,
+                product_id: item.productId,
                 quantity: item.quantity,
-                unavailable_quantity: item.unavailable_quantity,
-                is_unavailable: item.is_unavailable,
-                blown_pouches: item.blown_pouches,
-                batch_number: item.batch_number,
-                checked: item.checked,
-                missing_quantity: item.missing_quantity,
-                picked_quantity: item.picked_quantity,
-                picked_weight: item.picked_weight,
-                original_quantity: item.original_quantity,
-                box_number: item.box_number,
-                manual_weight: item.manual_weight
+                unavailable_quantity: item.unavailableQuantity,
+                is_unavailable: item.isUnavailable,
+                blown_pouches: item.blownPouches,
+                batch_number: item.batchNumber || "",
+                checked: !!item.checked,
+                missing_quantity: item.missingQuantity,
+                picked_quantity: item.pickedQuantity,
+                picked_weight: item.pickedWeight,
+                original_quantity: item.originalQuantity,
+                box_number: item.boxNumber,
+                manual_weight: item.manualWeight
               });
             
-            if (insertItemError) throw insertItemError;
+            if (insertItemError) {
+              console.error("Error inserting new item:", insertItemError);
+              throw insertItemError;
+            }
           }
         }
         
         // Delete any items that were removed
         if (existingItemMap.size > 0) {
           const itemsToDelete = Array.from(existingItemMap.keys());
+          console.log(`Deleting ${itemsToDelete.length} removed items`);
           const { error: deleteItemsError } = await supabase
             .from('order_items')
             .delete()
             .in('id', itemsToDelete);
           
-          if (deleteItemsError) throw deleteItemsError;
+          if (deleteItemsError) {
+            console.error("Error deleting removed items:", deleteItemsError);
+            throw deleteItemsError;
+          }
         }
+        
+        console.log("All item updates completed successfully");
       }
       
       // Handle order changes if they exist
@@ -291,14 +325,74 @@ export const useOrderData = (toast: any) => {
           .from('order_changes')
           .insert(changesToInsert);
         
-        if (changesError) throw changesError;
+        if (changesError) {
+          console.error("Error adding order changes:", changesError);
+          throw changesError;
+        }
       }
       
-      // Update state based on whether it's a completed order or not
-      if (isCompletedOrder) {
-        setCompletedOrders(completedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-      } else {
-        setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      // Update both completedBoxes and savedBoxes arrays if they exist
+      if (updatedOrder.completedBoxes || updatedOrder.savedBoxes) {
+        console.log("Updating completedBoxes and savedBoxes");
+        const { error: boxDataError } = await supabase
+          .from('orders')
+          .update({
+            completedBoxes: updatedOrder.completedBoxes || [],
+            savedBoxes: updatedOrder.savedBoxes || []
+          })
+          .eq('id', updatedOrder.id);
+        
+        if (boxDataError) {
+          console.error("Error updating box tracking data:", boxDataError);
+          // Don't throw here, as this is not critical
+        }
+      }
+      
+      console.log("Order update complete, refreshing local state");
+      
+      // We need to refetch the updated order to ensure our state stays in sync
+      const { data: refreshedData, error: fetchError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*)
+        `)
+        .eq('id', updatedOrder.id)
+        .single();
+      
+      if (fetchError) {
+        console.error("Error fetching updated order:", fetchError);
+        // Continue anyway, we'll use the provided data
+      } else if (refreshedData) {
+        // Fetch the order items with joined product
+        const { data: refreshedItemsData, error: refreshedItemsError } = await supabase
+          .from('order_items')
+          .select(`
+            *,
+            product:products(*)
+          `)
+          .eq('order_id', updatedOrder.id);
+        
+        if (refreshedItemsError) {
+          console.error("Error fetching updated items:", refreshedItemsError);
+        } else {
+          // Convert database data to our Order type using adapter
+          const rawOrder = {
+            ...refreshedData,
+            items: refreshedItemsData || []
+          };
+          
+          const refreshedOrder = adaptOrderToCamelCase(rawOrder);
+          
+          // Update state based on whether it's a completed order or not
+          if (isCompletedOrder) {
+            setCompletedOrders(completedOrders.map(o => o.id === refreshedOrder.id ? refreshedOrder : o));
+          } else {
+            setOrders(orders.map(o => o.id === refreshedOrder.id ? refreshedOrder : o));
+          }
+          
+          console.log("Local state updated with refreshed data");
+        }
       }
       
       return true;
