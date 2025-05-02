@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -9,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle, PenSquare, Trash2, Save, Printer, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle, PenSquare, Trash2, Save, Printer, Clock, AlertTriangle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
@@ -17,6 +16,7 @@ import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
 import PrintablePickingList from "./picking/PrintablePickingList";
 import { Order, OrderItem, MissingItem, Box, BoxItem } from "@/types";
 import { getCustomerId, getOrderDate, getDeliveryMethod, getPickingInProgress, getBoxDistributions, getCustomerOrderNumber } from "@/utils/propertyHelpers";
+import { DebugLoader } from "@/components/ui/debug-loader";
 
 interface PickingListProps {
   orderId: string;
@@ -24,7 +24,7 @@ interface PickingListProps {
 }
 
 const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
-  const { orders, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder } = useData();
+  const { orders, loading: ordersLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
@@ -39,11 +39,22 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [selectedBoxToPrint, setSelectedBoxToPrint] = useState<number | null>(null);
   const [showBoxPrintDialog, setShowBoxPrintDialog] = useState<boolean>(false);
   const [groupByBox, setGroupByBox] = useState<boolean>(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
   
   // Load order data
   useEffect(() => {
+    if (ordersLoading) {
+      return;
+    }
+    
     const order = orders.find(o => o.id === orderId);
-    if (order) {
+    
+    if (!order) {
+      setOrderError("Order not found. It may have been deleted or you don't have permission to view it.");
+      return;
+    }
+    
+    try {
       console.log("Found order:", order);
       
       // Set the order
@@ -55,6 +66,12 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       
       // Initialize ordered items with checked status
       const items = order.items || [];
+      
+      if (!items || items.length === 0) {
+        setOrderError("This order has no items");
+        return;
+      }
+      
       const initialItems: ExtendedOrderItem[] = items.map(item => ({
         ...item,
         checked: !!item.checked,
@@ -87,8 +104,11 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Load missing items specific to this order
       const orderSpecificMissingItems = missingItems.filter(mi => mi.orderId === order.id);
       setOrderMissingItems(orderSpecificMissingItems);
+    } catch (error) {
+      console.error("Error processing order data:", error);
+      setOrderError("There was an error processing this order data. Please try again later.");
     }
-  }, [orderId, orders, missingItems, updateOrder]);
+  }, [orderId, orders, ordersLoading, missingItems, updateOrder]);
   
   // Effect to scroll to next box if specified
   useEffect(() => {
@@ -354,6 +374,31 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     
     return orderItems.filter(item => item.boxNumber === boxNumber);
   };
+  
+  if (ordersLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <DebugLoader isLoading={true} context="Picking List" />
+      </div>
+    );
+  }
+  
+  if (orderError) {
+    return (
+      <Alert variant="destructive" className="mb-6">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          {orderError}
+        </AlertDescription>
+        <div className="mt-4">
+          <Button onClick={() => navigate("/orders")}>
+            Back to Orders
+          </Button>
+        </div>
+      </Alert>
+    );
+  }
   
   if (!selectedOrder) {
     return (

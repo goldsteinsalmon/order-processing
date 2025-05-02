@@ -9,10 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { DebugLoader } from "@/components/ui/debug-loader";
 
 const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { orders } = useData();
+  const { orders, loading: ordersLoading } = useData();
   const navigate = useNavigate();
   
   return (
@@ -34,7 +35,9 @@ const OrdersPage: React.FC = () => {
         </Button>
       </div>
       
-      {orders.length === 0 ? (
+      <DebugLoader isLoading={ordersLoading} context="Orders Page" />
+      
+      {!ordersLoading && orders.length === 0 ? (
         <Card className="w-full">
           <CardContent className="flex flex-col items-center justify-center p-6">
             <div className="text-center p-6">

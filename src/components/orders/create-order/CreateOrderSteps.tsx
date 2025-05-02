@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Loader2 } from "lucide-react";
 
 const CreateOrderSteps: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const CreateOrderSteps: React.FC = () => {
   const [showSameDayWarning, setShowSameDayWarning] = React.useState(false);
   const [showCutOffWarning, setShowCutOffWarning] = React.useState(false);
   const [manualDateChange, setManualDateChange] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   // Order items state
   const [orderItems, setOrderItems] = React.useState<{ 
@@ -259,6 +261,11 @@ const CreateOrderSteps: React.FC = () => {
   };
   
   const handleSubmit = () => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
     // Validate form
     form.trigger().then(isValid => {
       if (!isValid) {
@@ -377,6 +384,10 @@ const CreateOrderSteps: React.FC = () => {
             description: "Failed to create order: " + (error?.message || "Unknown error"),
             variant: "destructive",
           });
+        })
+        .finally(() => {
+          // Reset submitting state regardless of outcome
+          setIsSubmitting(false);
         });
     });
   };
@@ -501,11 +512,20 @@ const CreateOrderSteps: React.FC = () => {
           )}
 
           <div className="flex justify-end space-x-4 pt-6">
-            <Button type="button" variant="outline" onClick={handleCancel}>
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSubmit}>
-              {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
+            <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Order...
+                </>
+              ) : (
+                <>
+                  {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
+                </>
+              )}
             </Button>
           </div>
         </form>

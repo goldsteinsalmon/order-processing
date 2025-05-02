@@ -3,15 +3,23 @@ import React, { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 type DebugLoaderProps = {
   isLoading: boolean;
   dataLoading?: boolean;
   productsCount?: number;
   context: string;
+  error?: string | null;
 };
 
-export function DebugLoader({ isLoading, dataLoading, productsCount, context }: DebugLoaderProps) {
+export function DebugLoader({ 
+  isLoading, 
+  dataLoading, 
+  productsCount, 
+  context, 
+  error 
+}: DebugLoaderProps) {
   const [seconds, setSeconds] = useState(0);
   
   useEffect(() => {
@@ -26,12 +34,26 @@ export function DebugLoader({ isLoading, dataLoading, productsCount, context }: 
     }
   }, [isLoading, dataLoading]);
 
-  if (!(isLoading || dataLoading)) {
+  if (!(isLoading || dataLoading) && !error) {
     return null;
   }
 
+  if (error) {
+    return (
+      <Alert className="bg-red-50 border-red-200 mb-6">
+        <AlertCircle className="h-4 w-4 text-red-600" />
+        <AlertTitle className="text-red-800">Error in {context}</AlertTitle>
+        <AlertDescription>
+          <div className="text-sm space-y-1">
+            <p>{error}</p>
+          </div>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <Alert className="bg-yellow-50 border-yellow-200">
+    <Alert className="bg-yellow-50 border-yellow-200 mb-6">
       <AlertTitle className="text-yellow-800">Debug Loading State ({context})</AlertTitle>
       <AlertDescription>
         <div className="text-sm space-y-1">

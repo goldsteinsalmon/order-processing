@@ -100,7 +100,7 @@ const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
                     )}
                   >
                     {field.value ? (
-                      format(field.value, "PPP")
+                      format(field.value, "EEEE, d MMMM yyyy")
                     ) : (
                       <span>Pick a date</span>
                     )}

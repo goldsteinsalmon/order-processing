@@ -267,7 +267,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => navigate(`/order-details/${order.id}`)}
+                              onClick={() => navigate(`/orders/${order.id}`)}
                             >
                               <Edit className="h-4 w-4 mr-1" />
                               View Order
