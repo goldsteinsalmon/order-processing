@@ -70,6 +70,7 @@ interface DataContextType {
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
   recordAllBatchUsagesForOrder: (order: Order) => void;
   refreshData: () => Promise<void>;
+  fetchProducts: () => Promise<void>; // Add this line
   isLoading: boolean;
 }
 
@@ -112,6 +113,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Convert products to camelCase
   const adaptedProducts = supabaseData.products.map(product => adaptProductToCamelCase(product));
+  console.log("DataContext: All adapted products:", adaptedProducts);
   
   // Convert batch usages to camelCase
   const adaptedBatchUsages = supabaseData.batchUsages.map(batchUsage => adaptBatchUsageToCamelCase(batchUsage));
@@ -227,6 +229,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result ? adaptMissingItemToCamelCase(result) : null;
   };
   
+  // Create a dedicated fetchProducts function to expose to components
+  const fetchProducts = async () => {
+    console.log("DataContext: fetchProducts called");
+    try {
+      await supabaseData.fetchProducts();
+      console.log("DataContext: Products fetched successfully:", supabaseData.products);
+      return supabaseData.products;
+    } catch (error) {
+      console.error("DataContext: Error fetching products:", error);
+      throw error;
+    }
+  };
+
   const value: DataContextType = {
     ...supabaseData,
     customers: adaptedCustomers,
@@ -242,6 +257,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateOrder,
     addOrder,
     addMissingItem,
+    fetchProducts, // Add the fetchProducts function
     // ... keep existing code (other properties from supabaseData)
   };
 

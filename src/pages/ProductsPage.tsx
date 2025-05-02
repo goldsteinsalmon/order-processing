@@ -17,12 +17,35 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const ProductsPage: React.FC = () => {
-  const { products, orders, addProduct, updateProduct } = useData();
+  const { products, orders, addProduct, updateProduct, fetchProducts } = useData();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch products when component mounts
+  useEffect(() => {
+    const loadProducts = async () => {
+      setIsLoading(true);
+      try {
+        await fetchProducts();
+        console.log("Products fetched successfully:", products);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load products. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, [fetchProducts, toast]); // Don't include products in deps array to avoid infinite loop
 
   // Sort products by SKU
   const sortedProducts = useMemo(() => {
@@ -197,79 +220,86 @@ const ProductsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Weight (g)</TableHead>
-                <TableHead>Requires Weight</TableHead>
-                <TableHead>Stock Level</TableHead>
-                <TableHead>Add Stock</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          <div className="py-10 text-center">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+            <p className="mt-2 text-muted-foreground">Loading products...</p>
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
-                    {searchTerm ? "No matching products found" : "No products found"}
-                  </TableCell>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Weight (g)</TableHead>
+                  <TableHead>Requires Weight</TableHead>
+                  <TableHead>Stock Level</TableHead>
+                  <TableHead>Add Stock</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ) : (
-                filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>{product.sku}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.requiresWeightInput ? "N/A" : (product.weight || "N/A")}</TableCell>
-                    <TableCell>
-                      {product.requiresWeightInput ? (
-                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                          Yes
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                          No
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>{product.stock_level}</TableCell>
-                    <TableCell className="w-40">
-                      <div className="flex items-center">
-                        <Input
-                          type="number"
-                          value={stockAdjustments[product.id] || ""}
-                          onChange={(e) => handleStockAdjustment(product.id, e.target.value)}
-                          className="w-24 text-right"
-                          placeholder="Qty"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => navigate(`/products/${product.id}`)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" /> View Details
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDuplicateProduct(product.id)}
-                        >
-                          <Copy className="h-4 w-4 mr-1" /> Duplicate
-                        </Button>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                      {searchTerm ? "No matching products found" : "No products found"}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>{product.sku}</TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.requiresWeightInput ? "N/A" : (product.weight || "N/A")}</TableCell>
+                      <TableCell>
+                        {product.requiresWeightInput ? (
+                          <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            Yes
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                            No
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{product.stock_level}</TableCell>
+                      <TableCell className="w-40">
+                        <div className="flex items-center">
+                          <Input
+                            type="number"
+                            value={stockAdjustments[product.id] || ""}
+                            onChange={(e) => handleStockAdjustment(product.id, e.target.value)}
+                            className="w-24 text-right"
+                            placeholder="Qty"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => navigate(`/products/${product.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" /> View Details
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicateProduct(product.id)}
+                          >
+                            <Copy className="h-4 w-4 mr-1" /> Duplicate
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
         <div className="rounded-md border">
           <div className="p-4 bg-gray-50 border-b">
