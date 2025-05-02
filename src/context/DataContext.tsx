@@ -89,6 +89,7 @@ export const useData = (): DataContextType => {
 // Provider component
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const supabaseData = useSupabaseData();
+  console.log("DataContext: Loading state from supabaseData:", supabaseData.isLoading);
   
   // Convert customers to camelCase for React components
   const adaptedCustomers = supabaseData.customers.map(customer => {
@@ -233,8 +234,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProducts = async (): Promise<void> => {
     console.log("DataContext: fetchProducts called");
     try {
+      console.log("DataContext: Calling supabaseData.fetchProducts");
       await supabaseData.fetchProducts();
-      console.log("DataContext: Products fetched successfully:", supabaseData.products);
+      console.log("DataContext: Products fetched successfully:", supabaseData.products.length);
     } catch (error) {
       console.error("DataContext: Error fetching products:", error);
       throw error;
@@ -256,7 +258,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addOrder,
     addMissingItem,
     fetchProducts,
-    isLoading: supabaseData.isLoading,
+    isLoading: supabaseData.isLoading, // Make sure this is properly passed
     returns: supabaseData.returns,
     complaints: supabaseData.complaints,
     standingOrders: supabaseData.standingOrders,
@@ -286,6 +288,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     recordAllBatchUsagesForOrder: supabaseData.recordAllBatchUsagesForOrder,
     refreshData: supabaseData.refreshData
   };
+
+  console.log("DataContext: Providing context with isLoading:", value.isLoading);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

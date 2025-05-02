@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -116,6 +115,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Function to refresh all data from Supabase
   const refreshData = async () => {
+    console.log("SupabaseDataContext: Starting refreshData, setting isLoading to true");
     setIsLoading(true);
     try {
       // Fetch customers
@@ -285,15 +285,16 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
         variant: "destructive",
       });
     } finally {
+      console.log("SupabaseDataContext: refreshData complete, setting isLoading to false");
       setIsLoading(false);
     }
   };
 
   // Add the fetchProducts function implementation
   const fetchProducts = async (): Promise<void> => {
+    console.log("SupabaseDataContext: fetchProducts called, setting isLoading to true");
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      console.log("SupabaseDataContext: fetchProducts called");
       const { data: productData, error: productError } = await supabase
         .from('products')
         .select('*');
@@ -302,7 +303,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.error("SupabaseDataContext: Error fetching products:", productError);
         throw productError;
       } else {
-        console.log("SupabaseDataContext: Products fetched successfully:", productData);
+        console.log(`SupabaseDataContext: Fetched ${productData.length} products successfully`);
         setProducts(productData);
       }
     } catch (error) {
@@ -314,6 +315,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
       throw error;
     } finally {
+      console.log("SupabaseDataContext: fetchProducts complete, setting isLoading to false");
       setIsLoading(false);
     }
   };
@@ -1393,9 +1395,13 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isLoading
   };
 
+  console.log("SupabaseDataContext: Providing context with isLoading:", isLoading);
+
   return (
     <SupabaseDataContext.Provider value={value}>
       {children}
     </SupabaseDataContext.Provider>
   );
 };
+
+export { SupabaseDataProvider, useSupabaseData };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -16,6 +15,8 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DebugLoader } from "@/components/ui/debug-loader";
 
 const ProductsPage: React.FC = () => {
   const { products, orders, addProduct, updateProduct, fetchProducts, isLoading: dataLoading } = useData();
@@ -24,25 +25,30 @@ const ProductsPage: React.FC = () => {
   const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
+
+  console.log(`ProductsPage render: dataLoading=${dataLoading}, isPageLoading=${isPageLoading}, products.length=${products.length}`);
 
   // Fetch products when component mounts
   useEffect(() => {
     const loadProducts = async () => {
-      setIsLoading(true);
+      console.log("ProductsPage: Starting to load products");
+      console.log("ProductsPage: Initial dataLoading state:", dataLoading);
+      setIsPageLoading(true);
       try {
-        console.log("ProductsPage: Fetching products...");
+        console.log("ProductsPage: Calling fetchProducts...");
         await fetchProducts();
-        console.log("ProductsPage: Products fetched successfully:", products);
+        console.log("ProductsPage: fetchProducts completed, products count:", products.length);
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error("ProductsPage: Error fetching products:", error);
         toast({
           title: "Error",
           description: "Failed to load products. Please try again.",
           variant: "destructive",
         });
       } finally {
-        setIsLoading(false);
+        console.log("ProductsPage: Setting isPageLoading to false");
+        setIsPageLoading(false);
       }
     };
 
@@ -202,6 +208,8 @@ const ProductsPage: React.FC = () => {
     });
   };
 
+  const isLoading = isPageLoading || dataLoading;
+
   return (
     <Layout>
       <div className="flex justify-between mb-6">
@@ -210,6 +218,13 @@ const ProductsPage: React.FC = () => {
           <PackagePlus className="mr-2 h-4 w-4" /> Add Product
         </Button>
       </div>
+      
+      <DebugLoader 
+        isLoading={isPageLoading} 
+        dataLoading={dataLoading} 
+        productsCount={products.length}
+        context="ProductsPage"
+      />
       
       {hasChanges && (
         <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md flex justify-between items-center">

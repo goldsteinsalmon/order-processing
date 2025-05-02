@@ -12,6 +12,7 @@ export const useProductData = () => {
 
   const fetchProducts = async () => {
     try {
+      console.log("useProductData: Setting loading state to true");
       setIsLoading(true);
       console.log("useProductData: Fetching products...");
       
@@ -26,11 +27,14 @@ export const useProductData = () => {
       }
 
       console.log("Raw products from database:", data);
+      console.log(`useProductData: Received ${data?.length || 0} products from database`);
+      
       // Convert snake_case to camelCase using adapter
       const formattedProducts: Product[] = data.map(adaptProductToCamelCase);
       console.log("Formatted products after conversion:", formattedProducts);
       
       setProducts(formattedProducts);
+      console.log("useProductData: Products state updated with", formattedProducts.length, "items");
       return formattedProducts;
     } catch (error: any) {
       console.error("Error fetching products:", error);
@@ -41,6 +45,7 @@ export const useProductData = () => {
       });
       return [];
     } finally {
+      console.log("useProductData: Setting loading state to false");
       setIsLoading(false);
     }
   };
