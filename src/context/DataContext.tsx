@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect } from "react";
-import { useSupabaseData } from "./SupabaseDataContext";
+import { SupabaseDataProvider, useSupabaseData } from "./SupabaseDataContext";
 import { 
   Customer,
   Product,

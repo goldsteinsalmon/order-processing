@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -73,7 +74,7 @@ const ProductDetailsPage = () => {
     
     setEditedProduct({
       ...editedProduct,
-      requires_weight_input: checked,
+      requiresWeightInput: checked,
       // Clear weight if we're now requiring weight input
       weight: checked ? undefined : editedProduct.weight
     });
@@ -200,24 +201,24 @@ const ProductDetailsPage = () => {
                   <div className="flex items-center h-10">
                     <Switch
                       id="requires_weight_input"
-                      checked={editedProduct?.requires_weight_input || false}
+                      checked={editedProduct?.requiresWeightInput || false}
                       onCheckedChange={handleRequiresWeightInputChange}
                     />
                     <span className="ml-2">
-                      {editedProduct?.requires_weight_input ? "Yes" : "No"}
+                      {editedProduct?.requiresWeightInput ? "Yes" : "No"}
                     </span>
                   </div>
                 ) : (
                   <p className="p-2 border rounded-md bg-gray-50">
-                    {product.requires_weight_input ? "Yes" : "No"}
+                    {product.requiresWeightInput ? "Yes" : "No"}
                   </p>
                 )}
               </div>
               
-              {(!editedProduct?.requires_weight_input || !isEditing) && (
+              {(!editedProduct?.requiresWeightInput || !isEditing) && (
                 <div className="space-y-2">
                   <Label htmlFor="weight">Weight (g)</Label>
-                  {isEditing && !editedProduct?.requires_weight_input ? (
+                  {isEditing && !editedProduct?.requiresWeightInput ? (
                     <Input
                       id="weight"
                       type="number"

@@ -26,25 +26,7 @@ export const useMissingItemData = (toast: any) => {
 
       // Convert snake_case to camelCase
       const formattedMissingItems: MissingItem[] = data.map(item => {
-        // Convert the product object properly
-        const product = item.product ? {
-          ...item.product,
-          requiresWeightInput: item.product.requires_weight_input
-        } as Product : undefined;
-
-        return {
-          id: item.id,
-          orderId: item.order_id,
-          productId: item.product_id,
-          quantity: item.quantity,
-          date: item.date,
-          status: item.status,
-          product,
-          order: item.order ? {
-            id: item.order.id,
-            customer: item.order.customer
-          } : undefined
-        };
+        return adaptMissingItemToCamelCase(item);
       });
       
       setMissingItems(formattedMissingItems);
