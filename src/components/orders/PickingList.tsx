@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -39,6 +38,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [orderError, setOrderError] = useState<string | null>(null);
   const [selectedPickerId, setSelectedPickerId] = useState<string>("");
   const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
+  const [pickingStartAttempted, setPickingStartAttempted] = useState<boolean>(false);
   
   // Load order data
   useEffect(() => {
@@ -138,10 +138,18 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   }, [orderId, orders, isLoading, missingItems, updateOrder, pickers]);
   
   // Effect to start picking progress AFTER initial load is complete
+  // Now with proper error handling and prevent multiple attempts
   useEffect(() => {
-    if (!initialLoadComplete || !selectedOrder || getPickingInProgress(selectedOrder)) {
+    // Only proceed if initial load is complete, we have an order, picking is not in progress,
+    // and we haven't attempted to start picking yet
+    if (!initialLoadComplete || !selectedOrder || getPickingInProgress(selectedOrder) || pickingStartAttempted) {
       return;
     }
+    
+    console.log("Starting picking progress for order:", selectedOrder.id);
+    
+    // Mark that we've attempted to start picking to prevent retries
+    setPickingStartAttempted(true);
     
     // Update order to indicate picking has started
     const updatedOrder = {
@@ -150,14 +158,15 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       status: "Picking" as const
     };
     
-    console.log("Starting picking progress for order:", updatedOrder.id);
-    updateOrder(updatedOrder)
-      .catch(error => {
-        console.error("Error starting picking progress:", error);
-        // We don't show the toast here since it's not critical to user experience
-      });
+    // Try to update the order but don't throw errors if it fails
+    // This operation isn't critical for user experience
+    updateOrder(updatedOrder).catch(error => {
+      // Log the error but don't show it to the user
+      console.error("Non-critical error starting picking progress:", error);
+      // We don't show the toast here since it's not critical to user experience
+    });
       
-  }, [initialLoadComplete, selectedOrder, updateOrder]);
+  }, [initialLoadComplete, selectedOrder, updateOrder, pickingStartAttempted]);
   
   // Effect to scroll to next box if specified
   useEffect(() => {

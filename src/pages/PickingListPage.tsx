@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import Layout from "@/components/Layout";
 import PickingList from "@/components/orders/PickingList";
 import { useParams, useLocation } from "react-router-dom";
@@ -14,12 +14,7 @@ const PickingListPage: React.FC = () => {
   const nextBox = searchParams.get('nextBox');
   const nextBoxNumber = nextBox ? parseInt(nextBox) : undefined;
 
-  // Force a re-render when returning from printing page to update box status
-  useEffect(() => {
-    // This effect will trigger whenever the search params change
-    // which happens when returning from print page with nextBox param
-    console.log("PickingListPage: Rendering with orderId:", id, "nextBox:", nextBox);
-  }, [location.search, id, nextBox]);
+  console.log("PickingListPage: Rendering with orderId:", id, "nextBox:", nextBox);
 
   if (!id) {
     console.error("PickingListPage: No order ID found in URL parameters");
