@@ -387,7 +387,7 @@ const PickingList: React.FC<PickingListProps> = ({
         completedBoxes,
         completed_boxes: completedBoxes, // Add this for database compatibility
         savedBoxes, // Using camelCase property that exists in the Order type
-        saved_boxes: savedBoxes // Keep snake_case for database compatibility
+        saved_boxes: savedBoxes // Using snake_case for database compatibility
       };
       
       console.log("Saving order with status:", newStatus);
@@ -435,7 +435,7 @@ const PickingList: React.FC<PickingListProps> = ({
           
           toast({
             title: "Error",
-            description: "Failed to save order progress. Please try again.",
+            description: "Failed to save order: " + errorMessage,
             variant: "destructive",
           });
           
