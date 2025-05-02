@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -17,9 +18,18 @@ import OrderDetailsCard from "./picking/OrderDetailsCard";
 interface PickingListProps {
   orderId: string;
   nextBoxToFocus?: number;
+  onSaveStart?: () => void;
+  onSaveComplete?: (success: boolean) => void;
+  onNavigationError?: () => void;
 }
 
-const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
+const PickingList: React.FC<PickingListProps> = ({ 
+  orderId, 
+  nextBoxToFocus,
+  onSaveStart,
+  onSaveComplete,
+  onNavigationError
+}) => {
   const { orders, isLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder, pickers } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -60,6 +70,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     if (!order) {
       console.error("PickingList: Order not found with ID:", orderId);
       setOrderError("Order not found. It may have been deleted or you don't have permission to view it.");
+      if (onNavigationError) {
+        onNavigationError();
+      }
       return;
     }
     
@@ -150,8 +163,11 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     } catch (error) {
       console.error("Error processing order data:", error);
       setOrderError("There was an error processing this order data. Please try again later.");
+      if (onNavigationError) {
+        onNavigationError();
+      }
     }
-  }, [orderId, orders, isLoading, missingItems, updateOrder, pickers]);
+  }, [orderId, orders, isLoading, missingItems, updateOrder, pickers, onNavigationError]);
   
   // Effect to start picking progress AFTER initial load is complete
   // Now with proper error handling and prevent multiple attempts
@@ -284,6 +300,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     if (!selectedOrder) return;
     
     setIsSaving(true);
+    if (onSaveStart) onSaveStart();
     
     try {
       console.log("Saving with picker:", selectedPickerId);
@@ -368,6 +385,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       console.log("Saving order with status:", newStatus);
       console.log("Saving picked_by:", selectedPickerId);
       console.log("Saving checked items:", updatedOrderItems.filter(item => item.checked).map(i => i.id));
+      console.log("Total items being saved:", updatedOrderItems.length);
       
       // If order is completed, also record all batch usages and move it to completed orders
       if (newStatus === "Completed") {
@@ -381,11 +399,14 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
             description: "Order has been marked as completed and moved to completed orders"
           });
           
+          if (onSaveComplete) onSaveComplete(true);
+          
           // Navigate back to orders list
           navigate("/orders");
           return;
         } else {
           console.error("Failed to complete order!");
+          if (onSaveComplete) onSaveComplete(false);
         }
       } else {
         const success = await updateOrder(updatedOrder);
@@ -399,6 +420,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
             title: "Order saved",
             description: "Order progress has been saved",
           });
+          
+          if (onSaveComplete) onSaveComplete(true);
         } else {
           console.error("Order update failed!");
           
@@ -407,6 +430,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
             description: "Failed to save order progress. Please try again.",
             variant: "destructive",
           });
+          
+          if (onSaveComplete) onSaveComplete(false);
         }
       }
     } catch (error) {
@@ -416,6 +441,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         description: "Failed to save order. Please try again.",
         variant: "destructive",
       });
+      if (onSaveComplete) onSaveComplete(false);
     } finally {
       setIsSaving(false);
     }

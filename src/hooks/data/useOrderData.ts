@@ -209,6 +209,8 @@ export const useOrderData = (toast: any) => {
       
       // Handle item updates if they exist
       if (updatedOrder.items && updatedOrder.items.length > 0) {
+        console.log(`Processing ${updatedOrder.items.length} items for update`);
+        
         // Get existing items for this order
         const { data: existingItems, error: itemsError } = await supabase
           .from('order_items')
@@ -220,11 +222,11 @@ export const useOrderData = (toast: any) => {
           throw itemsError;
         }
         
-        console.log(`Found ${existingItems.length} existing items in database`);
+        console.log(`Found ${existingItems?.length || 0} existing items in database`);
         
         // Create map of existing items by id
         const existingItemMap = new Map();
-        existingItems.forEach((item: any) => {
+        existingItems?.forEach((item: any) => {
           existingItemMap.set(item.id, item);
         });
         

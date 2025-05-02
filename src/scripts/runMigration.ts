@@ -18,7 +18,7 @@ export async function runOrderNumberMigration() {
       .then(async ({ data, error }) => {
         if (error) throw error;
         
-        // After successful connection test, run the actual migration with the correct function
+        // Call the set_order_number_sequence function with the start value parameter
         return await supabase.rpc('set_order_number_sequence', {
           start_value: 1000
         })
