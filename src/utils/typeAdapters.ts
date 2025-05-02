@@ -1,3 +1,4 @@
+
 import { Customer, Order, Product, Return, BatchUsage, OrderItem, Box, BoxItem, MissingItem, Complaint } from "@/types";
 
 // Convert Customer from snake_case (database) to camelCase (UI)
@@ -7,9 +8,9 @@ export const adaptCustomerToCamelCase = (customer: any): Customer => {
   const result = {
     id: customer.id,
     name: customer.name,
-    email: customer.email,
-    phone: customer.phone,
-    address: customer.address,
+    email: customer.email || "",
+    phone: customer.phone || "",
+    address: customer.address || "",
     type: customer.type,
     accountNumber: customer.account_number || "",
     onHold: customer.on_hold || false,
@@ -32,9 +33,9 @@ export const adaptCustomerToSnakeCase = (customer: Customer): any => {
   const result = {
     id: customer.id,
     name: customer.name,
-    email: customer.email,
-    phone: customer.phone,
-    address: customer.address,
+    email: customer.email || "",
+    phone: customer.phone || "",
+    address: customer.address || "",
     type: customer.type,
     account_number: customer.accountNumber || "",
     on_hold: customer.onHold || false,

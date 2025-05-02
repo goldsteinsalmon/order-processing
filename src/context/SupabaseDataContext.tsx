@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -274,14 +273,21 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // CRUD operations for customers
   const addCustomer = async (customer: any): Promise<any | null> => {
     try {
+      console.log("SupabaseDataContext - Adding customer:", customer);
+      console.log("SupabaseDataContext - With account_number:", customer.account_number || "EMPTY");
+      console.log("SupabaseDataContext - With needs_detailed_box_labels:", customer.needs_detailed_box_labels);
+      
       const { data, error } = await supabase
         .from('customers')
         .insert([customer])
         .select();
       
       if (error) {
+        console.error("Supabase insert error:", error);
         throw error;
       }
+      
+      console.log("SupabaseDataContext - Added customer response:", data[0]);
       
       setCustomers(prev => [...prev, data[0]]);
       return data[0];
@@ -299,27 +305,31 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const updateCustomer = async (customer: any): Promise<boolean> => {
     try {
       console.log("SupabaseDataContext updateCustomer - Received customer:", customer);
+      console.log("SupabaseDataContext updateCustomer - With account_number:", customer.account_number || "EMPTY");
+      console.log("SupabaseDataContext updateCustomer - With on_hold:", customer.on_hold);
+      console.log("SupabaseDataContext updateCustomer - With hold_reason:", customer.hold_reason || "EMPTY");
+      console.log("SupabaseDataContext updateCustomer - With needs_detailed_box_labels:", customer.needs_detailed_box_labels);
       
       // Convert to snake_case before sending to database
-      const customerForDb = adaptCustomerToSnakeCase(customer);
-      console.log("SupabaseDataContext updateCustomer - Converted to snake_case for DB:", customerForDb);
+      const customerForDb = { ...customer };
+      console.log("SupabaseDataContext updateCustomer - Customer for DB update:", customerForDb);
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('customers')
         .update(customerForDb)
-        .eq('id', customer.id);
+        .eq('id', customer.id)
+        .select();
       
       if (error) {
         console.error("Supabase update customer error:", error);
         throw error;
       }
       
-      // Convert back to camelCase for state update
-      const updatedCustomer = adaptCustomerToCamelCase(customerForDb);
-      console.log("SupabaseDataContext updateCustomer - Updated customer for state:", updatedCustomer);
+      console.log("SupabaseDataContext updateCustomer - Update response:", data);
       
+      // Update the customers state with the updated customer
       setCustomers(prev =>
-        prev.map(c => c.id === customer.id ? updatedCustomer : c)
+        prev.map(c => c.id === customer.id ? data[0] : c)
       );
       
       return true;
