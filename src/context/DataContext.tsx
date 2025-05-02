@@ -242,7 +242,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const value: DataContextType = {
-    ...supabaseData,
     customers: adaptedCustomers,
     products: adaptedProducts,
     orders: adaptedOrders,
@@ -257,7 +256,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addOrder,
     addMissingItem,
     fetchProducts,
-    // ... keep existing code (other properties from supabaseData)
+    isLoading: supabaseData.isLoading,
+    returns: supabaseData.returns,
+    complaints: supabaseData.complaints,
+    standingOrders: supabaseData.standingOrders,
+    users: supabaseData.users,
+    pickers: supabaseData.pickers,
+    deleteCustomer: supabaseData.deleteCustomer,
+    deleteProduct: supabaseData.deleteProduct,
+    deleteOrder: supabaseData.deleteOrder,
+    completeOrder: supabaseData.completeOrder,
+    addStandingOrder: supabaseData.addStandingOrder,
+    updateStandingOrder: supabaseData.updateStandingOrder,
+    processStandingOrders: supabaseData.processStandingOrders,
+    addReturn: supabaseData.addReturn,
+    updateReturn: supabaseData.updateReturn,
+    addComplaint: supabaseData.addComplaint,
+    updateComplaint: supabaseData.updateComplaint,
+    removeMissingItem: supabaseData.removeMissingItem,
+    addUser: supabaseData.addUser,
+    updateUser: supabaseData.updateUser,
+    deleteUser: supabaseData.deleteUser,
+    addPicker: supabaseData.addPicker,
+    updatePicker: supabaseData.updatePicker,
+    deletePicker: supabaseData.deletePicker,
+    getBatchUsages: supabaseData.getBatchUsages,
+    getBatchUsageByBatchNumber: supabaseData.getBatchUsageByBatchNumber,
+    recordBatchUsage: supabaseData.recordBatchUsage,
+    recordAllBatchUsagesForOrder: supabaseData.recordAllBatchUsagesForOrder,
+    refreshData: supabaseData.refreshData
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

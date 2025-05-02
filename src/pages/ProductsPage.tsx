@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -17,7 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const ProductsPage: React.FC = () => {
-  const { products, orders, addProduct, updateProduct, fetchProducts } = useData();
+  const { products, orders, addProduct, updateProduct, fetchProducts, isLoading: dataLoading } = useData();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
@@ -30,8 +31,9 @@ const ProductsPage: React.FC = () => {
     const loadProducts = async () => {
       setIsLoading(true);
       try {
+        console.log("ProductsPage: Fetching products...");
         await fetchProducts();
-        console.log("Products fetched successfully:", products);
+        console.log("ProductsPage: Products fetched successfully:", products);
       } catch (error) {
         console.error("Error fetching products:", error);
         toast({
@@ -49,6 +51,7 @@ const ProductsPage: React.FC = () => {
 
   // Sort products by SKU
   const sortedProducts = useMemo(() => {
+    console.log("Sorting products:", products);
     return [...products].sort((a, b) => {
       return (a.sku || '').localeCompare(b.sku || '');
     });
@@ -67,11 +70,13 @@ const ProductsPage: React.FC = () => {
 
   // Initialize stock adjustments
   useEffect(() => {
-    const initialAdjustments: Record<string, number> = {};
-    products.forEach((product) => {
-      initialAdjustments[product.id] = 0;
-    });
-    setStockAdjustments(initialAdjustments);
+    if (products.length > 0) {
+      const initialAdjustments: Record<string, number> = {};
+      products.forEach((product) => {
+        initialAdjustments[product.id] = 0;
+      });
+      setStockAdjustments(initialAdjustments);
+    }
   }, [products]);
 
   // Calculate next 7 working days (excluding weekends)
@@ -107,23 +112,29 @@ const ProductsPage: React.FC = () => {
     });
     
     // Count products needed for each day from pending orders
-    orders.forEach((order) => {
-      if (order.status === "Pending" || order.status === "Processing") {
-        const orderDate = parseISO(order.requiredDate || order.order_date);
-        
-        // Only consider orders going out in the next 7 working days
-        const matchingDay = next7WorkingDays.find((day) => isSameDay(day, orderDate));
-        if (matchingDay) {
-          const dateKey = format(matchingDay, "yyyy-MM-dd");
+    if (orders && orders.length > 0) {
+      orders.forEach((order) => {
+        if (order.status === "Pending" || order.status === "Processing") {
+          const orderDate = order.requiredDate ? parseISO(order.requiredDate) : (order.order_date ? parseISO(order.order_date) : null);
           
-          order.items.forEach((item) => {
-            if (forecasts[item.productId] && forecasts[item.productId][dateKey] !== undefined) {
-              forecasts[item.productId][dateKey] += item.quantity;
+          if (orderDate) {
+            // Only consider orders going out in the next 7 working days
+            const matchingDay = next7WorkingDays.find((day) => isSameDay(day, orderDate));
+            if (matchingDay) {
+              const dateKey = format(matchingDay, "yyyy-MM-dd");
+              
+              if (order.items && order.items.length > 0) {
+                order.items.forEach((item) => {
+                  if (forecasts[item.productId] && forecasts[item.productId][dateKey] !== undefined) {
+                    forecasts[item.productId][dateKey] += item.quantity;
+                  }
+                });
+              }
             }
-          });
+          }
         }
-      }
-    });
+      });
+    }
     
     return forecasts;
   }, [next7WorkingDays, products, orders]);
@@ -138,7 +149,7 @@ const ProductsPage: React.FC = () => {
     setHasChanges(true);
   };
 
-  const handleSaveStockAdjustments = () => {
+  const handleSaveStockAdjustments = async () => {
     const updatedProducts = products.map((product) => {
       const adjustment = stockAdjustments[product.id] || 0;
       if (adjustment !== 0) {
@@ -151,12 +162,15 @@ const ProductsPage: React.FC = () => {
     });
     
     // Update only products that have changes
-    updatedProducts.forEach((product) => {
+    const updatePromises = updatedProducts.map(async (product) => {
       const originalProduct = products.find((p) => p.id === product.id);
       if (originalProduct && originalProduct.stock_level !== product.stock_level) {
-        updateProduct(product);
+        return updateProduct(product);
       }
+      return true;
     });
+    
+    await Promise.all(updatePromises);
     
     // Reset adjustments
     const resetAdjustments: Record<string, number> = {};
@@ -220,7 +234,7 @@ const ProductsPage: React.FC = () => {
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoading || dataLoading ? (
           <div className="py-10 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
             <p className="mt-2 text-muted-foreground">Loading products...</p>
@@ -333,7 +347,7 @@ const ProductsPage: React.FC = () => {
                 ) : (
                   filteredProducts.map((product) => {
                     // Calculate running stock level
-                    let runningStock = product.stock_level;
+                    let runningStock = product.stock_level || 0;
                     const dailyStocks: Record<string, number> = {};
                     
                     next7WorkingDays.forEach((day) => {

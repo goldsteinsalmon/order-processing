@@ -3,18 +3,25 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types";
 import { adaptProductToCamelCase, adaptProductToSnakeCase } from "@/utils/typeAdapters";
+import { useToast } from "@/hooks/use-toast";
 
-export const useProductData = (toast: any) => {
+export const useProductData = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { toast } = useToast();
 
   const fetchProducts = async () => {
     try {
+      setIsLoading(true);
+      console.log("useProductData: Fetching products...");
+      
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('name');
         
       if (error) {
+        console.error("Error fetching products:", error);
         throw error;
       }
 
@@ -24,6 +31,7 @@ export const useProductData = (toast: any) => {
       console.log("Formatted products after conversion:", formattedProducts);
       
       setProducts(formattedProducts);
+      return formattedProducts;
     } catch (error: any) {
       console.error("Error fetching products:", error);
       toast({
@@ -31,6 +39,9 @@ export const useProductData = (toast: any) => {
         description: `Failed to fetch product data: ${error?.message || "Unknown error"}`,
         variant: "destructive",
       });
+      return [];
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -158,6 +169,7 @@ export const useProductData = (toast: any) => {
     addProduct,
     updateProduct,
     deleteProduct,
-    fetchProducts
+    fetchProducts,
+    isLoading
   };
 };
