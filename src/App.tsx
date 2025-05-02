@@ -33,6 +33,11 @@ import SupabaseDataProvider from "@/context/SupabaseDataContext";
 import DataProvider from "@/context/DataContext";
 import { SupabaseAuthProvider } from "@/context/SupabaseAuthContext";
 import PrintBoxLabelPage from "@/pages/PrintBoxLabelPage";
+import CompletedOrdersPage from "@/pages/CompletedOrdersPage";
+import ViewCompletedOrderPage from "@/pages/ViewCompletedOrderPage"; 
+import EditCompletedOrderPage from "@/pages/EditCompletedOrderPage";
+import ReturnsPage from "@/pages/ReturnsPage";
+import AdminPage from "@/pages/AdminPage";
 
 function App() {
   return (
@@ -208,6 +213,47 @@ function App() {
                   element={
                     <SupabaseProtectedRoute>
                       <ReturnsComplaintsPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                {/* Adding Missing Routes */}
+                <Route
+                  path="/completed-orders"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <CompletedOrdersPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/completed-orders/:id"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <ViewCompletedOrderPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/completed-orders/:id/edit"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <EditCompletedOrderPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/returns"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <ReturnsPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <SupabaseProtectedRoute requireAdmin={true}>
+                      <AdminPage />
                     </SupabaseProtectedRoute>
                   }
                 />
