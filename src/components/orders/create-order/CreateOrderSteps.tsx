@@ -318,13 +318,15 @@ const CreateOrderSteps: React.FC = () => {
       let orderDateValue = data.orderDate;
       
       // Prepare order items - convert the format to match what the API expects
-      const finalItems = orderItems
+      const finalItems: OrderItem[] = orderItems
         .filter(item => item.productId && item.quantity > 0)
         .map(item => {
+          const product = products.find(p => p.id === item.productId);
           return {
             id: item.id,
             orderId: "", // Will be filled in by the backend
             productId: item.productId,
+            product: product,
             quantity: item.quantity
           };
         });
@@ -333,28 +335,47 @@ const CreateOrderSteps: React.FC = () => {
         id: crypto.randomUUID(),
         customerId: data.customerId,
         customer: customers.find(c => c.id === data.customerId)!,
-        customerOrderNumber: data.customerOrderNumber,
+        customerOrderNumber: data.customerOrderNumber || '',
         orderDate: format(orderDateValue, "yyyy-MM-dd"),
         requiredDate: format(orderDateValue, "yyyy-MM-dd"), // Default to same date
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
         items: finalItems,
-        notes: data.notes,
+        notes: data.notes || '',
         status: "Pending" as const,
         created: new Date().toISOString(),
         // Include box distributions if customer needs detailed box labels
         boxDistributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
       };
 
-      addOrder(newOrder);
-      
-      toast({
-        title: "Order created",
-        description: "The order has been created successfully.",
-      });
+      // Log the order for debugging
+      console.log("Creating new order:", newOrder);
 
-      // Reset form and navigate back
-      resetForm();
-      navigate("/orders");
+      addOrder(newOrder)
+        .then(result => {
+          if (result) {
+            toast({
+              title: "Order created",
+              description: "The order has been created successfully.",
+            });
+            // Reset form and navigate back
+            resetForm();
+            navigate("/orders");
+          } else {
+            toast({
+              title: "Error",
+              description: "Failed to create order. Please try again.",
+              variant: "destructive",
+            });
+          }
+        })
+        .catch(error => {
+          console.error("Error creating order:", error);
+          toast({
+            title: "Error",
+            description: "Failed to create order: " + (error?.message || "Unknown error"),
+            variant: "destructive",
+          });
+        });
     });
   };
   

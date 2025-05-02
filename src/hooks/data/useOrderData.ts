@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -10,6 +11,8 @@ export const useOrderData = (toast: any) => {
   // Add order
   const addOrder = async (order: Order): Promise<Order | null> => {
     try {
+      console.log("Adding order with data:", order);
+      
       // Convert to snake_case for database
       const orderForDb = adaptOrderToSnakeCase(order);
       
@@ -28,9 +31,13 @@ export const useOrderData = (toast: any) => {
         })
         .select();
       
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Error inserting order:", orderError);
+        throw orderError;
+      }
       
       const newOrderId = orderData[0].id;
+      console.log("New order created with ID:", newOrderId);
       
       // Insert order items
       if (order.items && order.items.length > 0) {
@@ -41,11 +48,61 @@ export const useOrderData = (toast: any) => {
           original_quantity: item.quantity
         }));
         
+        console.log("Inserting order items:", orderItemsToInsert);
+        
         const { error: itemsError } = await supabase
           .from('order_items')
           .insert(orderItemsToInsert);
         
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error("Error inserting order items:", itemsError);
+          throw itemsError;
+        }
+      }
+      
+      // Handle box distributions if they exist
+      if (order.boxDistributions && order.boxDistributions.length > 0) {
+        console.log("Processing box distributions:", order.boxDistributions);
+        
+        for (const box of order.boxDistributions) {
+          // Insert box
+          const { data: boxData, error: boxError } = await supabase
+            .from('boxes')
+            .insert({
+              order_id: newOrderId,
+              box_number: box.boxNumber,
+              completed: box.completed,
+              printed: box.printed
+            })
+            .select();
+          
+          if (boxError) {
+            console.error("Error inserting box:", boxError);
+            throw boxError;
+          }
+          
+          const newBoxId = boxData[0].id;
+          
+          // Insert box items if they exist
+          if (box.items && box.items.length > 0) {
+            const boxItemsToInsert = box.items.map(item => ({
+              box_id: newBoxId,
+              product_id: item.productId,
+              product_name: item.productName,
+              quantity: item.quantity,
+              weight: item.weight
+            }));
+            
+            const { error: boxItemsError } = await supabase
+              .from('box_items')
+              .insert(boxItemsToInsert);
+            
+            if (boxItemsError) {
+              console.error("Error inserting box items:", boxItemsError);
+              throw boxItemsError;
+            }
+          }
+        }
       }
       
       // Fetch the newly created order with joined customer and items
@@ -58,7 +115,10 @@ export const useOrderData = (toast: any) => {
         .eq('id', newOrderId)
         .single();
       
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error("Error fetching new order:", fetchError);
+        throw fetchError;
+      }
       
       // Fetch the order items with joined product
       const { data: newItemsData, error: newItemsError } = await supabase
@@ -69,7 +129,10 @@ export const useOrderData = (toast: any) => {
         `)
         .eq('order_id', newOrderId);
       
-      if (newItemsError) throw newItemsError;
+      if (newItemsError) {
+        console.error("Error fetching order items:", newItemsError);
+        throw newItemsError;
+      }
       
       // Convert database data to our Order type using adapter
       const rawOrder = {
