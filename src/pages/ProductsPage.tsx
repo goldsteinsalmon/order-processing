@@ -75,17 +75,13 @@ const ProductsPage = () => {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
           {[...Array(6)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-[80%]" />
-                  <Skeleton className="h-4 w-[60%]" />
-                  <Skeleton className="h-4 w-[40%]" />
-                </div>
-              </CardContent>
-            </Card>
+            <div key={i} className="p-4 border rounded-md">
+              <Skeleton className="h-4 w-[80%] mb-2" />
+              <Skeleton className="h-4 w-[60%] mb-2" />
+              <Skeleton className="h-4 w-[40%]" />
+            </div>
           ))}
         </div>
       ) : sortedProducts.length === 0 ? (
@@ -104,27 +100,41 @@ const ProductsPage = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-2">
           {sortedProducts.map((product) => (
-            <Card key={product.id}>
-              <CardHeader>
-                <CardTitle>{product.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>Description: {product.description || "N/A"}</p>
-                <p>SKU: {product.sku || "N/A"}</p>
-                <p>Barcode: {product.barcode || "N/A"}</p>
-                <p>Active: {product.active !== false ? "Yes" : "No"}</p>
+            <div key={product.id} className="p-4 border rounded-md bg-white shadow-sm">
+              <div className="flex justify-between items-center">
+                <h3 className="font-medium text-lg">{product.name}</h3>
                 <Button
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
                   onClick={() => navigate(`/edit-product/${product.id}`)}
-                  className="mt-2"
                 >
                   Edit
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Description</p>
+                  <p className="text-sm">{product.description || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">SKU</p>
+                  <p className="text-sm">{product.sku || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Barcode</p>
+                  <p className="text-sm">{product.barcode || "N/A"}</p>
+                </div>
+              </div>
+              <div className="mt-2 text-sm">
+                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${
+                  product.active !== false ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                }`}>
+                  {product.active !== false ? "Active" : "Inactive"}
+                </span>
+              </div>
+            </div>
           ))}
         </div>
       )}
