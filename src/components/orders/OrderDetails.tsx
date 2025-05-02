@@ -56,17 +56,27 @@ const OrderDetails: React.FC = () => {
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
-  const handleDeleteOrder = () => {
-    // Delete the order instead of just marking as cancelled
-    deleteOrder(order.id);
+  const handleDeleteOrder = async () => {
+    console.log("Attempting to delete order:", order.id);
     
-    toast({
-      title: "Order deleted",
-      description: `Order ${order.id.substring(0, 8)} has been deleted.`,
-    });
+    // Call the deleteOrder function and get the result
+    const success = await deleteOrder(order.id);
     
-    // Navigate back to the orders page
-    navigate("/");
+    if (success) {
+      toast({
+        title: "Order deleted",
+        description: `Order ${order.id.substring(0, 8)} has been deleted.`,
+      });
+      
+      // Navigate back to the orders page
+      navigate("/");
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -93,9 +103,9 @@ const OrderDetails: React.FC = () => {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+                <AlertDialogTitle>Delete this order?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action will mark the order as cancelled. This cannot be undone.
+                  This action will permanently delete the order and all its data. This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

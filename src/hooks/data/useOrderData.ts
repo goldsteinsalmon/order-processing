@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -317,29 +316,129 @@ export const useOrderData = (toast: any) => {
   // Delete order
   const deleteOrder = async (orderId: string): Promise<boolean> => {
     try {
+      console.log("Deleting order with ID:", orderId);
+      
+      // First, check if order exists
+      const { data: orderData, error: orderCheckError } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('id', orderId)
+        .single();
+        
+      if (orderCheckError) {
+        console.error("Error checking order existence:", orderCheckError);
+        throw orderCheckError;
+      }
+      
+      console.log("Found order to delete:", orderData);
+      
       // Delete order items first due to foreign key constraints
-      const { error: itemsError } = await supabase
+      const { data: deletedItems, error: itemsError } = await supabase
         .from('order_items')
         .delete()
-        .eq('order_id', orderId);
+        .eq('order_id', orderId)
+        .select();
       
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error("Error deleting order items:", itemsError);
+        throw itemsError;
+      }
       
-      // Delete the order
-      const { error: orderError } = await supabase
+      console.log(`Deleted ${deletedItems?.length || 0} order items`);
+      
+      // Delete any boxes associated with this order
+      const { data: deletedBoxItems, error: boxItemsError } = await supabase
+        .from('box_items')
+        .delete()
+        .eq('box_id', (sb) => 
+          sb.from('boxes').select('id').eq('order_id', orderId)
+        )
+        .select();
+        
+      if (boxItemsError) {
+        console.error("Error deleting box items:", boxItemsError);
+        // Continue anyway as this might not exist
+      } else {
+        console.log(`Deleted ${deletedBoxItems?.length || 0} box items`);
+      }
+      
+      const { data: deletedBoxes, error: boxesError } = await supabase
+        .from('boxes')
+        .delete()
+        .eq('order_id', orderId)
+        .select();
+        
+      if (boxesError) {
+        console.error("Error deleting boxes:", boxesError);
+        // Continue anyway as this might not exist
+      } else {
+        console.log(`Deleted ${deletedBoxes?.length || 0} boxes`);
+      }
+      
+      // Delete any order changes
+      const { data: deletedChanges, error: changesError } = await supabase
+        .from('order_changes')
+        .delete()
+        .eq('order_id', orderId)
+        .select();
+        
+      if (changesError) {
+        console.error("Error deleting order changes:", changesError);
+        // Continue anyway as this might not exist
+      } else {
+        console.log(`Deleted ${deletedChanges?.length || 0} order changes`);
+      }
+      
+      // Delete any missing items
+      const { data: deletedMissing, error: missingError } = await supabase
+        .from('missing_items')
+        .delete()
+        .eq('order_id', orderId)
+        .select();
+        
+      if (missingError) {
+        console.error("Error deleting missing items:", missingError);
+        // Continue anyway as this might not exist
+      } else {
+        console.log(`Deleted ${deletedMissing?.length || 0} missing items`);
+      }
+      
+      // Delete any picking progress
+      const { data: deletedProgress, error: progressError } = await supabase
+        .from('picking_progress')
+        .delete()
+        .eq('order_id', orderId)
+        .select();
+        
+      if (progressError) {
+        console.error("Error deleting picking progress:", progressError);
+        // Continue anyway as this might not exist
+      } else {
+        console.log(`Deleted ${deletedProgress?.length || 0} picking progress records`);
+      }
+      
+      // Finally, delete the order itself
+      const { data: deletedOrder, error: orderError } = await supabase
         .from('orders')
         .delete()
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select();
       
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Error deleting order:", orderError);
+        throw orderError;
+      }
       
+      console.log("Successfully deleted order:", deletedOrder);
+      
+      // Update the local state
       setOrders(orders.filter(order => order.id !== orderId));
       return true;
     } catch (error) {
       console.error('Error deleting order:', error);
       toast({
         title: "Error",
-        description: "Failed to delete order.",
+        description: "Failed to delete order. Please try again.",
         variant: "destructive",
       });
       return false;
