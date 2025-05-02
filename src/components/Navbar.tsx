@@ -1,13 +1,11 @@
 
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 
 const Navbar: React.FC = () => {
-  const { currentUser, logout, isAdmin } = useAuth();
   const { user, signOut } = useSupabaseAuth();
   
   // Get user role from Supabase metadata

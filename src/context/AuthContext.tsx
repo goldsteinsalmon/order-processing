@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "./DataContext";
@@ -16,6 +15,9 @@ interface AuthContextType {
   isAdmin: () => boolean;
 }
 
+// Create the context but don't export the default provider
+// This file is kept for compatibility with existing code but we're
+// transitioning to SupabaseAuthContext
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
@@ -26,6 +28,8 @@ export const useAuth = () => {
   return context;
 };
 
+// We'll keep the AuthProvider definition but it won't be used
+// This is only kept for reference until full migration to Supabase auth
 interface AuthProviderProps {
   children: ReactNode;
 }
