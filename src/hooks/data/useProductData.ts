@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types";
@@ -17,15 +18,17 @@ export const useProductData = (toast: any) => {
         throw error;
       }
 
+      console.log("Raw products from database:", data);
       // Convert snake_case to camelCase using adapter
       const formattedProducts: Product[] = data.map(adaptProductToCamelCase);
+      console.log("Formatted products after conversion:", formattedProducts);
       
       setProducts(formattedProducts);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching products:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch product data.",
+        description: `Failed to fetch product data: ${error?.message || "Unknown error"}`,
         variant: "destructive",
       });
     }
@@ -36,6 +39,7 @@ export const useProductData = (toast: any) => {
       if (Array.isArray(newProduct)) {
         // Batch insert - convert each product to snake_case
         const dbProducts = newProduct.map(adaptProductToSnakeCase);
+        console.log("Adding batch of products:", dbProducts);
         
         const { data, error } = await supabase
           .from('products')
@@ -43,8 +47,11 @@ export const useProductData = (toast: any) => {
           .select();
         
         if (error) {
+          console.error("Error in batch product insert:", error);
           throw error;
         }
+
+        console.log("Product batch insert response:", data);
 
         // Convert the returned data to camelCase using adapter
         const addedProducts: Product[] = data.map(adaptProductToCamelCase);
@@ -55,6 +62,7 @@ export const useProductData = (toast: any) => {
       } else {
         // Single insert - convert to snake_case
         const dbProduct = adaptProductToSnakeCase(newProduct);
+        console.log("Adding single product with snake_case format:", dbProduct);
         
         const { data, error } = await supabase
           .from('products')
@@ -62,21 +70,29 @@ export const useProductData = (toast: any) => {
           .select();
         
         if (error) {
+          console.error("Error in single product insert:", error);
           throw error;
+        }
+
+        console.log("Product insert response:", data);
+
+        if (!data || data.length === 0) {
+          throw new Error("No data returned from product insert");
         }
 
         // Convert the returned data to camelCase using adapter
         const addedProduct = adaptProductToCamelCase(data[0]);
+        console.log("Converted product after insert:", addedProduct);
         
         setProducts(prevProducts => [...prevProducts, addedProduct]);
         
         return addedProduct;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding product(s):", error);
       toast({
         title: "Error",
-        description: "Failed to add product data.",
+        description: `Failed to add product data: ${error?.message || error?.toString() || "Unknown error"}`,
         variant: "destructive",
       });
       return null;
@@ -88,21 +104,25 @@ export const useProductData = (toast: any) => {
     try {
       // Convert to snake_case for database
       const productForDb = adaptProductToSnakeCase(product);
+      console.log("Updating product with snake_case format:", productForDb);
       
       const { error } = await supabase
         .from('products')
         .update(productForDb)
         .eq('id', product.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating product:", error);
+        throw error;
+      }
       
       setProducts(products.map(p => p.id === product.id ? product : p));
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating product:', error);
       toast({
         title: "Error",
-        description: "Failed to update product.",
+        description: `Failed to update product: ${error?.message || error?.toString() || "Unknown error"}`,
         variant: "destructive",
       });
       return false;
@@ -121,11 +141,11 @@ export const useProductData = (toast: any) => {
       
       setProducts(products.filter(p => p.id !== productId));
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting product:', error);
       toast({
         title: "Error",
-        description: "Failed to delete product.",
+        description: `Failed to delete product: ${error?.message || error?.toString() || "Unknown error"}`,
         variant: "destructive",
       });
       return false;
@@ -137,6 +157,7 @@ export const useProductData = (toast: any) => {
     setProducts,
     addProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    fetchProducts
   };
 };

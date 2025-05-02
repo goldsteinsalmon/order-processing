@@ -248,34 +248,44 @@ export const adaptOrderToSnakeCase = (order: Order): any => {
 export const adaptProductToCamelCase = (product: any): Product => {
   if (!product) return null as any;
   
-  return {
+  const result = {
     id: product.id,
     name: product.name,
     sku: product.sku,
-    description: product.description,
-    stock_level: product.stock_level,
+    description: product.description || "",
+    stock_level: product.stock_level || 0,
     weight: product.weight,
-    requiresWeightInput: product.requires_weight_input,
-    unit: product.unit,
-    required: product.required
+    requiresWeightInput: product.requires_weight_input === true,
+    unit: product.unit || "",
+    required: product.required === true
   };
+  
+  console.log("adaptProductToCamelCase - Input:", product);
+  console.log("adaptProductToCamelCase - Output:", result);
+  
+  return result;
 };
 
 // Convert Product from camelCase (UI) to snake_case (database)
 export const adaptProductToSnakeCase = (product: Product): any => {
   if (!product) return null as any;
   
-  return {
+  const result = {
     id: product.id,
     name: product.name,
     sku: product.sku,
-    description: product.description,
-    stock_level: product.stock_level,
+    description: product.description || "",
+    stock_level: product.stock_level || 0,
     weight: product.weight,
-    requires_weight_input: product.requiresWeightInput,
-    unit: product.unit,
-    required: product.required
+    requires_weight_input: product.requiresWeightInput === true, // Fixed: ensure proper snake_case name and boolean conversion
+    unit: product.unit || "",
+    required: product.required === true
   };
+  
+  console.log("adaptProductToSnakeCase - Input:", product);
+  console.log("adaptProductToSnakeCase - Output:", result);
+  
+  return result;
 };
 
 // Convert BatchUsage from snake_case (database) to camelCase (UI)

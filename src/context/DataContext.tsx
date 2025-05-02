@@ -180,14 +180,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Wrap the addProduct function to convert camelCase back to snake_case
   const addProduct = async (camelCaseProduct: Product | Product[]): Promise<Product | Product[] | null> => {
+    console.log("DataContext addProduct called with:", camelCaseProduct);
+    
     if (Array.isArray(camelCaseProduct)) {
       const snakeCaseProducts = camelCaseProduct.map(adaptProductToSnakeCase);
+      console.log("Converted to snake_case for batch add:", snakeCaseProducts);
       const result = await supabaseData.addProduct(snakeCaseProducts);
-      return result ? (Array.isArray(result) ? result.map(adaptProductToCamelCase) : adaptProductToCamelCase(result)) : null;
+      if (result) {
+        const adaptedResult = Array.isArray(result) 
+          ? result.map(adaptProductToCamelCase) 
+          : adaptProductToCamelCase(result);
+        console.log("Result after batch add:", adaptedResult);
+        return adaptedResult;
+      }
+      return null;
     } else {
       const snakeCaseProduct = adaptProductToSnakeCase(camelCaseProduct);
+      console.log("Converted to snake_case for single add:", snakeCaseProduct);
       const result = await supabaseData.addProduct(snakeCaseProduct);
-      return result ? adaptProductToCamelCase(result) : null;
+      if (result) {
+        const adaptedResult = adaptProductToCamelCase(result);
+        console.log("Result after single add:", adaptedResult);
+        return adaptedResult;
+      }
+      return null;
     }
   };
   
@@ -221,11 +237,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     missingItems: adaptedMissingItems,
     updateCustomer,
     addCustomer,
-    updateProduct: supabaseData.updateProduct,
-    addProduct: supabaseData.addProduct,
-    updateOrder: supabaseData.updateOrder,
-    addOrder: supabaseData.addOrder,
-    addMissingItem: supabaseData.addMissingItem,
+    updateProduct,
+    addProduct,
+    updateOrder,
+    addOrder,
+    addMissingItem,
     // ... keep existing code (other properties from supabaseData)
   };
 
