@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -10,6 +9,7 @@ import { DebugLoader } from "@/components/ui/debug-loader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
