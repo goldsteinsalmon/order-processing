@@ -92,7 +92,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate, toast, isLoading]);
+  }, [navigate, toast]); // Removing isLoading from dependencies to prevent refresh loops
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
