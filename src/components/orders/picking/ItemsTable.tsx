@@ -91,8 +91,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
            (item.originalQuantity !== item.quantity);
   };
 
-  // Handle checkbox change with immediate update
+  // Handle checkbox change with direct state update 
   const handleCheckboxChange = (itemId: string, checked: boolean) => {
+    console.log(`ItemsTable: Checkbox changed for item ${itemId} to ${checked}`);
     // Call the parent handler immediately with the new state
     onCheckItem(itemId, checked);
   };
@@ -156,7 +157,10 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   <TableCell>
                     <Checkbox 
                       checked={item.checked} 
-                      onCheckedChange={(checked) => handleCheckboxChange(item.id, !!checked)}
+                      onCheckedChange={(checked) => {
+                        console.log(`Checkbox clicked: ${item.id}, setting to:`, checked);
+                        handleCheckboxChange(item.id, !!checked);
+                      }}
                       id={`checkbox-${item.id}`}
                     />
                   </TableCell>
@@ -258,7 +262,10 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   <TableCell>
                     <Checkbox 
                       checked={item.checked}
-                      onCheckedChange={(checked) => handleCheckboxChange(item.id, !!checked)}
+                      onCheckedChange={(checked) => {
+                        console.log(`Checkbox clicked: ${item.id}, setting to:`, checked);
+                        handleCheckboxChange(item.id, !!checked);
+                      }}
                       id={`checkbox-${item.id}`}
                     />
                   </TableCell>
