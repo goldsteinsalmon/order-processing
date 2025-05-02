@@ -1,4 +1,3 @@
-
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -32,6 +31,7 @@ import SupabaseProtectedRoute from "@/components/SupabaseProtectedRoute";
 import SupabaseDataProvider from "@/context/SupabaseDataContext";
 import DataProvider from "@/context/DataContext";
 import { SupabaseAuthProvider } from "@/context/SupabaseAuthContext";
+import PrintBoxLabelPage from "@/pages/PrintBoxLabelPage";
 
 function App() {
   return (
@@ -79,6 +79,22 @@ function App() {
                   element={
                     <SupabaseProtectedRoute>
                       <PickingListPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/picking-list/:id"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <PickingListPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/print-box-label/:id"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <PrintBoxLabelPage />
                     </SupabaseProtectedRoute>
                   }
                 />

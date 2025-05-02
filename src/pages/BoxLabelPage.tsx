@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -9,7 +8,8 @@ import { Printer, ArrowLeft } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Box, Customer } from "@/types";
 import { OrderBase } from "@/types/orderBaseTypes";
-import { getCompletedBoxes, getBoxDistributions, getNeedsDetailedBoxLabels } from "@/utils/propertyHelpers";
+import { getBoxDistributions } from "@/utils/boxPropertyHelpers";
+import { getNeedsDetailedBoxLabels } from "@/utils/customerPropertyHelpers";
 
 const BoxLabelPage: React.FC = () => {
   const { orderId, boxNumber } = useParams<{ orderId: string; boxNumber: string }>();

@@ -3,63 +3,7 @@
  * Types related to orders and order items
  */
 
-import { Customer, Product } from "./index";
-
-export interface OrderBase {
-  id: string;
-  customerId: string;
-  customer?: Customer;
-  customerOrderNumber?: string;
-  orderDate: string;
-  requiredDate: string;
-  deliveryMethod: 'Delivery' | 'Collection';
-  notes?: string;
-  status: 'Pending' | 'Processing' | 'Completed' | 'Cancelled' | 'Missing Items' | 'Modified' | 'Partially Picked';
-  created?: string;
-  updated?: string;
-  
-  // Picker information
-  picker?: string;
-  pickedBy?: string;
-  pickedAt?: string;
-  isPicked?: boolean;
-  
-  // Order modifications
-  totalBlownPouches?: number;
-  isModified?: boolean;
-  hasChanges?: boolean;
-  changes?: OrderChange[];
-  
-  // Batch information
-  batchNumber?: string;
-  batchNumbers?: string[];
-  batchSummaries?: BatchSummary[];
-  
-  // Picking progress
-  pickingInProgress?: boolean;
-  pickingProgress?: {
-    batchNumbers?: Record<string, string>;
-  };
-  
-  // Box information
-  boxDistributions?: Box[];
-  completedBoxes?: number[];
-  savedBoxes?: number[];
-  
-  // Missing items
-  missingItems?: MissingItem[];
-  
-  // Invoice information
-  invoiced?: boolean;
-  invoiceNumber?: string;
-  invoiceDate?: string;
-  
-  // Standing order reference
-  fromStandingOrder?: string;
-  
-  // Items in the order
-  items?: OrderItem[];
-}
+import { Customer, Product, OrderBase } from "./index";
 
 export interface OrderItem {
   id: string;
