@@ -2,13 +2,12 @@
 import React, { useEffect } from "react";
 import Layout from "@/components/Layout";
 import PickingList from "@/components/orders/PickingList";
-import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 
 const PickingListPage: React.FC = () => {
   // Get the order ID from the URL parameters
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const navigate = useNavigate();
   
   // Check if we need to highlight a specific box (coming back from printing)
   const searchParams = new URLSearchParams(location.search);
