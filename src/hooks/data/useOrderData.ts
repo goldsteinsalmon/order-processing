@@ -335,12 +335,21 @@ export const useOrderData = (toast: any) => {
       // Update both completedBoxes and savedBoxes arrays if they exist
       if (updatedOrder.completedBoxes || updatedOrder.savedBoxes) {
         console.log("Updating completedBoxes and savedBoxes");
+        
+        // Store these in a separate update to handle potential type mismatches
+        const boxData: any = {};
+        
+        if (updatedOrder.completedBoxes) {
+          boxData.completed_boxes = updatedOrder.completedBoxes;
+        }
+        
+        if (updatedOrder.savedBoxes) {
+          boxData.saved_boxes = updatedOrder.savedBoxes;
+        }
+        
         const { error: boxDataError } = await supabase
           .from('orders')
-          .update({
-            completed_boxes: updatedOrder.completedBoxes || [],
-            saved_boxes: updatedOrder.savedBoxes || []
-          })
+          .update(boxData)
           .eq('id', updatedOrder.id);
         
         if (boxDataError) {
