@@ -37,7 +37,7 @@ export interface Order {
   requiredDate: string;
   deliveryMethod: 'Delivery' | 'Collection';
   notes?: string;
-  status: 'Pending' | 'Processing' | 'Completed' | 'Cancelled' | 'Missing Items' | 'Modified' | 'Partially Picked';
+  status: 'Pending' | 'Picking' | 'Processing' | 'Completed' | 'Cancelled' | 'Missing Items' | 'Modified' | 'Partially Picked';
   items?: OrderItem[];
   created?: string;
   updated?: string;
