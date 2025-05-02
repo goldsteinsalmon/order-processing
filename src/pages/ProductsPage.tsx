@@ -4,12 +4,12 @@ import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, RefreshCw } from "lucide-react";
+import { Search, PlusCircle, Eye, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DebugLoader } from "@/components/ui/debug-loader";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,7 +43,7 @@ const ProductsPage = () => {
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Products</h1>
         <Button onClick={() => navigate("/create-product")}>
           <PlusCircle className="mr-2 h-4 w-4" />
@@ -102,6 +102,7 @@ const ProductsPage = () => {
         </Card>
       ) : (
         <div className="space-y-8">
+          {/* Main Products Table */}
           <div className="border rounded-md overflow-hidden">
             <Table>
               <TableHeader>
@@ -131,21 +132,45 @@ const ProductsPage = () => {
                       <TableCell>{product.requiresWeightInput ? "Yes" : "No"}</TableCell>
                       <TableCell>{product.stock_level || 0}</TableCell>
                       <TableCell>
-                        <Input 
-                          type="number" 
-                          className="w-20" 
-                          placeholder="0"
-                          disabled
-                        />
+                        <div className="w-24">
+                          <Input 
+                            type="number" 
+                            className="w-full" 
+                            placeholder="0"
+                          />
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/edit-product/${product.id}`)}
-                        >
-                          Edit
-                        </Button>
+                        <TooltipProvider>
+                          <div className="flex space-x-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/product-details/${product.id}`)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  <span className="ml-1">View Details</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View product details</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  <span className="ml-1">Duplicate</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Duplicate product</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))
@@ -176,11 +201,28 @@ const ProductsPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
-                      No products found
-                    </TableCell>
-                  </TableRow>
+                  {sortedProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center py-8">
+                        No products found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedProducts.map((product) => (
+                      <TableRow key={`forecast-${product.id}`}>
+                        <TableCell>{product.sku || "N/A"}</TableCell>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.stock_level || 0}</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>0</TableCell>
+                        <TableCell>0</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
