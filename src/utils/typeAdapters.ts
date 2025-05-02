@@ -1,4 +1,4 @@
-import { Customer, Order, Product, Return, BatchUsage, OrderItem, Box, BoxItem, MissingItem, Complaint } from "@/types";
+import { Customer, Order, Product, Return, BatchUsage, OrderItem, Box, BoxItem, MissingItem, Complaint, StandingOrder, StandingOrderItem } from "@/types";
 
 // Convert Customer from snake_case (database) to camelCase (UI)
 export const adaptCustomerToCamelCase = (customer: any): Customer => {
@@ -378,4 +378,84 @@ export const adaptComplaintToCamelCase = (complaint: any): Complaint => {
     created: complaint.created,
     updated: complaint.updated
   };
+};
+
+// Convert StandingOrderItem from snake_case (database) to camelCase (UI)
+export const adaptStandingOrderItemToCamelCase = (item: any): StandingOrderItem => {
+  if (!item) return null as any;
+  
+  return {
+    id: item.id,
+    productId: item.product_id,
+    standingOrderId: item.standing_order_id,
+    product: item.product ? adaptProductToCamelCase(item.product) : undefined,
+    quantity: item.quantity
+  };
+};
+
+// Convert StandingOrderItem from camelCase (UI) to snake_case (database)
+export const adaptStandingOrderItemToSnakeCase = (item: StandingOrderItem): any => {
+  if (!item) return null as any;
+  
+  return {
+    id: item.id,
+    product_id: item.productId,
+    standing_order_id: item.standingOrderId,
+    quantity: item.quantity
+  };
+};
+
+// Convert StandingOrder from snake_case (database) to camelCase (UI)
+export const adaptStandingOrderToCamelCase = (standingOrder: any): StandingOrder => {
+  if (!standingOrder) return null as any;
+  
+  return {
+    id: standingOrder.id,
+    customerId: standingOrder.customer_id,
+    customer: standingOrder.customer ? adaptCustomerToCamelCase(standingOrder.customer) : undefined,
+    customerOrderNumber: standingOrder.customer_order_number,
+    schedule: {
+      frequency: standingOrder.frequency,
+      dayOfWeek: standingOrder.day_of_week,
+      dayOfMonth: standingOrder.day_of_month,
+      deliveryMethod: standingOrder.delivery_method,
+      nextDeliveryDate: standingOrder.next_delivery_date,
+      modifiedDeliveries: [] // Initialize with empty array, should be populated with joined data if available
+    },
+    items: Array.isArray(standingOrder.items) ? 
+      standingOrder.items.map(adaptStandingOrderItemToCamelCase) : [],
+    notes: standingOrder.notes,
+    active: standingOrder.active ?? true,
+    nextProcessingDate: standingOrder.next_processing_date,
+    lastProcessedDate: standingOrder.last_processed_date,
+    created: standingOrder.created,
+    updated: standingOrder.updated
+  };
+};
+
+// Convert StandingOrder from camelCase (UI) to snake_case (database)
+export const adaptStandingOrderToSnakeCase = (standingOrder: StandingOrder): any => {
+  if (!standingOrder) return null as any;
+  
+  const result: any = {
+    id: standingOrder.id,
+    customer_id: standingOrder.customerId,
+    customer_order_number: standingOrder.customerOrderNumber,
+    frequency: standingOrder.schedule.frequency,
+    day_of_week: standingOrder.schedule.dayOfWeek,
+    day_of_month: standingOrder.schedule.dayOfMonth,
+    delivery_method: standingOrder.schedule.deliveryMethod,
+    next_delivery_date: standingOrder.schedule.nextDeliveryDate,
+    notes: standingOrder.notes,
+    active: standingOrder.active,
+    next_processing_date: standingOrder.nextProcessingDate,
+    last_processed_date: standingOrder.lastProcessedDate
+  };
+  
+  // If items exist and need to be included, convert them to snake_case
+  if (standingOrder.items && standingOrder.items.length > 0) {
+    result.items = standingOrder.items.map(item => adaptStandingOrderItemToSnakeCase(item));
+  }
+  
+  return result;
 };

@@ -24,7 +24,9 @@ import {
   adaptBatchUsageToCamelCase,
   adaptBatchUsageToSnakeCase,
   adaptMissingItemToCamelCase,
-  adaptMissingItemToSnakeCase
+  adaptMissingItemToSnakeCase,
+  adaptStandingOrderToCamelCase,
+  adaptStandingOrderToSnakeCase
 } from "@/utils/typeAdapters";
 
 // Interface for DataContext
@@ -121,6 +123,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Convert missing items to camelCase
   const adaptedMissingItems = supabaseData.missingItems.map(item => adaptMissingItemToCamelCase(item));
+  
+  // Convert standing orders to camelCase
+  const adaptedStandingOrders = supabaseData.standingOrders.map(standingOrder => adaptStandingOrderToCamelCase(standingOrder));
   
   // Wrap the updateCustomer function to convert camelCase back to snake_case
   const updateCustomer = async (camelCaseCustomer: Customer): Promise<boolean> => {
@@ -254,6 +259,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Wrap the updateStandingOrder function to convert camelCase back to snake_case
+  const updateStandingOrder = async (camelCaseStandingOrder: StandingOrder): Promise<boolean> => {
+    console.log("DataContext updateStandingOrder called with:", camelCaseStandingOrder);
+    const snakeCaseStandingOrder = adaptStandingOrderToSnakeCase(camelCaseStandingOrder);
+    console.log("Converted to snake_case:", snakeCaseStandingOrder);
+    return await supabaseData.updateStandingOrder(snakeCaseStandingOrder);
+  };
+  
+  // Wrap the addStandingOrder function to convert camelCase back to snake_case
+  const addStandingOrder = async (camelCaseStandingOrder: StandingOrder): Promise<StandingOrder | null> => {
+    console.log("DataContext addStandingOrder called with:", camelCaseStandingOrder);
+    const snakeCaseStandingOrder = adaptStandingOrderToSnakeCase(camelCaseStandingOrder);
+    console.log("Converted to snake_case:", snakeCaseStandingOrder);
+    const result = await supabaseData.addStandingOrder(snakeCaseStandingOrder);
+    return result ? adaptStandingOrderToCamelCase(result) : null;
+  };
+
   const value: DataContextType = {
     customers: adaptedCustomers,
     products: adaptedProducts,
@@ -261,6 +283,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     completedOrders: adaptedCompletedOrders,
     batchUsages: adaptedBatchUsages,
     missingItems: adaptedMissingItems,
+    standingOrders: adaptedStandingOrders, // Use the adapted standing orders
     updateCustomer,
     addCustomer,
     updateProduct,
@@ -272,15 +295,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading: supabaseData.isLoading,
     returns: supabaseData.returns,
     complaints: supabaseData.complaints,
-    standingOrders: supabaseData.standingOrders,
+    updateStandingOrder, // Use the wrapped function
+    addStandingOrder, // Use the wrapped function
     users: supabaseData.users,
     pickers: supabaseData.pickers,
     deleteCustomer: supabaseData.deleteCustomer,
     deleteProduct: supabaseData.deleteProduct,
     deleteOrder: supabaseData.deleteOrder,
     completeOrder: supabaseData.completeOrder,
-    addStandingOrder: supabaseData.addStandingOrder,
-    updateStandingOrder: supabaseData.updateStandingOrder,
     processStandingOrders: supabaseData.processStandingOrders,
     addReturn: supabaseData.addReturn,
     updateReturn: supabaseData.updateReturn,
