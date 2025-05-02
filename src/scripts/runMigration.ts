@@ -22,8 +22,8 @@ export async function runOrderNumberMigration() {
     // Set the sequence to start at 1000 (or higher if there are existing orders)
     const startValue = Math.max(1000, data?.order_number || 0);
     
-    // Execute the SQL statement to set the sequence
-    const { error: seqError } = await supabase.rpc('set_order_number_sequence', {
+    // Execute the SQL statement to set the sequence using a type assertion to bypass TypeScript restrictions
+    const { error: seqError } = await supabase.rpc('set_order_number_sequence' as any, {
       start_value: startValue
     });
     
