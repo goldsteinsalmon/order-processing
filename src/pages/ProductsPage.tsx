@@ -1,20 +1,24 @@
+
 import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, PlusCircle, Eye, Copy } from "lucide-react";
+import { Search, PlusCircle, Eye, Copy, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DebugLoader } from "@/components/ui/debug-loader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { products, isLoading, refreshData } = useData();
+  const { products, isLoading, refreshData, updateProduct } = useData();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
 
   console.log("ProductsPage render: isLoading=" + isLoading + ", products.length=" + products.length);
 
@@ -25,6 +29,62 @@ const ProductsPage = () => {
     } catch (error) {
       console.error("ProductsPage: Error during manual refresh:", error);
     }
+  };
+
+  const handleStockInputChange = (productId: string, value: string) => {
+    setStockInputs({
+      ...stockInputs,
+      [productId]: value
+    });
+  };
+
+  const handleAddStock = async (product: any) => {
+    const inputValue = stockInputs[product.id];
+    
+    if (!inputValue || isNaN(parseInt(inputValue))) {
+      toast({
+        title: "Invalid input",
+        description: "Please enter a valid number",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const additionalStock = parseInt(inputValue);
+    const updatedProduct = {
+      ...product,
+      stock_level: (product.stock_level || 0) + additionalStock
+    };
+    
+    try {
+      await updateProduct(updatedProduct);
+      toast({
+        title: "Stock updated",
+        description: `Added ${additionalStock} to ${product.name}`
+      });
+      
+      // Clear the input
+      setStockInputs({
+        ...stockInputs,
+        [product.id]: ''
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update stock",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDuplicateProduct = (product: any) => {
+    // Navigate to create product page with the product to duplicate
+    navigate("/create-product", { 
+      state: { 
+        duplicateFrom: product,
+        isDuplicating: true
+      }
+    });
   };
 
   const filteredProducts = products.filter((product) => {
@@ -132,12 +192,22 @@ const ProductsPage = () => {
                       <TableCell>{product.requiresWeightInput ? "Yes" : "No"}</TableCell>
                       <TableCell>{product.stock_level || 0}</TableCell>
                       <TableCell>
-                        <div className="w-24">
+                        <div className="flex w-32 space-x-1">
                           <Input 
                             type="number" 
-                            className="w-full" 
+                            className="w-20" 
                             placeholder="0"
+                            value={stockInputs[product.id] || ''}
+                            onChange={(e) => handleStockInputChange(product.id, e.target.value)}
+                            min="0"
                           />
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleAddStock(product)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -148,7 +218,7 @@ const ProductsPage = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => navigate(`/product-details/${product.id}`)}
+                                  onClick={() => navigate(`/products/${product.id}`)}
                                 >
                                   <Eye className="h-4 w-4" />
                                   <span className="ml-1">View Details</span>
@@ -162,6 +232,7 @@ const ProductsPage = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  onClick={() => handleDuplicateProduct(product)}
                                 >
                                   <Copy className="h-4 w-4" />
                                   <span className="ml-1">Duplicate</span>
