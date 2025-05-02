@@ -403,6 +403,27 @@ export type Database = {
           },
         ]
       }
+      non_working_days: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       order_changes: {
         Row: {
           date: string

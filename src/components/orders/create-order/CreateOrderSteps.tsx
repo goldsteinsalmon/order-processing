@@ -60,13 +60,15 @@ const CreateOrderSteps: React.FC = () => {
   }[]>([]);
   
   // Get the default order date based on current time
-  const getDefaultOrderDate = () => {
+  const getDefaultOrderDate = async () => {
     const currentHour = new Date().getHours();
     // If it's after 12 PM, set the default to 2 working days from now
     if (currentHour >= 12) {
-      return addBusinessDays(new Date(), 2);
+      // Get next working day, then get next working day after that
+      const nextDay = await getNextWorkingDay(new Date());
+      return await getNextWorkingDay(nextDay);
     } else {
-      return getNextWorkingDay();
+      return await getNextWorkingDay();
     }
   };
 
@@ -74,13 +76,18 @@ const CreateOrderSteps: React.FC = () => {
     resolver: zodResolver(orderSchema),
     defaultValues: {
       deliveryMethod: "Delivery",
-      orderDate: getDefaultOrderDate(),
+      orderDate: new Date(), // Will be updated after component mounts
     },
   });
 
   // Re-initialize form with updated default date when component mounts
   React.useEffect(() => {
-    form.setValue("orderDate", getDefaultOrderDate());
+    const initializeDefaultDate = async () => {
+      const defaultDate = await getDefaultOrderDate();
+      form.setValue("orderDate", defaultDate);
+    };
+    
+    initializeDefaultDate();
   }, []);
 
   const orderDate = form.watch("orderDate");
@@ -195,7 +202,7 @@ const CreateOrderSteps: React.FC = () => {
     }
   };
   
-  const handleDateChange = (date?: Date) => {
+  const handleDateChange = async (date?: Date) => {
     if (date) {
       setManualDateChange(true);
       form.setValue("orderDate", date);

@@ -40,6 +40,10 @@ interface SupabaseDataContextType {
   users: any[];
   pickers: any[];
   batchUsages: any[];
+  nonWorkingDays: any[];
+  addNonWorkingDay: (date: string, description?: string) => Promise<any | null>;
+  updateNonWorkingDay: (id: string, description: string) => Promise<boolean>;
+  deleteNonWorkingDay: (id: string) => Promise<boolean>;
   addCustomer: (customer: any) => Promise<any | null>;
   updateCustomer: (customer: any) => Promise<boolean>;
   deleteCustomer: (customerId: string) => Promise<boolean>;
@@ -99,6 +103,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [users, setUsers] = useState<any[]>([]);
   const [pickers, setPickers] = useState<any[]>([]);
   const [batchUsages, setBatchUsages] = useState<any[]>([]);
+  const [nonWorkingDays, setNonWorkingDays] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
@@ -256,6 +261,18 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }));
           setBatchUsages(formattedBatchUsages);
         }
+      }
+      
+      // Fetch non-working days
+      const { data: nonWorkingDaysData, error: nonWorkingDaysError } = await supabase
+        .from('non_working_days')
+        .select('*')
+        .order('date', { ascending: true });
+      
+      if (nonWorkingDaysError) {
+        console.error("Error fetching non-working days:", nonWorkingDaysError);
+      } else {
+        setNonWorkingDays(nonWorkingDaysData);
       }
       
     } catch (error) {
@@ -1321,6 +1338,85 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  // CRUD operations for non-working days
+  const addNonWorkingDay = async (date: string, description?: string): Promise<any | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('non_working_days')
+        .insert([{ 
+          date, 
+          description: description || null 
+        }])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setNonWorkingDays(prev => [...prev, data[0]]);
+      return data[0];
+    } catch (error) {
+      console.error("Error adding non-working day:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add non-working day.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const updateNonWorkingDay = async (id: string, description: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('non_working_days')
+        .update({ description })
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setNonWorkingDays(prev =>
+        prev.map(day => day.id === id ? { ...day, description } : day)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating non-working day:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update non-working day.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteNonWorkingDay = async (id: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('non_working_days')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setNonWorkingDays(prev => prev.filter(day => day.id !== id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting non-working day:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete non-working day.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   // Value object for the context provider
   const value: SupabaseDataContextType = {
     customers,
@@ -1334,6 +1430,10 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
     users,
     pickers,
     batchUsages,
+    nonWorkingDays,
+    addNonWorkingDay,
+    updateNonWorkingDay,
+    deleteNonWorkingDay,
     addCustomer,
     updateCustomer,
     deleteCustomer,

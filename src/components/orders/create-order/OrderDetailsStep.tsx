@@ -1,159 +1,155 @@
-import React from "react";
-import { format, isToday, isBefore, startOfDay } from "date-fns";
-import { UseFormReturn } from "react-hook-form";
-import { Button } from "@/components/ui/button";
+
+import React, { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { isBusinessDay } from "@/utils/dateUtils";
-import { OrderFormValues } from "./orderSchema";
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { isBusinessDay } from "@/utils/dateUtils";
 
 interface OrderDetailsStepProps {
-  form: UseFormReturn<OrderFormValues>;
+  form: any;
   onDateChange: (date?: Date) => void;
   onNext: () => void;
   onBack: () => void;
   hideNavigationButtons?: boolean;
 }
 
-// Helper function to safely format dates
-const safeFormatDate = (date?: Date | null) => {
-  if (!date) return "";
-  try {
-    return format(date, "MMMM do, yyyy");
-  } catch (error) {
-    console.error("Error formatting date:", date, error);
-    return "Invalid date";
-  }
-};
-
 const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
   form,
   onDateChange,
   onNext,
   onBack,
-  hideNavigationButtons = false
+  hideNavigationButtons = false,
 }) => {
+  const [disabledDates, setDisabledDates] = useState<(date: Date) => boolean>(() => 
+    (date: Date) => date.getDay() === 0 || date.getDay() === 6 // Default: disable weekends
+  );
+
+  // Update the disabled dates function to include non-working days
+  useEffect(() => {
+    const updateDisabledDates = async () => {
+      setDisabledDates(() => async (date: Date) => {
+        return !(await isBusinessDay(date));
+      });
+    };
+    
+    updateDisabledDates();
+  }, []);
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          control={form.control}
-          name="orderDate"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Order Date *</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      className="pl-3 text-left font-normal"
-                    >
-                      {field.value ? (
-                        safeFormatDate(field.value)
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 pointer-events-auto">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={onDateChange}
-                    disabled={(date) => 
-                      !isBusinessDay(date) || isBefore(date, startOfDay(new Date()))
-                    }
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="customerOrderNumber"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Customer Order Number</FormLabel>
+    <div className="space-y-4">
+      <FormField
+        control={form.control}
+        name="deliveryMethod"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Delivery Method</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
-                <Input placeholder="Enter customer order number" {...field} />
+                <SelectTrigger>
+                  <SelectValue placeholder="Select delivery method" />
+                </SelectTrigger>
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="deliveryMethod"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Delivery Method *</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <SelectContent>
+                <SelectItem value="Delivery">Delivery</SelectItem>
+                <SelectItem value="Collection">Collection</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="customerOrderNumber"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Customer Order Number (Optional)</FormLabel>
+            <FormControl>
+              <Input placeholder="Customer Order Number" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="orderDate"
+        render={({ field }) => (
+          <FormItem className="flex flex-col">
+            <FormLabel>Order Date</FormLabel>
+            <Popover>
+              <PopoverTrigger asChild>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select delivery method" />
-                  </SelectTrigger>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full pl-3 text-left font-normal",
+                      !field.value && "text-muted-foreground"
+                    )}
+                  >
+                    {field.value ? (
+                      format(field.value, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="Delivery">Delivery</SelectItem>
-                  <SelectItem value="Collection">Collection</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem className="col-span-1 md:col-span-2">
-              <FormLabel>Notes</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Add any special instructions or notes about this order"
-                  className="min-h-24"
-                  {...field}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={field.value}
+                  onSelect={(date) => {
+                    field.onChange(date);
+                    onDateChange(date);
+                  }}
+                  initialFocus
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-      
+              </PopoverContent>
+            </Popover>
+            <FormDescription>
+              Select a business day. Weekends and non-working days are disabled.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="notes"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Notes (Optional)</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder="Add any special instructions or notes here"
+                className="resize-none"
+                {...field}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       {!hideNavigationButtons && (
         <div className="flex justify-between">
           <Button type="button" variant="outline" onClick={onBack}>
             Back
           </Button>
           <Button type="button" onClick={onNext}>
-            Continue
+            Next
           </Button>
         </div>
       )}
