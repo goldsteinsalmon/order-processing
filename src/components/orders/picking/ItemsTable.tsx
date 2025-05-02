@@ -63,7 +63,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   }, [items, groupByBox]);
 
   // Helper function to check if a box is complete enough to print
-  // Removed batch number requirement - only check if all items are checked
+  // Only check if all items are checked - removed batch number requirement
   const isBoxComplete = (boxItems: ExtendedOrderItem[]): boolean => {
     // Check if all items are checked
     if (!boxItems.length || !boxItems.every(item => item.checked)) {

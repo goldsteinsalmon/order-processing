@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -267,6 +268,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
           orderId: item.orderId,
           productId: item.productId,
           quantity: item.quantity,
+          // Batch number can be empty, no need to verify it before saving
           batchNumber: item.batchNumber || "",
           checked: item.checked,
           pickedQuantity: item.checked ? item.quantity : 0,
