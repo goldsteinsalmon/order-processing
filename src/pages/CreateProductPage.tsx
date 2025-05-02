@@ -69,8 +69,9 @@ const CreateProductPage: React.FC = () => {
         description: description || "",
         requiresWeightInput, // Using boolean value directly
         weight: requiresWeightInput ? undefined : weight,
-        stock_level: stockLevel,
-        created: new Date().toISOString()
+        stock_level: stockLevel
+        // Remove the 'created' property as it's not in the Product interface
+        // and is auto-populated by the database
       };
       
       console.log("Submitting product:", newProduct);
