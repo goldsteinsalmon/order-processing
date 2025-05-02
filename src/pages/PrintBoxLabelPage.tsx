@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ const PrintBoxLabelPage: React.FC = () => {
   const location = useLocation();
   const { orders, updateOrder } = useData();
   const { toast } = useToast();
+  const printRef = useRef<HTMLDivElement>(null);
 
   // Extract the orderId from the URL - /print-box-label/:id
   const pathParts = location.pathname.split('/');
@@ -139,7 +140,9 @@ const PrintBoxLabelPage: React.FC = () => {
           </Button>
         </div>
       </div>
-      <PrintBoxLabel />
+      <div ref={printRef}>
+        <PrintBoxLabel />
+      </div>
     </div>
   );
 };

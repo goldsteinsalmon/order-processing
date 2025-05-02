@@ -172,7 +172,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
             <Textarea
               id="notes"
               placeholder="Delivery Instructions"
-              value={modifiedDelivery.notes || standingOrder.notes}
+              value={modifiedDelivery.notes || standingOrder.notes || ''}
               onChange={handleNotesChange}
             />
           </div>
@@ -182,7 +182,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
             <ul>
               {orderItems.map(item => (
                 <li key={item.id} className="flex items-center justify-between py-2 border-b">
-                  <span>{item.product.name}</span>
+                  <span>{item.product?.name}</span>
                   <div className="flex items-center">
                     <Button
                       variant="outline"
@@ -195,7 +195,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
                       type="number"
                       className="w-20 mx-2 text-center"
                       value={item.quantity}
-                      onChange={(e) => handleItemQuantityChange(item.id, parseInt(e.target.value))}
+                      onChange={(e) => handleItemQuantityChange(item.id, parseInt(e.target.value) || 0)}
                     />
                     <Button
                       variant="outline"

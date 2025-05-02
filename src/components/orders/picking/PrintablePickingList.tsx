@@ -35,13 +35,18 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
   // Calculate total weight for products that have weight info
   const getTotalWeight = (boxItems: ExtendedOrderItem[]) => {
     return boxItems
-      .filter(item => item.product.requiresWeightInput)
+      .filter(item => item.product?.requiresWeightInput)
       .reduce((total, item) => {
         const weight = item.pickedWeight || 0;
         return total + weight;
       }, 0);
   };
   
+  // Safe getter for order date with fallback
+  const orderDate = getOrderDate(selectedOrder);
+  const customerOrderNumber = getCustomerOrderNumber(selectedOrder);
+  const deliveryMethod = getDeliveryMethod(selectedOrder);
+
   return (
     <div ref={ref} className="p-8 bg-white print:text-black">
       <div className="text-center mb-6">
@@ -54,16 +59,16 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="font-bold">Customer:</p>
-            <p>{selectedOrder.customer.name}</p>
-            {selectedOrder.customer.accountNumber && (
+            <p>{selectedOrder.customer?.name}</p>
+            {selectedOrder.customer?.accountNumber && (
               <p className="text-sm">Account: {selectedOrder.customer.accountNumber}</p>
             )}
           </div>
           <div>
-            <p><span className="font-bold">Order Date:</span> {format(new Date(getOrderDate(selectedOrder)), "MMMM d, yyyy")}</p>
-            <p><span className="font-bold">Delivery Method:</span> {getDeliveryMethod(selectedOrder)}</p>
-            {getCustomerOrderNumber(selectedOrder) && (
-              <p><span className="font-bold">Customer Order Number:</span> {getCustomerOrderNumber(selectedOrder)}</p>
+            <p><span className="font-bold">Order Date:</span> {orderDate ? format(new Date(orderDate), "MMMM d, yyyy") : 'N/A'}</p>
+            <p><span className="font-bold">Delivery Method:</span> {deliveryMethod}</p>
+            {customerOrderNumber && (
+              <p><span className="font-bold">Customer Order Number:</span> {customerOrderNumber}</p>
             )}
           </div>
         </div>
@@ -91,12 +96,12 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
                 <tbody>
                   {boxItems.map(item => (
                     <tr key={item.id} className="border-b">
-                      <td className="py-1">{item.product.name}</td>
+                      <td className="py-1">{item.product?.name}</td>
                       <td className="py-1 text-right">{item.quantity}</td>
                       <td className="py-1 text-right">{item.batchNumber || ''}</td>
                       <td className="py-1 text-right">
-                        {item.product.requiresWeightInput
-                          ? `${item.pickedWeight || '-'} ${item.product.unit || 'g'}`
+                        {item.product?.requiresWeightInput
+                          ? `${item.pickedWeight || '-'} ${item.product?.unit || 'g'}`
                           : '-'
                         }
                       </td>
@@ -129,12 +134,12 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
             <tbody>
               {items.map(item => (
                 <tr key={item.id} className="border-b">
-                  <td className="py-1">{item.product.name}</td>
+                  <td className="py-1">{item.product?.name}</td>
                   <td className="py-1 text-right">{item.quantity}</td>
                   <td className="py-1 text-right">{item.batchNumber || ''}</td>
                   <td className="py-1 text-right">
-                    {item.product.requiresWeightInput
-                      ? `${item.pickedWeight || '-'} ${item.product.unit || 'g'}`
+                    {item.product?.requiresWeightInput
+                      ? `${item.pickedWeight || '-'} ${item.product?.unit || 'g'}`
                       : '-'
                     }
                   </td>

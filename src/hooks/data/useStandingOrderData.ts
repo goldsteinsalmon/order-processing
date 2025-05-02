@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StandingOrder, Order, StandingOrderItem } from "@/types";
@@ -88,7 +89,8 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
           dayOfWeek: newSOData.day_of_week,
           dayOfMonth: newSOData.day_of_month,
           deliveryMethod: newSOData.delivery_method as "Delivery" | "Collection",
-          nextDeliveryDate: newSOData.next_delivery_date
+          nextDeliveryDate: newSOData.next_delivery_date,
+          modifiedDeliveries: [] // Initialize with empty array
         },
         items: newItemsData.map((item: any) => ({
           id: item.id,
@@ -216,13 +218,18 @@ export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Pro
       // Find active standing orders that need processing
       const standingOrdersToProcess = standingOrders.filter(so => 
         so.active && 
-        so.schedule.nextDeliveryDate && 
+        so.schedule?.nextDeliveryDate && 
         format(parseISO(so.schedule.nextDeliveryDate), 'yyyy-MM-dd') <= todayStr &&
         !so.lastProcessedDate
       );
       
       // Process each standing order
       for (const standingOrder of standingOrdersToProcess) {
+        if (!standingOrder.schedule) {
+          console.error('Standing order missing schedule:', standingOrder.id);
+          continue;
+        }
+
         const newOrderId = crypto.randomUUID();
         const orderDate = new Date().toISOString();
         const deliveryDate = standingOrder.schedule.nextDeliveryDate;
