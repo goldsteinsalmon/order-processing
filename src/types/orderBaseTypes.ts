@@ -13,7 +13,7 @@ export interface OrderBase {
   requiredDate: string;
   deliveryMethod: 'Delivery' | 'Collection';
   notes?: string;
-  status: 'Pending' | 'Processing' | 'Completed' | 'Cancelled' | 'Missing Items' | 'Modified' | 'Partially Picked';
+  status: 'Pending' | 'Picking' | 'Processing' | 'Completed' | 'Cancelled' | 'Missing Items' | 'Modified' | 'Partially Picked';
   created?: string;
   updated?: string;
   
