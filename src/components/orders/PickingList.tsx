@@ -386,8 +386,8 @@ const PickingList: React.FC<PickingListProps> = ({
         missing_items: orderMissingItems, // Add this for database compatibility
         completedBoxes,
         completed_boxes: completedBoxes, // Add this for database compatibility
-        savedBoxes,
-        saved_boxes: savedBoxes
+        savedBoxes, // Using camelCase property that exists in the Order type
+        saved_boxes: savedBoxes // Keep snake_case for database compatibility
       };
       
       console.log("Saving order with status:", newStatus);
