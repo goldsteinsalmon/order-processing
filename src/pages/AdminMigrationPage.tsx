@@ -17,24 +17,17 @@ const AdminMigrationPage: React.FC = () => {
     setResult(null);
     
     try {
-      // Use direct SQL query instead of RPC
-      const { error } = await supabase.from('orders')
-        .select('id')
-        .limit(1)
-        .then(async () => {
-          // After successful connection test, run the actual migration
-          // by setting the sequence directly
-          return await supabase.rpc('set_order_number_sequence', { 
-            start_value: 1000
-          });
+      // Use the migration script which handles this properly
+      const success = await runOrderNumberMigration();
+      
+      if (success) {
+        setResult({
+          success: true,
+          message: "Order number sequence has been updated to start at 1001 for new orders."
         });
-      
-      if (error) throw error;
-      
-      setResult({
-        success: true,
-        message: "Order number sequence has been updated to start at 1001 for new orders."
-      });
+      } else {
+        throw new Error("Migration failed");
+      }
     } catch (error) {
       console.error("Migration failed:", error);
       setResult({
