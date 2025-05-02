@@ -4,9 +4,11 @@ import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Navbar: React.FC = () => {
   const { user, signOut } = useSupabaseAuth();
+  const { toast } = useToast();
   
   // Get user role from Supabase metadata
   const userRole = user?.user_metadata?.role || "User";
@@ -17,7 +19,21 @@ const Navbar: React.FC = () => {
 
   // Handle logout with Supabase
   const handleLogout = async () => {
-    await signOut();
+    try {
+      console.log("Logout initiated");
+      await signOut();
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout failed",
+        description: "There was an issue logging out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

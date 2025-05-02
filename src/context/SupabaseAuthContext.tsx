@@ -53,12 +53,25 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   useEffect(() => {
     console.log("Setting up auth state listener");
-    let authListener: { data: { subscription: { unsubscribe: () => void } } };
     
     // Set initial loading state
     setIsLoading(true);
     
-    // Initial session check
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log("Auth state change:", event, newSession?.user?.id);
+      
+      // Update session and user state
+      setSession(newSession);
+      setUser(newSession?.user || null);
+      
+      // Handle auth state changes after initial load
+      if (!isLoading && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+        redirectAfterAuth(event);
+      }
+    });
+    
+    // THEN check for existing session
     const checkSession = async () => {
       try {
         const { data } = await supabase.auth.getSession();
@@ -72,30 +85,14 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     };
     
-    // Check session first
+    // Check session
     checkSession();
-    
-    // Set up auth state listener
-    authListener = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log("Auth state change:", event, newSession?.user?.id);
-      
-      // Update session and user state
-      setSession(newSession);
-      setUser(newSession?.user || null);
-      
-      // Handle auth state changes after initial load
-      if (!isLoading && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
-        redirectAfterAuth(event);
-      }
-    });
     
     // Cleanup subscription
     return () => {
-      if (authListener) {
-        authListener.data.subscription.unsubscribe();
-      }
+      subscription.unsubscribe();
     };
-  }, [navigate, toast]);
+  }, [navigate, toast, isLoading]);
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
@@ -160,7 +157,24 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Sign out
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log("Signing out...");
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error during signOut:", error);
+        throw error;
+      }
+      console.log("Sign out successful");
+      // Don't need manual navigation here as the auth state listener will handle it
+    } catch (error) {
+      console.error("Exception during signOut:", error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const value = {
