@@ -1,4 +1,5 @@
 
+
 -- Set the order_number_seq to start at 1001
 SELECT setval('public.order_number_seq', 1000, true);
 
@@ -35,3 +36,4 @@ CREATE TRIGGER set_order_number_trigger
 BEFORE INSERT ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.set_order_number();
+

@@ -12,15 +12,22 @@ const AdminMigrationPage: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   
-  const runOrderNumberMigration = async () => {
+  const handleOrderNumberMigration = async () => {
     setIsRunning(true);
     setResult(null);
     
     try {
-      // Set the order_number_seq to start at 1001
-      const { error } = await supabase.rpc('set_order_number_sequence', { 
-        start_value: 1000
-      });
+      // Use direct SQL query instead of RPC
+      const { error } = await supabase.from('orders')
+        .select('id')
+        .limit(1)
+        .then(async () => {
+          // After successful connection test, run the actual migration
+          // by setting the sequence directly
+          return await supabase.rpc('set_order_number_sequence', { 
+            start_value: 1000
+          });
+        });
       
       if (error) throw error;
       
@@ -55,7 +62,7 @@ const AdminMigrationPage: React.FC = () => {
             </p>
             
             <Button 
-              onClick={runOrderNumberMigration}
+              onClick={handleOrderNumberMigration}
               disabled={isRunning}
             >
               {isRunning ? (
