@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -1404,4 +1405,4 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 };
 
-export { SupabaseDataProvider, useSupabaseData };
+// Removed duplicate exports at the end of the file
