@@ -20,6 +20,10 @@ export function getCustomerOrderNumber(order: any): string | null {
   return order.customerOrderNumber || order.customer_order_number || null;
 }
 
+export function getCustomerId(order: any): string {
+  return order.customerId || order.customer_id || "";
+}
+
 export function getHasChanges(order: any): boolean {
   return order.hasChanges || order.has_changes || false;
 }
@@ -46,4 +50,28 @@ export function getPickedBy(order: any): string | null {
 
 export function getPickedAt(order: any): string | null {
   return order.pickedAt || order.picked_at || null;
+}
+
+export function getBatchNumbers(order: any): string[] | null {
+  return order.batchNumbers || order.batch_numbers || null;
+}
+
+export function getBoxBatchNumber(box: any): string | null {
+  return box.batchNumber || box.batch_number || null;
+}
+
+export function getBoxItemBatchNumber(item: any): string | null {
+  return item.batchNumber || item.batch_number || null;
+}
+
+export function getTotalBlownPouches(order: any): number | null {
+  return order.totalBlownPouches || order.total_blown_pouches || 0;
+}
+
+export function getInvoiceDate(order: any): string | null {
+  return order.invoiceDate || order.invoice_date || null;
+}
+
+export function getInvoiced(order: any): boolean {
+  return order.invoiced || false;
 }
