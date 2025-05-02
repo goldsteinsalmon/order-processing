@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -323,9 +322,10 @@ const CreateOrderSteps: React.FC = () => {
         .filter(item => item.productId && item.quantity > 0)
         .map(item => {
           return {
-            product_id: item.productId,
-            quantity: item.quantity,
-            id: item.id
+            id: item.id,
+            orderId: "", // Will be filled in by the backend
+            productId: item.productId,
+            quantity: item.quantity
           };
         });
       

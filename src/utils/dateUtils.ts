@@ -1,4 +1,5 @@
-import { format, isWeekend, addDays, isEqual } from "date-fns";
+
+import { format, isWeekend, addDays, isEqual, isToday, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
 // Cache of non-working days to avoid repeated database calls
@@ -103,4 +104,49 @@ export const isDateDisabled = (date: Date, nonWorkingDays: Date[]): boolean => {
            nonWorkingDay.getMonth() === date.getMonth() &&
            nonWorkingDay.getFullYear() === date.getFullYear();
   });
+};
+
+/**
+ * Check if a date string is for today
+ */
+export const isSameDayOrder = (dateString: string): boolean => {
+  try {
+    const orderDate = new Date(dateString);
+    return isToday(orderDate);
+  } catch (e) {
+    console.error("Error checking if same day order:", e);
+    return false;
+  }
+};
+
+/**
+ * Check if a date string is for the next working day
+ */
+export const isNextWorkingDayOrder = async (dateString: string): Promise<boolean> => {
+  try {
+    const orderDate = new Date(dateString);
+    const nextWorkingDay = await getNextWorkingDay(new Date());
+    
+    // Compare just the date part (ignoring time)
+    return isSameDay(orderDate, nextWorkingDay);
+  } catch (e) {
+    console.error("Error checking if next working day order:", e);
+    return false;
+  }
+};
+
+/**
+ * Calculate the processing date for an order based on its delivery date
+ */
+export const getOrderProcessingDate = async (deliveryDate: Date): Promise<Date> => {
+  // For now, processing date is one business day before delivery
+  let processingDate = new Date(deliveryDate);
+  processingDate.setDate(processingDate.getDate() - 1);
+  
+  // If the processing date is not a business day, find the previous business day
+  while (!await isBusinessDay(processingDate)) {
+    processingDate.setDate(processingDate.getDate() - 1);
+  }
+  
+  return processingDate;
 };
