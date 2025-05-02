@@ -1,3 +1,4 @@
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -36,10 +37,10 @@ import PrintBoxLabelPage from "@/pages/PrintBoxLabelPage";
 function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-      <SupabaseAuthProvider>
-        <SupabaseDataProvider>
-          <DataProvider>
-            <Router>
+      <Router>
+        <SupabaseAuthProvider>
+          <SupabaseDataProvider>
+            <DataProvider>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route
@@ -244,11 +245,11 @@ function App() {
                 />
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
-            </Router>
-            <Toaster />
-          </DataProvider>
-        </SupabaseDataProvider>
-      </SupabaseAuthProvider>
+              <Toaster />
+            </DataProvider>
+          </SupabaseDataProvider>
+        </SupabaseAuthProvider>
+      </Router>
     </ThemeProvider>
   );
 }

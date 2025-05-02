@@ -3,7 +3,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 
 interface SupabaseAuthContextType {
   user: User | null;
@@ -12,6 +11,7 @@ interface SupabaseAuthContextType {
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string, name: string, role?: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
+  redirectAfterAuth: (event: string) => void;
 }
 
 const SupabaseAuthContext = createContext<SupabaseAuthContextType | undefined>(undefined);
@@ -29,7 +29,23 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
+
+  // Function to handle redirects after authentication events
+  const redirectAfterAuth = (event: string) => {
+    if (event === 'SIGNED_IN') {
+      toast({
+        title: "Signed in",
+        description: "You have been signed in successfully.",
+      });
+      window.location.href = '/orders';
+    } else if (event === 'SIGNED_OUT') {
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully.",
+      });
+      window.location.href = '/login';
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener first
@@ -39,19 +55,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
-        // Handle session changes
-        if (event === 'SIGNED_IN') {
-          toast({
-            title: "Signed in",
-            description: "You have been signed in successfully.",
-          });
-          navigate('/orders');
-        } else if (event === 'SIGNED_OUT') {
-          toast({
-            title: "Signed out",
-            description: "You have been signed out successfully.",
-          });
-          navigate('/login');
+        // Handle session changes - but don't navigate in the initial load
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          redirectAfterAuth(event);
         }
       }
     );
@@ -69,7 +75,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       subscription.unsubscribe();
     };
-  }, [navigate, toast]);
+  }, [toast]);
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
@@ -144,6 +150,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     signIn,
     signUp,
     signOut,
+    redirectAfterAuth,
   };
 
   return <SupabaseAuthContext.Provider value={value}>{children}</SupabaseAuthContext.Provider>;

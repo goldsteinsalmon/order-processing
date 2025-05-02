@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
 
 interface ProtectedRouteProps {
@@ -15,6 +15,7 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   allowUserAccess = false 
 }) => {
   const { user, isLoading } = useSupabaseAuth();
+  const location = useLocation();
   
   // Show loading state
   if (isLoading) {
@@ -27,7 +28,8 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // Redirect to login if not authenticated
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // Remember the current location to redirect back after login
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   // Get user role from user metadata

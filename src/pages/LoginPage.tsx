@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,16 +13,20 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, session } = useSupabaseAuth();
+  const { signIn, session, redirectAfterAuth } = useSupabaseAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Get redirect path from location state or default to "/orders"
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/orders";
 
   useEffect(() => {
     // Redirect if already logged in
     if (session) {
-      navigate("/orders");
+      navigate(from, { replace: true });
     }
-  }, [session, navigate]);
+  }, [session, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +45,10 @@ const LoginPage: React.FC = () => {
     try {
       const { success, error } = await signIn(email, password);
       
-      if (!success) {
+      if (success) {
+        // Force redirect after successful login
+        redirectAfterAuth('SIGNED_IN');
+      } else {
         toast({
           title: "Error",
           description: error || "Invalid email or password",
