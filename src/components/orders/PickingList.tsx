@@ -70,8 +70,6 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Set picker if exists
       if (order.picked_by) {
         setSelectedPickerId(order.picked_by);
-      } else if (pickers.length > 0) {
-        setSelectedPickerId(pickers[0].id);
       }
       
       // Check if order has box distributions and use that to determine grouping
