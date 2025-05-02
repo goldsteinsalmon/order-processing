@@ -6,7 +6,15 @@ import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
-import { getOrderDate, getHasChanges, getMissingItems, getCompletedBoxes, getBoxDistributions, getPickingInProgress } from "@/utils/propertyHelpers";
+import { 
+  getOrderDate, 
+  getHasChanges, 
+  getMissingItems, 
+  getCompletedBoxes, 
+  getBoxDistributions, 
+  getPickingInProgress,
+  getOrderNumber
+} from "@/utils/propertyHelpers";
 
 interface OrdersListProps {
   searchTerm?: string;
@@ -24,8 +32,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     return orders.filter(order => 
       order.customer?.name?.toLowerCase().includes(lowerSearchTerm) ||
       order.id.toLowerCase().includes(lowerSearchTerm) ||
-      (order.orderNumber?.toString().includes(lowerSearchTerm)) ||
-      (order.order_number?.toString().includes(lowerSearchTerm)) ||
+      String(getOrderNumber(order)).toLowerCase().includes(lowerSearchTerm) ||
       order.deliveryMethod?.toLowerCase().includes(lowerSearchTerm) ||
       order.status?.toLowerCase().includes(lowerSearchTerm)
     );
@@ -221,7 +228,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                   const highlightChanges = shouldHighlightChanges(order);
                   
                   // Get the order number, with a fallback to a truncated UUID
-                  const orderNumber = order.orderNumber || order.order_number || `#${order.id.substring(0, 8)}`;
+                  const orderNumber = getOrderNumber(order);
                   
                   return (
                     <tr 
@@ -233,7 +240,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                       }`}
                     >
                       <td className="px-4 py-3">
-                        {typeof orderNumber === 'number' ? orderNumber : orderNumber}
+                        {orderNumber}
                       </td>
                       <td className="px-4 py-3">{order.customer?.name || "Unknown Customer"}</td>
                       <td className="px-4 py-3">

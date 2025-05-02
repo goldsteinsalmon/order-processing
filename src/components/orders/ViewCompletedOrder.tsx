@@ -7,7 +7,7 @@ import { useReactToPrint } from 'react-to-print';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Printer } from 'lucide-react';
-import { getOrderDate, getPickedBy, getPickedAt } from '@/utils/propertyHelpers';
+import { getOrderDate, getPickedBy, getPickedAt, getOrderNumber } from '@/utils/propertyHelpers';
 
 const ViewCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +31,7 @@ const ViewCompletedOrder: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">
-          Completed Order #{selectedOrder?.orderNumber || selectedOrder?.order_number || selectedOrder?.id.substring(0, 8)}
+          Completed Order #{getOrderNumber(selectedOrder)}
         </h2>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-2" /> Print Order

@@ -5,7 +5,8 @@ import { useData } from '@/context/DataContext';
 import { 
   getOrderDate, 
   getDeliveryMethod, 
-  getCustomerOrderNumber 
+  getCustomerOrderNumber,
+  getOrderNumber
 } from '@/utils/propertyHelpers';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,7 +127,7 @@ const OrderDetails: React.FC = () => {
             <dl className="grid grid-cols-1 gap-3 text-sm">
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order ID:</dt>
-                <dd className="col-span-2">#{order.orderNumber || order.order_number || order.id.substring(0, 8)}</dd>
+                <dd className="col-span-2">#{getOrderNumber(order)}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>
