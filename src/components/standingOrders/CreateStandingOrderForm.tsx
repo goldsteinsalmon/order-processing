@@ -130,7 +130,6 @@ const CreateStandingOrderForm = () => {
     const newStandingOrder = {
       id: crypto.randomUUID(),
       customerId: data.customerId,
-      customer: customers.find(c => c.id === data.customerId)!,
       customerOrderNumber: data.customerOrderNumber,
       schedule: {
         frequency: data.frequency as "Weekly" | "Bi-Weekly" | "Monthly",
@@ -138,9 +137,17 @@ const CreateStandingOrderForm = () => {
         dayOfMonth: getDayOfMonth(data.frequency, data.dayOfMonth),
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
         nextDeliveryDate: format(nextDeliveryDate, "yyyy-MM-dd"),
+        processedDates: [],
+        skippedDates: [],
+        modifiedDeliveries: []
       },
       notes: data.notes,
-      items: standingOrderItems.filter(item => item.productId && item.quantity > 0),
+      items: standingOrderItems.filter(item => item.productId && item.quantity > 0).map(item => ({
+        id: item.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        standingOrderId: crypto.randomUUID() // This will be replaced anyway
+      })),
       active: true,
       created: new Date().toISOString(),
       nextProcessingDate: format(nextDeliveryDate, "yyyy-MM-dd")
@@ -447,7 +454,6 @@ const CreateStandingOrderForm = () => {
                     <div className="grid gap-2">
                       <Label htmlFor={`productId-${item.id}`}>Product</Label>
                       <Select
-                        id={`productId-${item.id}`}
                         value={item.productId}
                         onValueChange={(value) => handleItemChange(item.id, "productId", value)}
                       >

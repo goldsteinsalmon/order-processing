@@ -79,7 +79,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         const updatedOrder = {
           ...order,
           pickingInProgress: true,
-          status: "Processing"
+          status: "Processing" as const
         };
         updateOrder(updatedOrder);
       }
@@ -235,8 +235,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         pickedBy: "Current User", // TODO: get from auth context
         pickedAt: allChecked ? new Date().toISOString() : undefined,
         missingItems: orderMissingItems,
-        completedBoxes: completedBoxes,
-        savedBoxes: savedBoxes
+        completedBoxes,
+        savedBoxes
       };
       
       // If order is completed, also record all batch usages
@@ -343,6 +343,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   // Print handler
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
+    documentTitle: `Picking List - ${selectedOrder?.id.substring(0, 8)}`,
     copyStyles: true,
   });
   

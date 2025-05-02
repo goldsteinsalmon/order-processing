@@ -1,98 +1,101 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { MissingItem, Customer, Product } from "@/types";
+import { MissingItem, Product } from "@/types";
+import { adaptMissingItemToCamelCase, adaptMissingItemToSnakeCase } from "@/utils/typeAdapters";
 
 export const useMissingItemData = (toast: any) => {
   const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
 
-  // Add missing item
-  const addMissingItem = async (missingItem: MissingItem): Promise<MissingItem | null> => {
+  const fetchMissingItems = async () => {
     try {
       const { data, error } = await supabase
         .from('missing_items')
-        .insert({
-          order_id: missingItem.order_id,
-          product_id: missingItem.product_id,
-          quantity: missingItem.quantity,
-          date: missingItem.date || new Date().toISOString(),
-          status: missingItem.status || 'Pending'
-        })
-        .select();
+        .select(`
+          *,
+          product:products(*),
+          order:orders(
+            id,
+            customer:customers(*)
+          )
+        `);
+        
+      if (error) {
+        throw error;
+      }
+
+      // Convert snake_case to camelCase
+      const formattedMissingItems: MissingItem[] = data.map(item => {
+        // Convert the product object properly
+        const product = item.product ? {
+          ...item.product,
+          requiresWeightInput: item.product.requires_weight_input
+        } as Product : undefined;
+
+        return {
+          id: item.id,
+          orderId: item.order_id,
+          productId: item.product_id,
+          quantity: item.quantity,
+          date: item.date,
+          status: item.status,
+          product,
+          order: item.order ? {
+            id: item.order.id,
+            customer: item.order.customer
+          } : undefined
+        };
+      });
       
-      if (error) throw error;
-      
-      // Fetch product and order details
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', missingItem.product_id)
-        .single();
-      
-      if (productError) throw productError;
-      
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('id, customer:customers(*)')
-        .eq('id', missingItem.order_id)
-        .single();
-      
-      if (orderError) throw orderError;
-      
-      // Map to our model types
-      const product: Product = {
-        id: productData.id,
-        name: productData.name,
-        sku: productData.sku,
-        description: productData.description,
-        stock_level: productData.stock_level,
-        weight: productData.weight,
-        requires_weight_input: productData.requires_weight_input,
-        unit: productData.unit,
-        required: productData.required
-      };
-      
-      const customer: Customer = {
-        id: orderData.customer.id,
-        name: orderData.customer.name,
-        email: orderData.customer.email,
-        phone: orderData.customer.phone,
-        address: orderData.customer.address,
-        type: orderData.customer.type as "Private" | "Trade",
-        accountNumber: orderData.customer.account_number,
-        onHold: orderData.customer.on_hold,
-        holdReason: orderData.customer.hold_reason,
-        needsDetailedBoxLabels: orderData.customer.needs_detailed_box_labels
-      };
-      
-      const newMissingItem: MissingItem = {
-        id: data[0].id,
-        order_id: data[0].order_id,
-        product_id: data[0].product_id,
-        product: product,
-        order: {
-          id: orderData.id,
-          customer: customer
-        },
-        quantity: data[0].quantity,
-        date: data[0].date,
-        status: data[0].status as "Pending" | "Processed" | undefined
-      };
-      
-      setMissingItems([...missingItems, newMissingItem]);
-      return newMissingItem;
+      setMissingItems(formattedMissingItems);
     } catch (error) {
-      console.error('Error adding missing item:', error);
+      console.error("Error fetching missing items:", error);
       toast({
         title: "Error",
-        description: "Failed to add missing item.",
+        description: "Failed to fetch missing items data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addMissingItem = async (newMissingItem: MissingItem): Promise<MissingItem | null> => {
+    try {
+      // Convert to snake_case for database
+      const dbMissingItem = adaptMissingItemToSnakeCase(newMissingItem);
+      
+      const { data, error } = await supabase
+        .from('missing_items')
+        .insert([dbMissingItem])
+        .select(`
+          *,
+          product:products(*),
+          order:orders(
+            id,
+            customer:customers(*)
+          )
+        `);
+      
+      if (error) {
+        throw error;
+      }
+
+      // Convert the returned item to camelCase
+      const addedItem = adaptMissingItemToCamelCase(data[0]);
+      
+      setMissingItems(prevItems => [...prevItems, addedItem]);
+      
+      return addedItem;
+    } catch (error) {
+      console.error("Error adding missing item:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add missing item data.",
         variant: "destructive",
       });
       return null;
     }
   };
 
-  // Remove missing item
   const removeMissingItem = async (missingItemId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -100,24 +103,30 @@ export const useMissingItemData = (toast: any) => {
         .delete()
         .eq('id', missingItemId);
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
-      setMissingItems(missingItems.filter(mi => mi.id !== missingItemId));
+      setMissingItems(prevItems =>
+        prevItems.filter(item => item.id !== missingItemId)
+      );
+      
       return true;
     } catch (error) {
-      console.error('Error removing missing item:', error);
+      console.error("Error removing missing item:", error);
       toast({
         title: "Error",
-        description: "Failed to remove missing item.",
+        description: "Failed to remove missing item data.",
         variant: "destructive",
       });
       return false;
     }
   };
-
+  
   return {
     missingItems,
     setMissingItems,
+    fetchMissingItems,
     addMissingItem,
     removeMissingItem
   };

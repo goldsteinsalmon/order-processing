@@ -2,141 +2,140 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Complaint } from "@/types";
+import { adaptComplaintToCamelCase } from "@/utils/typeAdapters";
 
 export const useComplaintData = (toast: any) => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
 
-  // Add complaint
-  const addComplaint = async (complaint: Complaint): Promise<Complaint | null> => {
+  const fetchComplaints = async () => {
     try {
       const { data, error } = await supabase
         .from('complaints')
-        .insert({
-          customer_type: complaint.customer_type,
-          customer_name: complaint.customer_name,
-          customer_id: complaint.customer_id,
-          contact_email: complaint.contact_email,
-          contact_phone: complaint.contact_phone,
-          date_submitted: complaint.date_submitted,
-          order_number: complaint.order_number,
-          invoice_number: complaint.invoice_number,
-          product_sku: complaint.product_sku,
-          product_id: complaint.product?.id,
-          complaint_type: complaint.complaint_type,
-          complaint_details: complaint.complaint_details,
-          returns_required: complaint.returns_required,
-          return_status: complaint.return_status,
-          resolution_status: complaint.resolution_status,
-          resolution_notes: complaint.resolution_notes,
-          created: new Date().toISOString()
-        })
-        .select();
-      
-      if (error) throw error;
-      
-      // Fetch product details if available
-      let productData = null;
-      if (complaint.product?.id) {
-        const { data: product, error: productError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', complaint.product.id)
-          .single();
+        .select('*, product:products(*)');
         
-        if (!productError && product) {
-          productData = {
-            id: product.id,
-            name: product.name,
-            sku: product.sku,
-            description: product.description,
-            stock_level: product.stock_level,
-            weight: product.weight,
-            requires_weight_input: product.requires_weight_input,
-            unit: product.unit,
-            required: product.required
-          };
-        }
+      if (error) {
+        throw error;
       }
+
+      // Convert snake_case to camelCase
+      const formattedComplaints: Complaint[] = data.map(complaint => adaptComplaintToCamelCase(complaint));
       
-      const newComplaint: Complaint = {
-        id: data[0].id,
-        customer_type: data[0].customer_type as "Private" | "Trade",
-        customer_name: data[0].customer_name,
-        customer_id: data[0].customer_id,
-        contact_email: data[0].contact_email,
-        contact_phone: data[0].contact_phone,
-        date_submitted: data[0].date_submitted,
-        order_number: data[0].order_number,
-        invoice_number: data[0].invoice_number,
-        product_sku: data[0].product_sku,
-        product: productData,
-        complaint_type: data[0].complaint_type,
-        complaint_details: data[0].complaint_details,
-        returns_required: data[0].returns_required as "Yes" | "No",
-        return_status: data[0].return_status as "Pending" | "Processing" | "Completed" | "No Return Required",
-        resolution_status: data[0].resolution_status as "Open" | "In Progress" | "Resolved",
-        resolution_notes: data[0].resolution_notes,
-        created: data[0].created,
-        updated: data[0].updated
-      };
-      
-      setComplaints([...complaints, newComplaint]);
-      return newComplaint;
+      setComplaints(formattedComplaints);
     } catch (error) {
-      console.error('Error adding complaint:', error);
+      console.error("Error fetching complaints:", error);
       toast({
         title: "Error",
-        description: "Failed to add complaint.",
+        description: "Failed to fetch complaints data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addComplaint = async (newComplaint: Complaint): Promise<Complaint | null> => {
+    try {
+      // Convert camelCase to snake_case for database
+      const dbComplaint = {
+        id: newComplaint.id,
+        customer_id: newComplaint.customerId,
+        customer_name: newComplaint.customerName,
+        customer_type: newComplaint.customerType,
+        contact_email: newComplaint.contactEmail,
+        contact_phone: newComplaint.contactPhone,
+        date_submitted: newComplaint.dateSubmitted,
+        order_number: newComplaint.orderNumber,
+        invoice_number: newComplaint.invoiceNumber,
+        product_id: newComplaint.productId,
+        product_sku: newComplaint.productSku,
+        complaint_type: newComplaint.complaintType,
+        complaint_details: newComplaint.complaintDetails,
+        returns_required: newComplaint.returnsRequired,
+        return_status: newComplaint.returnStatus,
+        resolution_status: newComplaint.resolutionStatus,
+        resolution_notes: newComplaint.resolutionNotes,
+        created: newComplaint.created
+      };
+      
+      const { data, error } = await supabase
+        .from('complaints')
+        .insert([dbComplaint])
+        .select('*, product:products(*)');
+      
+      if (error) {
+        throw error;
+      }
+
+      // Convert the returned snake_case data to camelCase
+      const addedComplaint = adaptComplaintToCamelCase(data[0]);
+      
+      setComplaints(prevComplaints => [...prevComplaints, addedComplaint]);
+      
+      return addedComplaint;
+    } catch (error) {
+      console.error("Error adding complaint:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add complaint data.",
         variant: "destructive",
       });
       return null;
     }
   };
 
-  // Update complaint
-  const updateComplaint = async (complaint: Complaint): Promise<boolean> => {
+  const updateComplaint = async (updatedComplaint: Complaint): Promise<boolean> => {
     try {
+      // Convert camelCase to snake_case for database
+      const dbComplaint = {
+        id: updatedComplaint.id,
+        customer_id: updatedComplaint.customerId,
+        customer_name: updatedComplaint.customerName,
+        customer_type: updatedComplaint.customerType,
+        contact_email: updatedComplaint.contactEmail,
+        contact_phone: updatedComplaint.contactPhone,
+        date_submitted: updatedComplaint.dateSubmitted,
+        order_number: updatedComplaint.orderNumber,
+        invoice_number: updatedComplaint.invoiceNumber,
+        product_id: updatedComplaint.productId,
+        product_sku: updatedComplaint.productSku,
+        complaint_type: updatedComplaint.complaintType,
+        complaint_details: updatedComplaint.complaintDetails,
+        returns_required: updatedComplaint.returnsRequired,
+        return_status: updatedComplaint.returnStatus,
+        resolution_status: updatedComplaint.resolutionStatus,
+        resolution_notes: updatedComplaint.resolutionNotes,
+        updated: new Date().toISOString()
+      };
+      
       const { error } = await supabase
         .from('complaints')
-        .update({
-          customer_type: complaint.customer_type,
-          customer_name: complaint.customer_name,
-          customer_id: complaint.customer_id,
-          contact_email: complaint.contact_email,
-          contact_phone: complaint.contact_phone,
-          date_submitted: complaint.date_submitted,
-          order_number: complaint.order_number,
-          invoice_number: complaint.invoice_number,
-          product_sku: complaint.product_sku,
-          product_id: complaint.product?.id,
-          complaint_type: complaint.complaint_type,
-          complaint_details: complaint.complaint_details,
-          returns_required: complaint.returns_required,
-          return_status: complaint.return_status,
-          resolution_status: complaint.resolution_status,
-          resolution_notes: complaint.resolution_notes,
-          updated: new Date().toISOString()
-        })
-        .eq('id', complaint.id);
+        .update(dbComplaint)
+        .eq('id', updatedComplaint.id);
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
-      setComplaints(complaints.map(c => c.id === complaint.id ? complaint : c));
+      setComplaints(prevComplaints =>
+        prevComplaints.map(complaint =>
+          complaint.id === updatedComplaint.id ? updatedComplaint : complaint
+        )
+      );
+      
       return true;
     } catch (error) {
-      console.error('Error updating complaint:', error);
+      console.error("Error updating complaint:", error);
       toast({
         title: "Error",
-        description: "Failed to update complaint.",
+        description: "Failed to update complaint data.",
         variant: "destructive",
       });
       return false;
     }
   };
-
+  
   return {
     complaints,
     setComplaints,
+    fetchComplaints,
     addComplaint,
     updateComplaint
   };

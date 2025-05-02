@@ -103,8 +103,8 @@ const ReturnsComplaintsForm = () => {
       quantity: data.quantity,
       reason: data.reason,
       returnsRequired: data.returnsRequired as "Yes" | "No",
-      returnStatus: "Pending",
-      resolutionStatus: "Open",
+      returnStatus: "Pending" as "Pending" | "Processing" | "Completed" | "No Return Required",
+      resolutionStatus: "Open" as "Open" | "In Progress" | "Resolved",
       created: new Date().toISOString()
     };
 
@@ -140,8 +140,8 @@ const ReturnsComplaintsForm = () => {
       complaintType: data.complaintType,
       complaintDetails: data.complaintDetails,
       returnsRequired: data.returnsRequired as "Yes" | "No",
-      returnStatus: "Pending",
-      resolutionStatus: "Open",
+      returnStatus: "Pending" as "Pending" | "Processing" | "Completed" | "No Return Required",
+      resolutionStatus: "Open" as "Open" | "In Progress" | "Resolved",
       created: new Date().toISOString()
     };
 

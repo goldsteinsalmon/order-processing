@@ -1,5 +1,4 @@
-
-import { Customer, Order, Product, Return, BatchUsage, OrderItem, Box, BoxItem, MissingItem } from "@/types";
+import { Customer, Order, Product, Return, BatchUsage, OrderItem, Box, BoxItem, MissingItem, Complaint } from "@/types";
 
 // Convert Customer from snake_case (database) to camelCase (UI)
 export const adaptCustomerToCamelCase = (customer: any): Customer => {
@@ -302,5 +301,61 @@ export const adaptBatchUsageToSnakeCase = (batchUsage: BatchUsage): any => {
     first_used: batchUsage.firstUsed,
     last_used: batchUsage.lastUsed,
     usedBy: batchUsage.usedBy
+  };
+};
+
+// Add Return from snake_case (database) to camelCase (UI)
+export const adaptReturnToCamelCase = (returnData: any): Return => {
+  if (!returnData) return null as any;
+  
+  return {
+    id: returnData.id,
+    customerId: returnData.customer_id,
+    customerName: returnData.customer_name,
+    customerType: returnData.customer_type,
+    contactEmail: returnData.contact_email,
+    contactPhone: returnData.contact_phone,
+    dateReturned: returnData.date_returned,
+    orderNumber: returnData.order_number,
+    invoiceNumber: returnData.invoice_number,
+    productId: returnData.product_id,
+    productSku: returnData.product_sku,
+    product: returnData.product,
+    quantity: returnData.quantity,
+    reason: returnData.reason,
+    returnsRequired: returnData.returns_required,
+    returnStatus: returnData.return_status,
+    resolutionStatus: returnData.resolution_status,
+    resolutionNotes: returnData.resolution_notes,
+    created: returnData.created,
+    updated: returnData.updated
+  };
+};
+
+// Add Complaint from snake_case (database) to camelCase (UI)
+export const adaptComplaintToCamelCase = (complaint: any): Complaint => {
+  if (!complaint) return null as any;
+  
+  return {
+    id: complaint.id,
+    customerId: complaint.customer_id,
+    customerName: complaint.customer_name,
+    customerType: complaint.customer_type,
+    contactEmail: complaint.contact_email,
+    contactPhone: complaint.contact_phone,
+    dateSubmitted: complaint.date_submitted,
+    orderNumber: complaint.order_number,
+    invoiceNumber: complaint.invoice_number,
+    productId: complaint.product_id,
+    productSku: complaint.product_sku,
+    product: complaint.product,
+    complaintType: complaint.complaint_type,
+    complaintDetails: complaint.complaint_details,
+    returnsRequired: complaint.returns_required,
+    returnStatus: complaint.return_status,
+    resolutionStatus: complaint.resolution_status,
+    resolutionNotes: complaint.resolution_notes,
+    created: complaint.created,
+    updated: complaint.updated
   };
 };

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Product } from "@/types";
@@ -5,81 +6,127 @@ import { Product } from "@/types";
 export const useProductData = (toast: any) => {
   const [products, setProducts] = useState<Product[]>([]);
 
-  // Add product
-  const addProduct = async (productData: Product | Product[]): Promise<Product | Product[] | null> => {
+  const fetchProducts = async () => {
     try {
-      if (Array.isArray(productData)) {
-        // Add multiple products
-        const productsToInsert = productData.map(p => ({
-          name: p.name,
-          sku: p.sku,
-          description: p.description,
-          stock_level: p.stock_level,
-          weight: p.weight,
-          requires_weight_input: p.requires_weight_input,
-          unit: p.unit,
-          required: p.required
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+        
+      if (error) {
+        throw error;
+      }
+
+      // Convert snake_case to camelCase
+      const formattedProducts: Product[] = data.map(product => ({
+        id: product.id,
+        name: product.name,
+        sku: product.sku,
+        description: product.description,
+        stock_level: product.stock_level,
+        weight: product.weight,
+        requiresWeightInput: product.requires_weight_input,
+        unit: product.unit,
+        required: product.required,
+      }));
+      
+      setProducts(formattedProducts);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch product data.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addProduct = async (newProduct: Product | Product[]): Promise<Product | Product[] | null> => {
+    try {
+      if (Array.isArray(newProduct)) {
+        // Batch insert
+        const dbProducts = newProduct.map(product => ({
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          description: product.description,
+          stock_level: product.stock_level,
+          weight: product.weight,
+          requires_weight_input: product.requiresWeightInput,
+          unit: product.unit,
+          required: product.required,
         }));
         
         const { data, error } = await supabase
           .from('products')
-          .insert(productsToInsert)
+          .insert(dbProducts)
           .select();
         
-        if (error) throw error;
-        
-        const newProducts: Product[] = data.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          description: p.description,
-          stock_level: p.stock_level,
-          weight: p.weight,
-          requires_weight_input: p.requires_weight_input,
-          unit: p.unit,
-          required: p.required
+        if (error) {
+          throw error;
+        }
+
+        // Convert the returned data to camelCase
+        const addedProducts: Product[] = data.map(product => ({
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
+          description: product.description,
+          stock_level: product.stock_level,
+          weight: product.weight,
+          requiresWeightInput: product.requires_weight_input,
+          unit: product.unit,
+          required: product.required,
         }));
         
-        setProducts([...products, ...newProducts]);
-        return newProducts;
+        setProducts(prevProducts => [...prevProducts, ...addedProducts]);
+        
+        return addedProducts;
       } else {
-        // Add a single product
+        // Single insert
+        const dbProduct = {
+          id: newProduct.id,
+          name: newProduct.name,
+          sku: newProduct.sku,
+          description: newProduct.description,
+          stock_level: newProduct.stock_level,
+          weight: newProduct.weight,
+          requires_weight_input: newProduct.requiresWeightInput,
+          unit: newProduct.unit,
+          required: newProduct.required,
+        };
+        
         const { data, error } = await supabase
           .from('products')
-          .insert({
-            name: productData.name,
-            sku: productData.sku,
-            description: productData.description,
-            stock_level: productData.stock_level,
-            weight: productData.weight,
-            requires_weight_input: productData.requires_weight_input,
-            unit: productData.unit,
-            required: productData.required
-          })
+          .insert([dbProduct])
           .select();
         
-        if (error) throw error;
-        
-        const newProduct: Product = {
+        if (error) {
+          throw error;
+        }
+
+        // Convert the returned data to camelCase
+        const addedProduct: Product = {
           id: data[0].id,
           name: data[0].name,
           sku: data[0].sku,
           description: data[0].description,
           stock_level: data[0].stock_level,
           weight: data[0].weight,
-          requires_weight_input: data[0].requires_weight_input,
+          requiresWeightInput: data[0].requires_weight_input,
           unit: data[0].unit,
-          required: data[0].required
+          required: data[0].required,
         };
         
-        setProducts([...products, newProduct]);
-        return newProduct;
+        setProducts(prevProducts => [...prevProducts, addedProduct]);
+        
+        return addedProduct;
       }
     } catch (error) {
-      console.error('Error adding product:', error);
+      console.error("Error adding product(s):", error);
       toast({
         title: "Error",
-        description: "Failed to add product.",
+        description: "Failed to add product data.",
         variant: "destructive",
       });
       return null;
