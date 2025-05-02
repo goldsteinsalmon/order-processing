@@ -36,6 +36,7 @@ import ViewCompletedOrderPage from "@/pages/ViewCompletedOrderPage";
 import EditCompletedOrderPage from "@/pages/EditCompletedOrderPage";
 import ReturnsPage from "@/pages/ReturnsPage";
 import AdminPage from "@/pages/AdminPage";
+import AdminMigrationPage from './pages/AdminMigrationPage';
 
 function App() {
   return (
@@ -281,6 +282,15 @@ function App() {
                     <SupabaseProtectedRoute requireAdmin={true}>
                       <AdminPage />
                     </SupabaseProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/admin/migrations"
+                  element={
+                    <ProtectedRoute>
+                      <AdminMigrationPage />
+                    </ProtectedRoute>
                   }
                 />
                 

@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format, isValid } from "date-fns";
+import { getOrderDate, getDeliveryMethod } from "@/utils/propertyHelpers";
 
 interface OrderDetailsCardProps {
   selectedOrder: Order;
@@ -36,6 +37,9 @@ const OrderDetailsCard: React.FC<OrderDetailsCardProps> = ({
     }
   };
   
+  // Get order date using the helper function
+  const orderDate = getOrderDate(selectedOrder);
+  
   return (
     <Card className="mb-6">
       <CardContent className="p-6">
@@ -53,15 +57,15 @@ const OrderDetailsCard: React.FC<OrderDetailsCardProps> = ({
               <div>
                 <Label className="text-gray-500 block mb-1">Order Date</Label>
                 <div className="font-medium">
-                  {selectedOrder.order_date ? 
-                    formatSafeDate(selectedOrder.order_date) : 
+                  {orderDate ? 
+                    formatSafeDate(orderDate) : 
                     "No date specified"}
                 </div>
               </div>
               
               <div>
                 <Label className="text-gray-500 block mb-1">Delivery Method</Label>
-                <div className="font-medium">{selectedOrder.delivery_method}</div>
+                <div className="font-medium">{getDeliveryMethod(selectedOrder)}</div>
               </div>
             </div>
           </div>

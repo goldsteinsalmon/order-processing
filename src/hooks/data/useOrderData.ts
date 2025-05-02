@@ -566,14 +566,26 @@ export const useOrderData = (toast: any) => {
   // Complete order (move to completed orders)
   const completeOrder = async (order: Order): Promise<boolean> => {
     try {
+      console.log("CompleteOrder: Starting process for order:", order.id);
+      
       // Update order status to completed
       const updatedOrder: Order = {
         ...order,
         status: "Completed",
-        is_picked: true,
-        picked_at: order.picked_at || new Date().toISOString(),
+        isPicked: true,
+        is_picked: true, // Add this for database compatibility
+        pickedAt: order.pickedAt || new Date().toISOString(),
+        picked_at: order.pickedAt || new Date().toISOString(), // Add this for database compatibility
         updated: new Date().toISOString()
       };
+      
+      console.log("CompleteOrder: Updating order with data:", {
+        status: updatedOrder.status,
+        isPicked: updatedOrder.isPicked,
+        is_picked: updatedOrder.is_picked,
+        pickedAt: updatedOrder.pickedAt,
+        picked_at: updatedOrder.picked_at
+      });
       
       const { error } = await supabase
         .from('orders')
@@ -581,15 +593,26 @@ export const useOrderData = (toast: any) => {
           status: updatedOrder.status,
           is_picked: updatedOrder.is_picked,
           picked_at: updatedOrder.picked_at,
-          updated: updatedOrder.updated
+          updated: updatedOrder.updated,
+          picker: updatedOrder.picker,
+          picked_by: updatedOrder.pickedBy || updatedOrder.picked_by
         })
         .eq('id', order.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("CompleteOrder: Error updating order in database:", error);
+        throw error;
+      }
+      
+      console.log("CompleteOrder: Database update successful");
       
       // Remove from orders and add to completed orders
       setOrders(orders.filter(o => o.id !== order.id));
       setCompletedOrders([updatedOrder, ...completedOrders]);
+      
+      console.log("CompleteOrder: Updated local state, orders count:", orders.length - 1, 
+        "completedOrders count:", completedOrders.length + 1);
+      
       return true;
     } catch (error) {
       console.error('Error completing order:', error);

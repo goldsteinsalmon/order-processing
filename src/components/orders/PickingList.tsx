@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -11,7 +10,7 @@ import { useReactToPrint } from "react-to-print";
 import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
 import PrintablePickingList from "./picking/PrintablePickingList";
 import { Order, OrderItem, MissingItem } from "@/types";
-import { getCustomerId, getOrderDate, getDeliveryMethod, getPickingInProgress, getBoxDistributions, getCustomerOrderNumber } from "@/utils/propertyHelpers";
+import { getOrderDate, getDeliveryMethod, getPickingInProgress, getBoxDistributions, getCustomerOrderNumber, getCustomerId } from "@/utils/propertyHelpers";
 import { DebugLoader } from "@/components/ui/debug-loader";
 import OrderDetailsCard from "./picking/OrderDetailsCard";
 
@@ -350,24 +349,45 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         items: updatedOrderItems as OrderItem[],
         status: newStatus,
         isPicked: allChecked,
+        is_picked: allChecked, // Add this for database compatibility
         totalBlownPouches: 0,
+        total_blown_pouches: 0, // Add this for database compatibility
         pickingInProgress: !allChecked,
+        picking_in_progress: !allChecked, // Add this for database compatibility
         pickedBy: selectedPickerId,
         picked_by: selectedPickerId, // Add this to ensure the correct field is set in the database
         pickedAt: allChecked ? new Date().toISOString() : undefined,
+        picked_at: allChecked ? new Date().toISOString() : undefined, // Add this for database compatibility
         missingItems: orderMissingItems,
+        missing_items: orderMissingItems, // Add this for database compatibility
         completedBoxes,
-        savedBoxes
+        completed_boxes: completedBoxes, // Add this for database compatibility
+        savedBoxes,
+        saved_boxes: savedBoxes // Add this for database compatibility
       };
       
       console.log("Saving order with status:", newStatus);
       console.log("Saving picked_by:", selectedPickerId);
       console.log("Saving checked items:", updatedOrderItems.filter(item => item.checked).map(i => i.id));
       
-      // If order is completed, also record all batch usages
+      // If order is completed, also record all batch usages and move it to completed orders
       if (newStatus === "Completed") {
+        console.log("Order is completed, recording all batch usages and moving to completed orders");
         recordAllBatchUsagesForOrder(updatedOrder);
-        await completeOrder(updatedOrder);
+        const success = await completeOrder(updatedOrder);
+        
+        if (success) {
+          toast({
+            title: "Order completed",
+            description: "Order has been marked as completed and moved to completed orders"
+          });
+          
+          // Navigate back to orders list
+          navigate("/orders");
+          return;
+        } else {
+          console.error("Failed to complete order!");
+        }
       } else {
         const success = await updateOrder(updatedOrder);
         
@@ -375,19 +395,20 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         if (success) {
           console.log("Order update successful, updating last saved items");
           setLastSavedItems([...orderItems]);
+          
+          toast({
+            title: "Order saved",
+            description: "Order progress has been saved",
+          });
         } else {
           console.error("Order update failed!");
+          
+          toast({
+            title: "Error",
+            description: "Failed to save order progress. Please try again.",
+            variant: "destructive",
+          });
         }
-      }
-      
-      toast({
-        title: "Order saved",
-        description: allChecked ? "Order has been marked as picked" : "Order progress saved",
-      });
-      
-      // Navigate back to orders list if completely picked
-      if (allChecked && !hasMissingItems) {
-        navigate("/orders");
       }
     } catch (error) {
       console.error("Error saving order:", error);
