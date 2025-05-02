@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -6,6 +7,7 @@ import { Eye, UserPlus, Search, Package, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { debugCustomerProperties } from "@/utils/customerPropertyHelpers";
 
 const CustomersPage: React.FC = () => {
   const { customers } = useData();
@@ -17,8 +19,10 @@ const CustomersPage: React.FC = () => {
     console.log("Customers list:", customers);
     if (customers.length > 0) {
       console.log("Sample customer data:", customers[0]);
-      console.log("First customer accountNumber:", customers[0].accountNumber);
-      console.log("First customer needsDetailedBoxLabels:", customers[0].needsDetailedBoxLabels);
+      customers.forEach((customer, index) => {
+        console.log(`Customer ${index + 1}: ${customer.name}`);
+        debugCustomerProperties(customer);
+      });
     }
   }, [customers]);
 
@@ -104,7 +108,7 @@ const CustomersPage: React.FC = () => {
               ) : (
                 filteredCustomers.map((customer) => {
                   // Debug this specific customer
-                  console.log(`Rendering customer: ${customer.name}, accountNumber: ${customer.accountNumber}, needsDetailedBoxLabels: ${customer.needsDetailedBoxLabels}`);
+                  console.log(`Rendering customer: ${customer.name}, accountNumber: ${customer.accountNumber || "EMPTY"}, onHold: ${customer.onHold}`);
                   
                   return (
                     <tr key={customer.id} className="border-b">

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Customer } from "@/types";
 import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
+import { getAccountNumber, getOnHold } from "@/utils/customerPropertyHelpers";
 
 const CustomerDetailsPage: React.FC = () => {
   const { customers, updateCustomer, deleteCustomer, orders, completedOrders, refreshData } = useData();
@@ -35,32 +37,31 @@ const CustomerDetailsPage: React.FC = () => {
 
   // Find customer and ensure it has all camelCase properties
   const customer = customers.find(c => c.id === id);
-  const processedCustomer = customer ? adaptCustomerToCamelCase(customer) : null;
   
+  // Local customer state to ensure UI updates immediately
+  const [localCustomer, setLocalCustomer] = useState<Customer | null>(null);
+  
+  // State for editing
   const [isEditing, setIsEditing] = useState(false);
   // Hold reason dialog state
   const [showHoldDialog, setShowHoldDialog] = useState(false);
   const [holdReason, setHoldReason] = useState("");
   // Delete customer dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  // Local customer state to ensure UI updates immediately
-  const [localCustomer, setLocalCustomer] = useState<Customer | null>(null);
   
-  // Debug log to check customer data
+  // Debug log to check customer data and update local state when customer changes
   useEffect(() => {
-    if (processedCustomer) {
-      console.log("CustomerDetailsPage - Customer details:", processedCustomer);
-      console.log("CustomerDetailsPage - Account number:", processedCustomer.accountNumber || "EMPTY");
-      console.log("CustomerDetailsPage - Needs detailed box labels:", processedCustomer.needsDetailedBoxLabels);
-      console.log("CustomerDetailsPage - On hold status:", processedCustomer.onHold);
-      console.log("CustomerDetailsPage - Hold reason:", processedCustomer.holdReason || "EMPTY");
+    if (customer) {
+      console.log("CustomerDetailsPage - Customer from context:", customer);
+      console.log("CustomerDetailsPage - Account number:", customer.accountNumber || "EMPTY");
+      console.log("CustomerDetailsPage - Needs detailed box labels:", customer.needsDetailedBoxLabels);
+      console.log("CustomerDetailsPage - On hold status:", customer.onHold);
+      console.log("CustomerDetailsPage - Hold reason:", customer.holdReason || "EMPTY");
       
-      // Update local customer state when processed customer changes
-      setLocalCustomer(processedCustomer);
-    } else if (customer) {
-      console.log("CustomerDetailsPage - Raw customer before processing:", customer);
+      // Always update local customer state when context customer changes
+      setLocalCustomer(customer);
     }
-  }, [processedCustomer, customer]);
+  }, [customer]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -75,37 +76,34 @@ const CustomerDetailsPage: React.FC = () => {
 
   // Update form data when customer changes
   useEffect(() => {
-    // Use localCustomer if available, otherwise use processedCustomer
-    const customerToUse = localCustomer || processedCustomer;
-    
-    if (customerToUse) {
+    if (localCustomer) {
       setFormData({
-        name: customerToUse.name || "",
-        accountNumber: customerToUse.accountNumber || "",
-        email: customerToUse.email || "",
-        phone: customerToUse.phone || "",
-        type: customerToUse.type || "Private",
-        onHold: customerToUse.onHold || false,
-        holdReason: customerToUse.holdReason || "",
-        needsDetailedBoxLabels: customerToUse.needsDetailedBoxLabels || false
+        name: localCustomer.name || "",
+        accountNumber: localCustomer.accountNumber || "",
+        email: localCustomer.email || "",
+        phone: localCustomer.phone || "",
+        type: localCustomer.type || "Private",
+        onHold: localCustomer.onHold || false,
+        holdReason: localCustomer.holdReason || "",
+        needsDetailedBoxLabels: localCustomer.needsDetailedBoxLabels || false
       });
 
-      console.log("CustomerDetailsPage - Form data set from customer:", {
-        name: customerToUse.name,
-        accountNumber: customerToUse.accountNumber || "EMPTY",
-        needsDetailedBoxLabels: customerToUse.needsDetailedBoxLabels,
-        onHold: customerToUse.onHold
+      console.log("CustomerDetailsPage - Form data updated from localCustomer:", {
+        name: localCustomer.name,
+        accountNumber: localCustomer.accountNumber || "EMPTY",
+        onHold: localCustomer.onHold,
+        holdReason: localCustomer.holdReason || "EMPTY"
       });
     }
-  }, [localCustomer, processedCustomer]);
+  }, [localCustomer]);
 
   // Get all orders for this customer
   const customerOrders = useMemo(() => {
-    if (!processedCustomer) return [];
+    if (!localCustomer) return [];
     
     // Combine active and completed orders
     const allOrders = [...orders, ...completedOrders]
-      .filter(order => order.customerId === processedCustomer.id)
+      .filter(order => order.customerId === localCustomer.id)
       .sort((a, b) => {
         const dateA = a.orderDate ? new Date(a.orderDate).getTime() : new Date(a.created).getTime();
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : new Date(b.created).getTime();
@@ -113,7 +111,7 @@ const CustomerDetailsPage: React.FC = () => {
       });
     
     return allOrders;
-  }, [processedCustomer, orders, completedOrders]);
+  }, [localCustomer, orders, completedOrders]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -130,40 +128,42 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const handleSave = () => {
-    if (!processedCustomer) return;
+    if (!localCustomer) return;
     
-    if (!formData.name || !formData.accountNumber) {
+    if (!formData.name) {
       toast({
         title: "Error",
-        description: "Account number and name are required.",
+        description: "Name is required.",
         variant: "destructive"
       });
       return;
     }
     
-    const updatedCustomer = {
-      ...processedCustomer,
+    const updatedCustomer: Customer = {
+      ...localCustomer,
       name: formData.name,
       accountNumber: formData.accountNumber,
       email: formData.email,
       phone: formData.phone,
       type: formData.type as "Private" | "Trade",
       onHold: formData.onHold,
-      holdReason: formData.onHold ? formData.holdReason : undefined,
+      holdReason: formData.onHold ? formData.holdReason : "",
       needsDetailedBoxLabels: formData.needsDetailedBoxLabels,
       updated: new Date().toISOString()
     };
     
     console.log("CustomerDetailsPage - Updating customer:", updatedCustomer);
     console.log("CustomerDetailsPage - With accountNumber:", updatedCustomer.accountNumber);
-    console.log("CustomerDetailsPage - With needsDetailedBoxLabels:", updatedCustomer.needsDetailedBoxLabels);
+    console.log("CustomerDetailsPage - With onHold:", updatedCustomer.onHold);
+    console.log("CustomerDetailsPage - With holdReason:", updatedCustomer.holdReason);
     
+    // First update local state for immediate UI feedback
+    setLocalCustomer(updatedCustomer);
+    
+    // Then update in backend through context
     updateCustomer(updatedCustomer)
       .then(success => {
         if (success) {
-          // Update local state immediately for UI feedback
-          setLocalCustomer(updatedCustomer);
-          
           toast({
             title: "Success",
             description: "Customer updated successfully."
@@ -172,46 +172,55 @@ const CustomerDetailsPage: React.FC = () => {
           
           // Refresh data to ensure everything is in sync
           refreshData();
+        } else {
+          // Revert local changes if backend update failed
+          setLocalCustomer(customer);
+          
+          toast({
+            title: "Error",
+            description: "Failed to update customer data.",
+            variant: "destructive"
+          });
         }
       });
   };
   
   const toggleHoldStatus = () => {
-    if (!processedCustomer) return;
+    if (!localCustomer) return;
     
-    console.log("toggleHoldStatus - Current customer state:", processedCustomer);
-    console.log("toggleHoldStatus - Current account number:", processedCustomer.accountNumber || "EMPTY");
-    console.log("toggleHoldStatus - Current onHold status:", processedCustomer.onHold);
+    console.log("toggleHoldStatus - Current customer state:", localCustomer);
+    console.log("toggleHoldStatus - Current account number:", localCustomer.accountNumber || "EMPTY");
+    console.log("toggleHoldStatus - Current onHold status:", localCustomer.onHold);
     
-    if (processedCustomer.onHold) {
+    if (localCustomer.onHold) {
       // Remove hold - make a deep copy to avoid reference issues
-      const updatedCustomer = {
-        ...processedCustomer,
+      const updatedCustomer: Customer = {
+        ...localCustomer,
         onHold: false,
-        holdReason: undefined,
-        // Explicitly copy these fields to ensure they're preserved
-        accountNumber: processedCustomer.accountNumber || "",
-        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels || false,
+        holdReason: "",
         updated: new Date().toISOString()
       };
       
       console.log("toggleHoldStatus - Removing hold, updated customer:", updatedCustomer);
       console.log("toggleHoldStatus - With account number:", updatedCustomer.accountNumber);
       
+      // First update local state for immediate UI feedback
+      setLocalCustomer(updatedCustomer);
+      
       updateCustomer(updatedCustomer)
         .then(success => {
           if (success) {
-            // Update local state immediately for UI feedback
-            setLocalCustomer(updatedCustomer);
-            
             toast({
               title: "Hold removed",
-              description: `${processedCustomer.name}'s account is now active.`
+              description: `${localCustomer.name}'s account is now active.`
             });
             
             // Refresh data to ensure everything is in sync
             refreshData();
           } else {
+            // Revert local changes if backend update failed
+            setLocalCustomer(localCustomer);
+            
             toast({
               title: "Error",
               description: "Failed to remove hold status.",
@@ -227,40 +236,40 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const applyHold = () => {
-    if (!processedCustomer) return;
+    if (!localCustomer) return;
     
-    console.log("applyHold - Current customer state:", processedCustomer);
-    console.log("applyHold - Current account number:", processedCustomer.accountNumber || "EMPTY");
+    console.log("applyHold - Current customer state:", localCustomer);
+    console.log("applyHold - Current account number:", localCustomer.accountNumber || "EMPTY");
     
     // Make a deep copy of the customer to avoid reference issues
-    const updatedCustomer = {
-      ...processedCustomer,
+    const updatedCustomer: Customer = {
+      ...localCustomer,
       onHold: true,
       holdReason: holdReason,
-      // Explicitly copy these fields to ensure they're preserved
-      accountNumber: processedCustomer.accountNumber || "",
-      needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels || false,
       updated: new Date().toISOString()
     };
     
     console.log("applyHold - Adding hold, updated customer:", updatedCustomer);
     console.log("applyHold - With account number:", updatedCustomer.accountNumber);
     
+    // First update local state for immediate UI feedback
+    setLocalCustomer(updatedCustomer);
+    
     updateCustomer(updatedCustomer)
       .then(success => {
         if (success) {
-          // Update local state immediately for UI feedback
-          setLocalCustomer(updatedCustomer);
-          
           setShowHoldDialog(false);
           toast({
             title: "Account on hold",
-            description: `${processedCustomer.name}'s account has been placed on hold.`
+            description: `${localCustomer.name}'s account has been placed on hold.`
           });
           
           // Refresh data to ensure everything is in sync
           refreshData();
         } else {
+          // Revert local changes if backend update failed
+          setLocalCustomer(localCustomer);
+          
           toast({
             title: "Error",
             description: "Failed to place account on hold.",
@@ -271,10 +280,10 @@ const CustomerDetailsPage: React.FC = () => {
   };
 
   const handleDeleteCustomer = async () => {
-    if (!processedCustomer) return;
+    if (!localCustomer) return;
     
     // Check if customer has any orders
-    const customerOrders = [...orders, ...completedOrders].filter(order => order.customerId === processedCustomer.id);
+    const customerOrders = [...orders, ...completedOrders].filter(order => order.customerId === localCustomer.id);
     
     if (customerOrders.length > 0) {
       toast({
@@ -286,7 +295,7 @@ const CustomerDetailsPage: React.FC = () => {
       return;
     }
     
-    const success = await deleteCustomer(processedCustomer.id);
+    const success = await deleteCustomer(localCustomer.id);
     if (success) {
       toast({
         title: "Success",
@@ -296,10 +305,7 @@ const CustomerDetailsPage: React.FC = () => {
     }
   };
 
-  // Use localCustomer if available, otherwise use processedCustomer for UI rendering
-  const customerToRender = localCustomer || processedCustomer;
-
-  if (!customerToRender) {
+  if (!localCustomer) {
     return (
       <Layout>
         <div className="flex items-center mb-6">
@@ -322,8 +328,8 @@ const CustomerDetailsPage: React.FC = () => {
           <Button variant="ghost" onClick={() => navigate("/customers")} className="mr-4">
             <ArrowLeft className="mr-2" /> Back
           </Button>
-          <h2 className="text-2xl font-bold">{customerToRender.name}</h2>
-          {customerToRender.onHold && (
+          <h2 className="text-2xl font-bold">{localCustomer.name}</h2>
+          {localCustomer.onHold && (
             <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
               On Hold
             </span>
@@ -331,10 +337,10 @@ const CustomerDetailsPage: React.FC = () => {
         </div>
         <div className="flex space-x-2">
           <Button 
-            variant={customerToRender.onHold ? "outline" : "destructive"}
+            variant={localCustomer.onHold ? "outline" : "destructive"}
             onClick={toggleHoldStatus}
           >
-            {customerToRender.onHold ? "Remove Hold" : (
+            {localCustomer.onHold ? "Remove Hold" : (
               <>
                 <AlertTriangle className="mr-2 h-4 w-4" />
                 Place on Hold
@@ -369,13 +375,12 @@ const CustomerDetailsPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="accountNumber">Account Number *</Label>
+                    <Label htmlFor="accountNumber">Account Number</Label>
                     <Input 
                       id="accountNumber" 
                       name="accountNumber"
                       value={formData.accountNumber} 
                       onChange={handleInputChange} 
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -495,34 +500,34 @@ const CustomerDetailsPage: React.FC = () => {
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Account Number:</span>
-                      <span className="col-span-2 font-medium">{customerToRender.accountNumber || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{localCustomer.accountNumber || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Name:</span>
-                      <span className="col-span-2 font-medium">{customerToRender.name}</span>
+                      <span className="col-span-2 font-medium">{localCustomer.name}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Type:</span>
-                      <span className="col-span-2 font-medium">{customerToRender.type}</span>
+                      <span className="col-span-2 font-medium">{localCustomer.type}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Email:</span>
-                      <span className="col-span-2 font-medium">{customerToRender.email || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{localCustomer.email || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Phone:</span>
-                      <span className="col-span-2 font-medium">{customerToRender.phone || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{localCustomer.phone || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Status:</span>
-                      <span className={`col-span-2 font-medium ${customerToRender.onHold ? 'text-red-600' : 'text-green-600'}`}>
-                        {customerToRender.onHold ? 'On Hold' : 'Active'}
+                      <span className={`col-span-2 font-medium ${localCustomer.onHold ? 'text-red-600' : 'text-green-600'}`}>
+                        {localCustomer.onHold ? 'On Hold' : 'Active'}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Detailed Box Labels:</span>
                       <span className="col-span-2 font-medium flex items-center">
-                        {customerToRender.needsDetailedBoxLabels ? (
+                        {localCustomer.needsDetailedBoxLabels ? (
                           <>
                             <Package className="h-4 w-4 mr-1 text-green-600" />
                             <span className="text-green-600">Enabled</span>
@@ -533,11 +538,11 @@ const CustomerDetailsPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  {customerToRender.onHold && (
+                  {localCustomer.onHold && (
                     <div className="mt-6">
                       <h3 className="text-lg font-semibold text-red-700 mb-2">Account on Hold</h3>
-                      {customerToRender.holdReason && (
-                        <p className="text-gray-700">{customerToRender.holdReason}</p>
+                      {localCustomer.holdReason && (
+                        <p className="text-gray-700">{localCustomer.holdReason}</p>
                       )}
                     </div>
                   )}
@@ -643,9 +648,9 @@ const CustomerDetailsPage: React.FC = () => {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the customer 
-              "{customerToRender?.name}" and remove it from our database.
+              "{localCustomer?.name}" and remove it from our database.
               
-              {customerToRender && (
+              {localCustomer && (
                 <p className="mt-2 font-semibold">
                   Note: Customers with existing orders cannot be deleted.
                 </p>

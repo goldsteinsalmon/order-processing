@@ -97,6 +97,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Debug to check all customer data
   useEffect(() => {
     console.log("DataContext: All adapted customers:", adaptedCustomers);
+    adaptedCustomers.forEach((customer, index) => {
+      console.log(`Customer ${index + 1}: ${customer.name}`);
+      console.log(`  - accountNumber: ${customer.accountNumber || "EMPTY"}`);
+      console.log(`  - onHold: ${customer.onHold}`);
+      console.log(`  - holdReason: ${customer.holdReason || "EMPTY"}`);
+      console.log(`  - needsDetailedBoxLabels: ${customer.needsDetailedBoxLabels}`);
+    });
   }, [adaptedCustomers]);
   
   // Convert orders to camelCase for React components
@@ -117,17 +124,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("DataContext updateCustomer called with:", camelCaseCustomer);
     console.log("DataContext updateCustomer - accountNumber:", camelCaseCustomer.accountNumber || "EMPTY");
     console.log("DataContext updateCustomer - onHold:", camelCaseCustomer.onHold);
+    console.log("DataContext updateCustomer - holdReason:", camelCaseCustomer.holdReason || "EMPTY");
     
     // Make sure we have a valid customer with all properties
-    const completeCustomer = {
+    const completeCustomer: Customer = {
       ...camelCaseCustomer,
       accountNumber: camelCaseCustomer.accountNumber || "",
-      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels || false
+      onHold: camelCaseCustomer.onHold === true,
+      holdReason: camelCaseCustomer.onHold ? (camelCaseCustomer.holdReason || "") : "",
+      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels === true
     };
     
     const snakeCaseCustomer = adaptCustomerToSnakeCase(completeCustomer);
     console.log("Converted to snake_case:", snakeCaseCustomer);
     console.log("DataContext updateCustomer - snake_case account_number:", snakeCaseCustomer.account_number || "EMPTY");
+    console.log("DataContext updateCustomer - snake_case on_hold:", snakeCaseCustomer.on_hold);
+    console.log("DataContext updateCustomer - snake_case hold_reason:", snakeCaseCustomer.hold_reason || "EMPTY");
     
     const result = await supabaseData.updateCustomer(snakeCaseCustomer);
     
@@ -141,10 +153,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("DataContext addCustomer - onHold:", camelCaseCustomer.onHold);
     
     // Make sure we have a valid customer with all properties
-    const completeCustomer = {
+    const completeCustomer: Customer = {
       ...camelCaseCustomer,
       accountNumber: camelCaseCustomer.accountNumber || "",
-      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels || false
+      onHold: camelCaseCustomer.onHold === true,
+      holdReason: camelCaseCustomer.onHold ? (camelCaseCustomer.holdReason || "") : "",
+      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels === true
     };
     
     const snakeCaseCustomer = adaptCustomerToSnakeCase(completeCustomer);
@@ -207,11 +221,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     missingItems: adaptedMissingItems,
     updateCustomer,
     addCustomer,
-    updateProduct,
-    addProduct,
-    updateOrder,
-    addOrder,
-    addMissingItem
+    updateProduct: supabaseData.updateProduct,
+    addProduct: supabaseData.addProduct,
+    updateOrder: supabaseData.updateOrder,
+    addOrder: supabaseData.addOrder,
+    addMissingItem: supabaseData.addMissingItem,
+    // ... keep existing code (other properties from supabaseData)
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
