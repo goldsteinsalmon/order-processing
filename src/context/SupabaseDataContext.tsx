@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -138,6 +137,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (productError) {
         console.error("Error fetching products:", productError);
       } else {
+        console.log(`SupabaseDataContext: Fetched ${productData.length} products successfully in refreshData`);
         setProducts(productData);
       }
       
@@ -304,7 +304,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.error("SupabaseDataContext: Error fetching products:", productError);
         throw productError;
       } else {
-        console.log(`SupabaseDataContext: Fetched ${productData.length} products successfully`);
+        console.log(`SupabaseDataContext: Fetched ${productData.length} products successfully in fetchProducts`);
         setProducts(productData);
       }
     } catch (error) {

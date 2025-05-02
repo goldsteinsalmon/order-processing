@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -14,37 +13,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
-  const [isPageLoading, setIsPageLoading] = useState(true);
-  const { products, isLoading: dataLoading, fetchProducts } = useData();
+  const { products, isLoading, refreshData } = useData();
   const navigate = useNavigate();
 
-  console.log("ProductsPage render: dataLoading=" + dataLoading + ", isPageLoading=" + isPageLoading + ", products.length=" + products.length);
-
-  // Explicitly fetch products on component mount
-  useEffect(() => {
-    console.log("ProductsPage: Starting to load products");
-    
-    const loadProducts = async () => {
-      try {
-        console.log("ProductsPage: Calling fetchProducts...");
-        await fetchProducts();
-        console.log("ProductsPage: Products loaded successfully");
-      } catch (error) {
-        console.error("ProductsPage: Error loading products:", error);
-      } finally {
-        setIsPageLoading(false);
-      }
-    };
-    
-    loadProducts();
-  }, [fetchProducts]);
+  console.log("ProductsPage render: isLoading=" + isLoading + ", products.length=" + products.length);
 
   const handleRetryFetch = async () => {
-    setIsPageLoading(true);
     try {
-      await fetchProducts();
-    } finally {
-      setIsPageLoading(false);
+      console.log("ProductsPage: Manual refresh requested");
+      await refreshData();
+    } catch (error) {
+      console.error("ProductsPage: Error during manual refresh:", error);
     }
   };
 
@@ -65,8 +44,6 @@ const ProductsPage = () => {
   // Default all products to active if not specified
   const activeProducts = sortedProducts.filter((product) => product.active !== false);
   const inactiveProducts = sortedProducts.filter((product) => product.active === false);
-
-  const isLoading = isPageLoading || dataLoading;
 
   return (
     <Layout>
@@ -96,8 +73,7 @@ const ProductsPage = () => {
       </div>
 
       <DebugLoader 
-        isLoading={isPageLoading} 
-        dataLoading={dataLoading} 
+        isLoading={isLoading}
         productsCount={products.length} 
         context="Products Page" 
         onRetry={handleRetryFetch}
