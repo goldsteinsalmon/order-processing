@@ -91,6 +91,12 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
            (item.originalQuantity !== item.quantity);
   };
 
+  // Handle checkbox change with immediate update
+  const handleCheckboxChange = (itemId: string, checked: boolean) => {
+    // Call the parent handler immediately with the new state
+    onCheckItem(itemId, checked);
+  };
+
   // Render a box section
   const renderBoxSection = (boxNumber: number, boxItems: ExtendedOrderItem[]) => {
     const isCompleted = completedBoxes.includes(boxNumber);
@@ -150,7 +156,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   <TableCell>
                     <Checkbox 
                       checked={item.checked} 
-                      onCheckedChange={checked => onCheckItem(item.id, !!checked)}
+                      onCheckedChange={(checked) => handleCheckboxChange(item.id, !!checked)}
+                      id={`checkbox-${item.id}`}
                     />
                   </TableCell>
                   <TableCell>
@@ -250,8 +257,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 >
                   <TableCell>
                     <Checkbox 
-                      checked={item.checked} 
-                      onCheckedChange={checked => onCheckItem(item.id, !!checked)}
+                      checked={item.checked}
+                      onCheckedChange={(checked) => handleCheckboxChange(item.id, !!checked)}
+                      id={`checkbox-${item.id}`}
                     />
                   </TableCell>
                   <TableCell>
