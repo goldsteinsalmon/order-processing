@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -317,6 +318,17 @@ const CreateOrderSteps: React.FC = () => {
       // Process the order date - ensure it's a proper Date object
       let orderDateValue = data.orderDate;
       
+      // Prepare order items - convert the format to match what the API expects
+      const finalItems = orderItems
+        .filter(item => item.productId && item.quantity > 0)
+        .map(item => {
+          return {
+            product_id: item.productId,
+            quantity: item.quantity,
+            id: item.id
+          };
+        });
+      
       const newOrder = {
         id: crypto.randomUUID(),
         customerId: data.customerId,
@@ -325,7 +337,7 @@ const CreateOrderSteps: React.FC = () => {
         orderDate: format(orderDateValue, "yyyy-MM-dd"),
         requiredDate: format(orderDateValue, "yyyy-MM-dd"), // Default to same date
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
-        items: finalOrderItems,
+        items: finalItems,
         notes: data.notes,
         status: "Pending" as const,
         created: new Date().toISOString(),

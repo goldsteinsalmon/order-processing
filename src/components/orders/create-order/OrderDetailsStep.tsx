@@ -10,7 +10,7 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { isBusinessDay } from "@/utils/dateUtils";
+import { fetchNonWorkingDays, isDateDisabled } from "@/utils/dateUtils";
 
 interface OrderDetailsStepProps {
   form: any;
@@ -29,14 +29,14 @@ const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
 }) => {
   // Instead of using an async function directly, we'll use state to manage disabled dates
   // This allows the calendar to work with synchronous date checking
-  const [disabledDays, setDisabledDays] = useState<Date[]>([]);
+  const [nonWorkingDays, setNonWorkingDays] = useState<Date[]>([]);
   
   // Update the disabled dates by loading non-working days
   useEffect(() => {
     const loadNonWorkingDays = async () => {
       try {
-        // For now, we'll just use weekend disabling as default
-        // The Calendar component will handle non-working days from the backend
+        const days = await fetchNonWorkingDays();
+        setNonWorkingDays(days);
       } catch (error) {
         console.error("Error loading non-working days:", error);
       }
@@ -116,6 +116,7 @@ const OrderDetailsStep: React.FC<OrderDetailsStepProps> = ({
                     field.onChange(date);
                     onDateChange(date);
                   }}
+                  disabled={(date) => isDateDisabled(date, nonWorkingDays)}
                   initialFocus
                 />
               </PopoverContent>
