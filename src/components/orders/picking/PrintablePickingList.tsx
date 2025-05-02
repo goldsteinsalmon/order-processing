@@ -1,12 +1,12 @@
 
 import React, { ForwardRefRenderFunction, forwardRef } from "react";
-import { Order, OrderItem } from "@/types";
+import { OrderBase, OrderItem } from "@/types";
 import { format } from "date-fns";
 import { ExtendedOrderItem } from "./ItemsTable"; // Import the type from our new file
-import { getOrderDate, getCustomerOrderNumber, getDeliveryMethod } from "@/utils/propertyHelpers";
+import { getOrderDate, getCustomerOrderNumber, getDeliveryMethod, getAccountNumber } from "@/utils/propertyHelpers";
 
 interface PrintablePickingListProps {
-  selectedOrder: Order;
+  selectedOrder: OrderBase;
   items: ExtendedOrderItem[];
   groupByBox?: boolean;
 }
@@ -46,6 +46,7 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
   const orderDate = getOrderDate(selectedOrder);
   const customerOrderNumber = getCustomerOrderNumber(selectedOrder);
   const deliveryMethod = getDeliveryMethod(selectedOrder);
+  const customerAccountNumber = selectedOrder.customer ? getAccountNumber(selectedOrder.customer) : undefined;
 
   return (
     <div ref={ref} className="p-8 bg-white print:text-black">
@@ -60,8 +61,8 @@ const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePi
           <div>
             <p className="font-bold">Customer:</p>
             <p>{selectedOrder.customer?.name}</p>
-            {selectedOrder.customer?.accountNumber && (
-              <p className="text-sm">Account: {selectedOrder.customer.accountNumber}</p>
+            {customerAccountNumber && (
+              <p className="text-sm">Account: {customerAccountNumber}</p>
             )}
           </div>
           <div>

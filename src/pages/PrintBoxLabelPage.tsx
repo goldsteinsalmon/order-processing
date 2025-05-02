@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
-import { getCompletedBoxes } from "@/utils/propertyHelpers";
+import { getCompletedBoxes, getPickingInProgress, getPickedAt, getPickedBy } from "@/utils/propertyHelpers";
 
 const PrintBoxLabelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -52,8 +52,8 @@ const PrintBoxLabelPage: React.FC = () => {
           ...order,
           completedBoxes: updatedCompletedBoxes,
           savedBoxes: updatedSavedBoxes,
-          pickedBy: order.pickedBy,
-          pickedAt: order.pickedAt || undefined,
+          pickedBy: getPickedBy(order),
+          pickedAt: getPickedAt(order) || undefined,
           pickingProgress: order.pickingProgress,
           batchNumbers: order.batchNumbers,
           pickingInProgress: true

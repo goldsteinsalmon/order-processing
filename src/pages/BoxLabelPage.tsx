@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Printer, ArrowLeft } from "lucide-react";
 import Layout from "@/components/Layout";
-import { Box, BoxItem, Order, Customer } from "@/types";
+import { Box, BoxItem, OrderBase, Customer } from "@/types";
+import { getCompletedBoxes, getBoxDistributions } from "@/utils/propertyHelpers";
 
 const BoxLabelPage: React.FC = () => {
   const { orderId, boxNumber } = useParams<{ orderId: string; boxNumber: string }>();
@@ -15,7 +16,7 @@ const BoxLabelPage: React.FC = () => {
   const { orders } = useData();
   const printRef = useRef<HTMLDivElement>(null);
   
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<OrderBase | null>(null);
   const [box, setBox] = useState<Box | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
 
@@ -27,7 +28,7 @@ const BoxLabelPage: React.FC = () => {
         setCustomer(foundOrder.customer || null);
 
         if (boxNumber && foundOrder.boxDistributions) {
-          const foundBox = foundOrder.boxDistributions.find(
+          const foundBox = getBoxDistributions(foundOrder)?.find(
             (b) => b.boxNumber === parseInt(boxNumber)
           );
           if (foundBox) {
@@ -116,7 +117,7 @@ const BoxLabelPage: React.FC = () => {
             </div>
 
             <div className="text-sm text-gray-500 text-center">
-              <p>Box {boxNumber} of {order.boxDistributions?.length || "?"}</p>
+              <p>Box {boxNumber} of {getBoxDistributions(order)?.length || "?"}</p>
             </div>
           </CardContent>
         </Card>
