@@ -10,8 +10,7 @@ export async function runOrderNumberMigration() {
     // Read migration SQL from file (keeping this for reference)
     const migrationSQL = fs.readFileSync(path.resolve(__dirname, '../../supabase/migration.sql'), 'utf8');
     
-    // Execute the migration by directly running raw SQL
-    // This avoids the TypeScript error by using a method that accepts any SQL
+    // Execute the migration by directly running the correct RPC function
     const { data, error } = await supabase
       .from('orders')
       .select('id')
@@ -19,9 +18,11 @@ export async function runOrderNumberMigration() {
       .then(async ({ data, error }) => {
         if (error) throw error;
         
-        // After successful connection test, run the SQL directly
-        return await supabase.rpc('trigger_process_standing_orders', {})
-          .then(() => ({ data: { success: true }, error: null }));
+        // After successful connection test, run the actual migration with the correct function
+        return await supabase.rpc('set_order_number_sequence', {
+          start_value: 1000
+        })
+        .then(() => ({ data: { success: true }, error: null }));
       });
     
     if (error) {

@@ -103,14 +103,24 @@ const Navbar: React.FC = () => {
                     Batch Tracking
                   </NavLink>
                   {isAdminUser && (
-                    <NavLink
-                      to="/admin"
-                      className={({ isActive }) =>
-                        isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                      }
-                    >
-                      Admin
-                    </NavLink>
+                    <>
+                      <NavLink
+                        to="/admin"
+                        className={({ isActive }) =>
+                          isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                        }
+                      >
+                        Admin
+                      </NavLink>
+                      <NavLink
+                        to="/admin/migrations"
+                        className={({ isActive }) =>
+                          isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                        }
+                      >
+                        Migrations
+                      </NavLink>
+                    </>
                   )}
                 </>
               )}
