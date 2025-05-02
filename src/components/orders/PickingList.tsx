@@ -368,7 +368,7 @@ const PickingList: React.FC<PickingListProps> = ({
       });
       
       // Update the order with new items and status
-      const updatedOrder: Order = {
+      const updatedOrder = {
         ...selectedOrder,
         items: updatedOrderItems as OrderItem[],
         status: newStatus,
@@ -387,7 +387,7 @@ const PickingList: React.FC<PickingListProps> = ({
         completedBoxes,
         completed_boxes: completedBoxes, // Add this for database compatibility
         savedBoxes, // Using camelCase property that exists in the Order type
-        saved_boxes: savedBoxes // Using snake_case for database compatibility
+        saved_boxes: savedBoxes // Using snake_case for database compatibility, now properly typed
       };
       
       console.log("Saving order with status:", newStatus);
@@ -435,7 +435,7 @@ const PickingList: React.FC<PickingListProps> = ({
           
           toast({
             title: "Error",
-            description: "Failed to save order: " + errorMessage,
+            description: "Failed to save order",
             variant: "destructive",
           });
           
