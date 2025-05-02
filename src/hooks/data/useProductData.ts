@@ -52,6 +52,8 @@ export const useProductData = () => {
 
   const addProduct = async (newProduct: Product | Product[]): Promise<Product | Product[] | null> => {
     try {
+      setIsLoading(true); // Set loading state when adding products
+      
       if (Array.isArray(newProduct)) {
         // Batch insert - convert each product to snake_case
         const dbProducts = newProduct.map(adaptProductToSnakeCase);
@@ -112,12 +114,16 @@ export const useProductData = () => {
         variant: "destructive",
       });
       return null;
+    } finally {
+      setIsLoading(false); // Reset loading state regardless of outcome
     }
   };
 
   // Update product
   const updateProduct = async (product: Product): Promise<boolean> => {
     try {
+      setIsLoading(true); // Set loading state when updating product
+      
       // Convert to snake_case for database
       const productForDb = adaptProductToSnakeCase(product);
       console.log("Updating product with snake_case format:", productForDb);
@@ -142,12 +148,16 @@ export const useProductData = () => {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsLoading(false); // Reset loading state regardless of outcome
     }
   };
 
   // Delete product
   const deleteProduct = async (productId: string): Promise<boolean> => {
     try {
+      setIsLoading(true); // Set loading state when deleting product
+      
       const { error } = await supabase
         .from('products')
         .delete()
@@ -165,6 +175,8 @@ export const useProductData = () => {
         variant: "destructive",
       });
       return false;
+    } finally {
+      setIsLoading(false); // Reset loading state regardless of outcome
     }
   };
 

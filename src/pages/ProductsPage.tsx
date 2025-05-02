@@ -4,7 +4,7 @@ import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DebugLoader } from "@/components/ui/debug-loader";
@@ -19,12 +19,10 @@ const ProductsPage = () => {
   const navigate = useNavigate();
 
   console.log("ProductsPage render: dataLoading=" + dataLoading + ", isPageLoading=" + isPageLoading + ", products.length=" + products.length);
-  console.log("Sorting products:", products);
 
   // Explicitly fetch products on component mount
   useEffect(() => {
     console.log("ProductsPage: Starting to load products");
-    console.log("ProductsPage: Initial dataLoading state:", dataLoading);
     
     const loadProducts = async () => {
       try {
@@ -40,6 +38,15 @@ const ProductsPage = () => {
     
     loadProducts();
   }, [fetchProducts]);
+
+  const handleRetryFetch = async () => {
+    setIsPageLoading(true);
+    try {
+      await fetchProducts();
+    } finally {
+      setIsPageLoading(false);
+    }
+  };
 
   const filteredProducts = products.filter((product) => {
     const searchTermLower = searchTerm.toLowerCase();
@@ -59,6 +66,8 @@ const ProductsPage = () => {
   const activeProducts = sortedProducts.filter((product) => product.active !== false);
   const inactiveProducts = sortedProducts.filter((product) => product.active === false);
 
+  const isLoading = isPageLoading || dataLoading;
+
   return (
     <Layout>
       <div className="flex items-center justify-between mb-4">
@@ -72,10 +81,18 @@ const ProductsPage = () => {
             className="pl-8"
           />
         </div>
-        <Button onClick={() => navigate("/create-product")} className="ml-4">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Product
-        </Button>
+        <div className="flex gap-2">
+          {isLoading && (
+            <Button variant="outline" onClick={handleRetryFetch}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          )}
+          <Button onClick={() => navigate("/create-product")}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Product
+          </Button>
+        </div>
       </div>
 
       <DebugLoader 
@@ -83,6 +100,7 @@ const ProductsPage = () => {
         dataLoading={dataLoading} 
         productsCount={products.length} 
         context="Products Page" 
+        onRetry={handleRetryFetch}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -92,7 +110,7 @@ const ProductsPage = () => {
           <TabsTrigger value="inactive">Inactive</TabsTrigger>
         </TabsList>
         <TabsContent value="all" className="mt-4">
-          {isPageLoading || dataLoading ? (
+          {isLoading ? (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
                 <Card key={i}>
@@ -137,6 +155,7 @@ const ProductsPage = () => {
                       variant="secondary"
                       size="sm"
                       onClick={() => navigate(`/edit-product/${product.id}`)}
+                      className="mt-2"
                     >
                       Edit
                     </Button>
@@ -147,7 +166,7 @@ const ProductsPage = () => {
           )}
         </TabsContent>
         <TabsContent value="active" className="mt-4">
-          {isPageLoading || dataLoading ? (
+          {isLoading ? (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
                 <Card key={i}>
@@ -191,6 +210,7 @@ const ProductsPage = () => {
                       variant="secondary"
                       size="sm"
                       onClick={() => navigate(`/edit-product/${product.id}`)}
+                      className="mt-2"
                     >
                       Edit
                     </Button>
@@ -201,7 +221,7 @@ const ProductsPage = () => {
           )}
         </TabsContent>
         <TabsContent value="inactive" className="mt-4">
-          {isPageLoading || dataLoading ? (
+          {isLoading ? (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
                 <Card key={i}>
@@ -247,6 +267,7 @@ const ProductsPage = () => {
                       variant="secondary"
                       size="sm"
                       onClick={() => navigate(`/edit-product/${product.id}`)}
+                      className="mt-2"
                     >
                       Edit
                     </Button>
