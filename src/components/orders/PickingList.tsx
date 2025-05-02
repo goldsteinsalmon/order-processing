@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, CheckCircle, Printer, Save, ArrowLeft } from "lucide-react";
-import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
 import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
@@ -155,6 +154,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   }, [nextBoxToFocus]);
   
   const handleCheckItem = (itemId: string, checked: boolean) => {
+    console.log(`CheckItem: Setting item ${itemId} checked to ${checked}`);
     setOrderItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId ? { ...item, checked } : item
@@ -242,6 +242,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     setIsSaving(true);
     
     try {
+      console.log("Saving with picker:", selectedPickerId);
+      console.log("Current checked items:", orderItems.filter(item => item.checked).map(i => i.id));
+      
       // Map the order items to the format expected by the database
       const updatedOrderItems = orderItems.map(item => {
         return {
@@ -277,7 +280,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         newStatus = "Picking";
       }
 
-      // Record batch usage for each item that has a batch number
+      // Record batch usage for each item that has a batch number and is checked
       updatedOrderItems.forEach(item => {
         if (item.batchNumber && item.checked) {
           recordBatchUsage(
@@ -299,6 +302,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         totalBlownPouches: 0,
         pickingInProgress: !allChecked,
         pickedBy: selectedPickerId,
+        picked_by: selectedPickerId, // Add this to ensure the correct field is set in the database
         pickedAt: allChecked ? new Date().toISOString() : undefined,
         missingItems: orderMissingItems,
         completedBoxes,
@@ -306,6 +310,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       };
       
       console.log("Saving order with status:", newStatus);
+      console.log("Saving picked_by:", selectedPickerId);
+      console.log("Saving checked items:", updatedOrderItems.filter(item => item.checked).map(i => i.id));
       
       // If order is completed, also record all batch usages
       if (newStatus === "Completed") {
