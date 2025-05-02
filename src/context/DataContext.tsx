@@ -70,7 +70,7 @@ interface DataContextType {
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
   recordAllBatchUsagesForOrder: (order: Order) => void;
   refreshData: () => Promise<void>;
-  fetchProducts: () => Promise<void>; // Add this line
+  fetchProducts: () => Promise<void>; // Ensure return type is Promise<void>
   isLoading: boolean;
 }
 
@@ -230,12 +230,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   // Create a dedicated fetchProducts function to expose to components
-  const fetchProducts = async () => {
+  const fetchProducts = async (): Promise<void> => {
     console.log("DataContext: fetchProducts called");
     try {
       await supabaseData.fetchProducts();
       console.log("DataContext: Products fetched successfully:", supabaseData.products);
-      return supabaseData.products;
     } catch (error) {
       console.error("DataContext: Error fetching products:", error);
       throw error;
@@ -257,7 +256,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateOrder,
     addOrder,
     addMissingItem,
-    fetchProducts, // Add the fetchProducts function
+    fetchProducts,
     // ... keep existing code (other properties from supabaseData)
   };
 

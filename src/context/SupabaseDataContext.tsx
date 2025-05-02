@@ -74,6 +74,7 @@ interface SupabaseDataContextType {
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
   recordAllBatchUsagesForOrder: (order: any) => void;
   refreshData: () => Promise<void>;
+  fetchProducts: () => Promise<void>; // Add this method to the interface
   isLoading: boolean;
 }
 
@@ -1464,6 +1465,7 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
     recordBatchUsage,
     recordAllBatchUsagesForOrder,
     refreshData,
+    fetchProducts,
     isLoading
   };
 
