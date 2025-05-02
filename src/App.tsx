@@ -1,9 +1,7 @@
-
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import HomePage from "@/pages/HomePage";
 import OrdersPage from "@/pages/OrdersPage";
 import CustomersPage from "@/pages/CustomersPage";
 import OrderDetailsPage from "@/pages/OrderDetailsPage";
@@ -48,14 +46,17 @@ function App() {
             <DataProvider>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                
+                {/* Redirect root to orders page */}
                 <Route
                   path="/"
                   element={
                     <SupabaseProtectedRoute>
-                      <HomePage />
+                      <Navigate to="/orders" replace />
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/orders"
                   element={
@@ -64,6 +65,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/orders/:id"
                   element={
@@ -72,6 +74,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/orders/:id/edit"
                   element={
@@ -80,6 +83,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/orders/:id/picking"
                   element={
@@ -88,6 +92,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/picking-list/:id"
                   element={
@@ -96,6 +101,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/print-box-label/:id"
                   element={
@@ -104,6 +110,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/customers"
                   element={
@@ -112,6 +119,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/customers/:id"
                   element={
@@ -120,6 +128,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/products"
                   element={
@@ -128,6 +137,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/products/:id"
                   element={
@@ -136,6 +146,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/create-order"
                   element={
@@ -144,6 +155,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/create-customer"
                   element={
@@ -152,6 +164,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/create-product"
                   element={
@@ -160,6 +173,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/box-label/:orderId/:boxNumber"
                   element={
@@ -168,6 +182,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/standing-orders"
                   element={
@@ -176,6 +191,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/standing-orders/:id"
                   element={
@@ -184,6 +200,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/create-standing-order"
                   element={
@@ -192,6 +209,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/standing-orders/:id/edit"
                   element={
@@ -200,6 +218,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/standing-orders/:id/delivery/:date/edit"
                   element={
@@ -208,6 +227,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/returns-complaints"
                   element={
@@ -216,7 +236,9 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 {/* Adding Missing Routes */}
+                
                 <Route
                   path="/completed-orders"
                   element={
@@ -225,6 +247,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/completed-orders/:id"
                   element={
@@ -233,6 +256,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/completed-orders/:id/edit"
                   element={
@@ -241,6 +265,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/returns"
                   element={
@@ -249,6 +274,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/admin"
                   element={
@@ -257,6 +283,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/export-orders"
                   element={
@@ -265,6 +292,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/batch-tracking"
                   element={
@@ -273,6 +301,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/incomplete-batches"
                   element={
@@ -281,6 +310,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route
                   path="/export-label/:orderId"
                   element={
@@ -289,6 +319,7 @@ function App() {
                     </SupabaseProtectedRoute>
                   }
                 />
+                
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
               <Toaster />

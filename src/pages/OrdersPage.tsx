@@ -13,7 +13,7 @@ import { DebugLoader } from "@/components/ui/debug-loader";
 
 const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { orders, loading: ordersLoading } = useData();
+  const { orders, ordersLoading } = useData();
   const navigate = useNavigate();
   
   return (
