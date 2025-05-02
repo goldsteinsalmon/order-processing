@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -343,7 +344,6 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const handlePrint = useReactToPrint({
     documentTitle: `Picking List - ${selectedOrder?.id.substring(0, 8)}`,
     content: () => printRef.current,
-    copyStyles: true
   });
   
   // Filter items for a specific box

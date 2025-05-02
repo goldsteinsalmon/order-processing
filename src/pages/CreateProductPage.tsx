@@ -37,8 +37,8 @@ const CreateProductPage: React.FC = () => {
       // For SKU, suggest a modified version to avoid duplicate SKUs
       setSku(duplicateProduct.sku + "-COPY");
       setDescription(duplicateProduct.description || "");
-      setRequiresWeightInput(duplicateProduct.requires_weight_input || false);
-      setWeight(duplicateProduct.requires_weight_input ? undefined : duplicateProduct.weight);
+      setRequiresWeightInput(duplicateProduct.requiresWeightInput || false);
+      setWeight(duplicateProduct.requiresWeightInput ? undefined : duplicateProduct.weight);
       setStockLevel(0); // Reset stock level for new product
     }
   }, [duplicateProduct, isDuplicating]);
@@ -60,7 +60,7 @@ const CreateProductPage: React.FC = () => {
       name,
       sku,
       description: description || "",
-      requires_weight_input: requiresWeightInput,
+      requiresWeightInput,
       weight: requiresWeightInput ? undefined : weight,
       stock_level: stockLevel,
       created: new Date().toISOString()

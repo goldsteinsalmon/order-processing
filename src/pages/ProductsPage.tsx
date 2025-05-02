@@ -85,8 +85,8 @@ const ProductsPage: React.FC = () => {
     
     // Count products needed for each day from pending orders
     orders.forEach((order) => {
-      if (order.status === "Pending" || order.status === "Picking") {
-        const orderDate = parseISO(order.required_date || order.order_date);
+      if (order.status === "Pending" || order.status === "Processing") {
+        const orderDate = parseISO(order.requiredDate || order.order_date);
         
         // Only consider orders going out in the next 7 working days
         const matchingDay = next7WorkingDays.find((day) => isSameDay(day, orderDate));
@@ -94,8 +94,8 @@ const ProductsPage: React.FC = () => {
           const dateKey = format(matchingDay, "yyyy-MM-dd");
           
           order.items.forEach((item) => {
-            if (forecasts[item.product_id] && forecasts[item.product_id][dateKey] !== undefined) {
-              forecasts[item.product_id][dateKey] += item.quantity;
+            if (forecasts[item.productId] && forecasts[item.productId][dateKey] !== undefined) {
+              forecasts[item.productId][dateKey] += item.quantity;
             }
           });
         }
@@ -224,9 +224,9 @@ const ProductsPage: React.FC = () => {
                   <TableRow key={product.id}>
                     <TableCell>{product.sku}</TableCell>
                     <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.requires_weight_input ? "N/A" : (product.weight || "N/A")}</TableCell>
+                    <TableCell>{product.requiresWeightInput ? "N/A" : (product.weight || "N/A")}</TableCell>
                     <TableCell>
-                      {product.requires_weight_input ? (
+                      {product.requiresWeightInput ? (
                         <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
                           Yes
                         </span>
