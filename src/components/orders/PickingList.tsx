@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -24,6 +25,7 @@ interface PickingListProps {
 }
 
 const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
+  // Fix the loading property name to match the DataContext type
   const { orders, isLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();

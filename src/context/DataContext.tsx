@@ -243,6 +243,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Make sure refreshData explicitly returns a Promise<void>
+  const refreshData = async (): Promise<void> => {
+    console.log("DataContext: refreshData called");
+    try {
+      return await supabaseData.refreshData();
+    } catch (error) {
+      console.error("DataContext: Error in refreshData:", error);
+      throw error;
+    }
+  };
+
   const value: DataContextType = {
     customers: adaptedCustomers,
     products: adaptedProducts,
@@ -258,7 +269,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addOrder,
     addMissingItem,
     fetchProducts,
-    isLoading: supabaseData.isLoading, // Make sure this is properly passed
+    isLoading: supabaseData.isLoading,
     returns: supabaseData.returns,
     complaints: supabaseData.complaints,
     standingOrders: supabaseData.standingOrders,
@@ -286,7 +297,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getBatchUsageByBatchNumber: supabaseData.getBatchUsageByBatchNumber,
     recordBatchUsage: supabaseData.recordBatchUsage,
     recordAllBatchUsagesForOrder: supabaseData.recordAllBatchUsagesForOrder,
-    refreshData: supabaseData.refreshData
+    refreshData
   };
 
   console.log("DataContext: Providing context with isLoading:", value.isLoading);
