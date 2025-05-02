@@ -1,9 +1,10 @@
-
-import { OrderBase, StandingOrder } from "@/types";
+import { StandingOrder } from "@/types";
+import { OrderBase } from "@/types/orderBaseTypes";
 
 // Re-export helpers from the new specialized files
 export * from './boxPropertyHelpers';
 export * from './pickerPropertyHelpers';
+export * from './customerPropertyHelpers';
 
 /**
  * Safely get the order date from an order, handling both camelCase and snake_case properties

@@ -1,4 +1,7 @@
 
+export * from './order-types';
+export * from './orderBaseTypes';
+
 export interface Customer {
   id: string;
   name: string;

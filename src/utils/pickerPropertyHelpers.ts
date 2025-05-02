@@ -1,5 +1,4 @@
-
-import { OrderBase } from "@/types";
+import { OrderBase } from "@/types/orderBaseTypes";
 
 /**
  * Safely get the picker who picked an order, handling both camelCase and snake_case properties

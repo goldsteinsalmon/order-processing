@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Printer, ArrowLeft } from "lucide-react";
 import Layout from "@/components/Layout";
-import { Box, BoxItem, OrderBase, Customer } from "@/types";
-import { getCompletedBoxes, getBoxDistributions } from "@/utils/propertyHelpers";
+import { Box, Customer } from "@/types";
+import { OrderBase } from "@/types/orderBaseTypes";
+import { getCompletedBoxes, getBoxDistributions, getNeedsDetailedBoxLabels } from "@/utils/propertyHelpers";
 
 const BoxLabelPage: React.FC = () => {
   const { orderId, boxNumber } = useParams<{ orderId: string; boxNumber: string }>();
@@ -41,7 +42,7 @@ const BoxLabelPage: React.FC = () => {
 
   const handlePrint = useReactToPrint({
     documentTitle: `Box-${boxNumber}-${orderId?.substring(0, 8)}`,
-    content: () => printRef.current,
+    contentRef: printRef,
   });
 
   const handleBack = () => {
@@ -97,17 +98,17 @@ const BoxLabelPage: React.FC = () => {
                   <tr className="border-b">
                     <th className="text-left py-2">Product</th>
                     <th className="text-right py-2">Quantity</th>
-                    {customer.needsDetailedBoxLabels && (
+                    {getNeedsDetailedBoxLabels(customer) && (
                       <th className="text-right py-2">Batch</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {box.items.map((item: BoxItem) => (
+                  {box.items.map((item) => (
                     <tr key={item.id} className="border-b">
                       <td className="py-2">{item.productName}</td>
                       <td className="py-2 text-right">{item.quantity}</td>
-                      {customer.needsDetailedBoxLabels && (
+                      {getNeedsDetailedBoxLabels(customer) && (
                         <td className="py-2 text-right">{item.batchNumber || "-"}</td>
                       )}
                     </tr>

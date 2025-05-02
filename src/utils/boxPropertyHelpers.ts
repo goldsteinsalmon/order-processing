@@ -1,5 +1,6 @@
 
-import { Box, BoxItem, OrderBase } from "@/types";
+import { Box, BoxItem } from "@/types";
+import { OrderBase } from "@/types/orderBaseTypes";
 
 /**
  * Safely get the box distributions from an order, handling both camelCase and snake_case properties

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from "react";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -6,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
-import { getCompletedBoxes, getPickingInProgress, getPickedAt, getPickedBy } from "@/utils/propertyHelpers";
+import { getCompletedBoxes, getPickingInProgress, getPickedAt } from "@/utils/propertyHelpers";
+import { getPickedBy } from "@/utils/pickerPropertyHelpers";
 
 const PrintBoxLabelPage: React.FC = () => {
   const navigate = useNavigate();

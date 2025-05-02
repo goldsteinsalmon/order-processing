@@ -1,9 +1,9 @@
-
 import React, { ForwardRefRenderFunction, forwardRef } from "react";
-import { OrderBase, OrderItem } from "@/types";
 import { format } from "date-fns";
 import { ExtendedOrderItem } from "./ItemsTable"; // Import the type from our new file
-import { getOrderDate, getCustomerOrderNumber, getDeliveryMethod, getAccountNumber } from "@/utils/propertyHelpers";
+import { OrderBase } from "@/types/orderBaseTypes";
+import { getOrderDate, getCustomerOrderNumber, getDeliveryMethod } from "@/utils/propertyHelpers";
+import { getAccountNumber } from "@/utils/customerPropertyHelpers";
 
 interface PrintablePickingListProps {
   selectedOrder: OrderBase;
