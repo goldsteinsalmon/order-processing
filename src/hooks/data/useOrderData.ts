@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -337,8 +338,8 @@ export const useOrderData = (toast: any) => {
         const { error: boxDataError } = await supabase
           .from('orders')
           .update({
-            completedBoxes: updatedOrder.completedBoxes || [],
-            savedBoxes: updatedOrder.savedBoxes || []
+            completed_boxes: updatedOrder.completedBoxes || [],
+            saved_boxes: updatedOrder.savedBoxes || []
           })
           .eq('id', updatedOrder.id);
         
