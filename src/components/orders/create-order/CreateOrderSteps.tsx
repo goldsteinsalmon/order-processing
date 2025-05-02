@@ -325,11 +325,13 @@ const CreateOrderSteps: React.FC = () => {
           return {
             id: item.id,
             orderId: "", // Will be filled in by the backend
-            productId: item.productId,
+            productId: item.productId, // Make sure we use the correct property name
             product: product,
             quantity: item.quantity
           };
         });
+      
+      console.log("Final order items:", finalItems);
       
       const newOrder = {
         id: crypto.randomUUID(),
@@ -339,7 +341,7 @@ const CreateOrderSteps: React.FC = () => {
         orderDate: format(orderDateValue, "yyyy-MM-dd"),
         requiredDate: format(orderDateValue, "yyyy-MM-dd"), // Default to same date
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
-        items: finalItems,
+        items: finalItems, // Use the properly formatted items
         notes: data.notes || '',
         status: "Pending" as const,
         created: new Date().toISOString(),

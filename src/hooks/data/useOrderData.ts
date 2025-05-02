@@ -36,14 +36,19 @@ export const useOrderData = (toast: any) => {
         throw orderError;
       }
       
+      if (!orderData || orderData.length === 0) {
+        throw new Error("No order data returned after insert");
+      }
+      
       const newOrderId = orderData[0].id;
       console.log("New order created with ID:", newOrderId);
       
       // Insert order items
       if (order.items && order.items.length > 0) {
+        // Make sure items have the correct format
         const orderItemsToInsert = order.items.map(item => ({
           order_id: newOrderId,
-          product_id: item.productId,
+          product_id: item.productId || item.product_id,
           quantity: item.quantity,
           original_quantity: item.quantity
         }));
@@ -71,8 +76,8 @@ export const useOrderData = (toast: any) => {
             .insert({
               order_id: newOrderId,
               box_number: box.boxNumber,
-              completed: box.completed,
-              printed: box.printed
+              completed: box.completed || false,
+              printed: box.printed || false
             })
             .select();
           
@@ -90,7 +95,7 @@ export const useOrderData = (toast: any) => {
               product_id: item.productId,
               product_name: item.productName,
               quantity: item.quantity,
-              weight: item.weight
+              weight: item.weight || 0
             }));
             
             const { error: boxItemsError } = await supabase
@@ -144,11 +149,11 @@ export const useOrderData = (toast: any) => {
       
       setOrders([...orders, newOrder]);
       return newOrder;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding order:', error);
       toast({
         title: "Error",
-        description: "Failed to add order.",
+        description: `Failed to add order: ${error?.message || error?.toString() || "Unknown error"}`,
         variant: "destructive",
       });
       return null;
