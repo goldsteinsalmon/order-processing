@@ -4,7 +4,6 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { runOrderNumberMigration } from "@/scripts/runMigration";
 
@@ -17,7 +16,7 @@ const AdminMigrationPage: React.FC = () => {
     setResult(null);
     
     try {
-      // Use the migration script which handles this properly
+      console.log("Starting migration process...");
       const success = await runOrderNumberMigration();
       
       if (success) {
@@ -26,10 +25,10 @@ const AdminMigrationPage: React.FC = () => {
           message: "Order number sequence has been updated to start at 1001 for new orders."
         });
       } else {
-        throw new Error("Migration failed");
+        throw new Error("Migration failed. Check console for details.");
       }
     } catch (error) {
-      console.error("Migration failed:", error);
+      console.error("Migration execution error:", error);
       setResult({
         success: false,
         message: `Migration failed: ${error instanceof Error ? error.message : String(error)}`
