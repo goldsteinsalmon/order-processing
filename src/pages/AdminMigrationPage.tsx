@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { runOrderNumberMigration } from "@/scripts/runMigration";
+import { toast } from "@/hooks/use-toast";
 
 const AdminMigrationPage: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
@@ -24,6 +25,10 @@ const AdminMigrationPage: React.FC = () => {
           success: true,
           message: "Order number sequence has been updated to start at 1001 for new orders."
         });
+        toast({
+          title: "Migration Successful",
+          description: "Order number sequence has been updated successfully.",
+        });
       } else {
         throw new Error("Migration failed. Check console for details.");
       }
@@ -32,6 +37,11 @@ const AdminMigrationPage: React.FC = () => {
       setResult({
         success: false,
         message: `Migration failed: ${error instanceof Error ? error.message : String(error)}`
+      });
+      toast({
+        title: "Migration Failed",
+        description: "There was an error updating the order number sequence.",
+        variant: "destructive"
       });
     } finally {
       setIsRunning(false);
