@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -38,6 +37,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [groupByBox, setGroupByBox] = useState<boolean>(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [selectedPickerId, setSelectedPickerId] = useState<string>("");
+  const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
   
   // Load order data
   useEffect(() => {
@@ -123,25 +123,40 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         setSavedBoxes(order.savedBoxes);
       }
       
-      // Start picking progress
-      if (!getPickingInProgress(order)) {
-        // Update order to indicate picking has started
-        const updatedOrder = {
-          ...order,
-          pickingInProgress: true,
-          status: "Picking" as const
-        };
-        updateOrder(updatedOrder);
-      }
-      
       // Load missing items specific to this order
       const orderSpecificMissingItems = missingItems.filter(mi => mi.orderId === order.id);
       setOrderMissingItems(orderSpecificMissingItems);
+      
+      // Mark initial load as complete
+      setInitialLoadComplete(true);
+      
     } catch (error) {
       console.error("Error processing order data:", error);
       setOrderError("There was an error processing this order data. Please try again later.");
     }
   }, [orderId, orders, isLoading, missingItems, updateOrder, pickers]);
+  
+  // Effect to start picking progress AFTER initial load is complete
+  useEffect(() => {
+    if (!initialLoadComplete || !selectedOrder || getPickingInProgress(selectedOrder)) {
+      return;
+    }
+    
+    // Update order to indicate picking has started
+    const updatedOrder = {
+      ...selectedOrder,
+      pickingInProgress: true,
+      status: "Picking" as const
+    };
+    
+    console.log("Starting picking progress for order:", updatedOrder.id);
+    updateOrder(updatedOrder)
+      .catch(error => {
+        console.error("Error starting picking progress:", error);
+        // We don't show the toast here since it's not critical to user experience
+      });
+      
+  }, [initialLoadComplete, selectedOrder, updateOrder]);
   
   // Effect to scroll to next box if specified
   useEffect(() => {
