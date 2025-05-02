@@ -7,6 +7,12 @@ import { OrderItem } from "@/types/order-types";
 export const adaptOrderItemToCamelCase = (item: any): OrderItem => {
   if (!item) return null as any;
   
+  // Only include originalQuantity if it's different from current quantity
+  const hasActualQuantityChange = 
+    item.original_quantity !== undefined && 
+    item.original_quantity !== null &&
+    item.original_quantity !== item.quantity;
+  
   return {
     id: item.id,
     orderId: item.order_id,
@@ -21,7 +27,8 @@ export const adaptOrderItemToCamelCase = (item: any): OrderItem => {
     missingQuantity: item.missing_quantity,
     pickedQuantity: item.picked_quantity,
     pickedWeight: item.picked_weight,
-    originalQuantity: item.original_quantity,
+    // Only include originalQuantity if there was an actual change
+    originalQuantity: hasActualQuantityChange ? item.original_quantity : undefined,
     boxNumber: item.box_number,
     manualWeight: item.manual_weight
   };
@@ -33,7 +40,13 @@ export const adaptOrderItemToCamelCase = (item: any): OrderItem => {
 export const adaptOrderItemToSnakeCase = (item: OrderItem): any => {
   if (!item) return null as any;
   
-  return {
+  // Only include original_quantity if explicitly set and different
+  const hasActualQuantityChange = 
+    item.originalQuantity !== undefined &&
+    item.originalQuantity !== null &&
+    item.originalQuantity !== item.quantity;
+  
+  const result = {
     id: item.id,
     order_id: item.orderId,
     product_id: item.productId,
@@ -46,8 +59,14 @@ export const adaptOrderItemToSnakeCase = (item: OrderItem): any => {
     missing_quantity: item.missingQuantity,
     picked_quantity: item.pickedQuantity,
     picked_weight: item.pickedWeight,
-    original_quantity: item.originalQuantity,
     box_number: item.boxNumber,
     manual_weight: item.manualWeight
   };
+  
+  // Only add original_quantity if there was an actual change
+  if (hasActualQuantityChange) {
+    result['original_quantity'] = item.originalQuantity;
+  }
+  
+  return result;
 };

@@ -82,21 +82,32 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         return;
       }
       
-      // Only set originalQuantity if it's actually different from the current quantity
-      // This is the key fix to prevent items from showing as changed when they haven't been
+      // IMPORTANT: Force originalQuantity to undefined for all items in new orders
+      // This ensures no items show as changed when they weren't
       const initialItems: ExtendedOrderItem[] = items.map(item => {
-        const hasActualQuantityChange = 
+        // Explicitly check if there's been an actual change tracked in the system
+        const hasRecordedChange = 
           item.originalQuantity !== undefined && 
+          item.originalQuantity !== null && 
           item.originalQuantity !== item.quantity;
         
         return {
           ...item,
           checked: !!item.checked,
           boxNumber: item.boxNumber || item.box_number,
-          // Only include originalQuantity if there was an actual change
-          originalQuantity: hasActualQuantityChange ? item.originalQuantity : undefined
+          // Only set originalQuantity if there's an actual recorded change
+          originalQuantity: hasRecordedChange ? item.originalQuantity : undefined
         };
       });
+      
+      console.log("PickingList: Initialized items with originalQuantity check:", 
+        initialItems.map(item => ({
+          name: item.product?.name,
+          quantity: item.quantity,
+          originalQuantity: item.originalQuantity,
+          hasOriginalQuantity: item.originalQuantity !== undefined
+        }))
+      );
       
       setOrderItems(initialItems);
       
@@ -113,10 +124,11 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Start picking progress
       if (!getPickingInProgress(order)) {
         // Update order to indicate picking has started
+        // IMPORTANT: Changed status from "Processing" to "Picking" to match database constraint
         const updatedOrder = {
           ...order,
           pickingInProgress: true,
-          status: "Processing" as const
+          status: "Picking" as const
         };
         updateOrder(updatedOrder);
       }
@@ -225,19 +237,30 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     
     try {
       // Map the order items to the format expected by the database
-      const updatedOrderItems = orderItems.map(item => ({
-        id: item.id,
-        orderId: item.orderId,
-        productId: item.productId,
-        quantity: item.quantity,
-        batchNumber: item.batchNumber || "",
-        checked: item.checked,
-        pickedQuantity: item.checked ? item.quantity : 0,
-        pickedWeight: item.pickedWeight || 0,
-        boxNumber: item.boxNumber || 0,
-        // Only include originalQuantity if it was explicitly set
-        ...(item.originalQuantity !== undefined && {originalQuantity: item.originalQuantity})
-      }));
+      const updatedOrderItems = orderItems.map(item => {
+        // Log item state before saving
+        console.log(`Saving item ${item.product?.name}:`, {
+          quantity: item.quantity,
+          originalQuantity: item.originalQuantity,
+          hasOriginalQuantity: item.originalQuantity !== undefined
+        });
+        
+        return {
+          id: item.id,
+          orderId: item.orderId,
+          productId: item.productId,
+          quantity: item.quantity,
+          batchNumber: item.batchNumber || "",
+          checked: item.checked,
+          pickedQuantity: item.checked ? item.quantity : 0,
+          pickedWeight: item.pickedWeight || 0,
+          boxNumber: item.boxNumber || 0,
+          // Only include originalQuantity if it was explicitly set and is different
+          ...(item.originalQuantity !== undefined && 
+             item.originalQuantity !== item.quantity && 
+             {originalQuantity: item.originalQuantity})
+        };
+      });
       
       // Prepare total missing and completed data
       const allChecked = updatedOrderItems.every(item => item.checked);
@@ -251,6 +274,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         newStatus = "Missing Items";
       } else if (updatedOrderItems.some(item => item.checked)) {
         newStatus = "Partially Picked";
+      } else {
+        // IMPORTANT: Keep "Picking" instead of "Processing" to match database constraint
+        newStatus = "Picking";
       }
 
       // Record batch usage for each item
@@ -280,6 +306,8 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         completedBoxes,
         savedBoxes
       };
+      
+      console.log("Saving order with status:", newStatus);
       
       // If order is completed, also record all batch usages
       if (newStatus === "Completed") {

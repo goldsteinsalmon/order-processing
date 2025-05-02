@@ -89,8 +89,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 
   // Helper function to check if quantity has changed
   const hasQuantityChanged = (item: ExtendedOrderItem) => {
-    // Only show as changed if originalQuantity is explicitly set and different
+    // Make sure we have both original and current quantity and they're different
     return (item.originalQuantity !== undefined) && 
+           (item.originalQuantity !== null) &&
            (item.originalQuantity !== item.quantity);
   };
 
