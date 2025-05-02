@@ -1,6 +1,7 @@
+
 import React, { useMemo, useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
-import { Edit, FilePlus, ClipboardList } from "lucide-react";
+import { Edit, ClipboardList } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
 import { Button } from "@/components/ui/button";
@@ -181,12 +182,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
 
   return (
     <div>
-      <div className="flex justify-between mb-6">
-        <h2 className="text-2xl font-bold">Orders</h2>
-        <Button onClick={() => navigate("/create-order")}>
-          <FilePlus className="mr-2 h-4 w-4" /> Create Order
-        </Button>
-      </div>
+      <h2 className="text-2xl font-bold mb-6">Orders</h2>
 
       <div className="rounded-md border">
         <div className="overflow-x-auto">
