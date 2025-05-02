@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
+import { getCompletedBoxes } from "@/utils/propertyHelpers";
 
 const PrintBoxLabelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ const PrintBoxLabelPage: React.FC = () => {
       // Mark this box as completed
       if (boxNum > 0) {
         // Create copies to avoid directly mutating state
-        const updatedCompletedBoxes = [...(order.completedBoxes || [])];
+        const updatedCompletedBoxes = [...(getCompletedBoxes(order) || [])];
         const updatedSavedBoxes = [...(order.savedBoxes || [])];
         
         // Mark the box as completed if not already
