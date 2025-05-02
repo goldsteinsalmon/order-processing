@@ -45,15 +45,23 @@ const PickingListPage: React.FC = () => {
 
   // Handle save in progress state
   const handleSaveStart = () => {
+    console.log("Save operation starting");
     setIsLoading(true);
   };
 
   const handleSaveComplete = (success: boolean) => {
+    console.log(`Save operation completed with status: ${success}`);
     setIsLoading(false);
     if (success) {
       toast({
         title: "Success",
         description: "Order progress saved successfully",
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to save order progress. Please try again.",
+        variant: "destructive",
       });
     }
   };

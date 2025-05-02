@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -164,6 +165,8 @@ export const useOrderData = (toast: any) => {
   // Update order
   const updateOrder = async (updatedOrder: Order): Promise<boolean> => {
     try {
+      console.log("Starting order update with ID:", updatedOrder.id);
+      
       // Check if the order is in orders list or completedOrders
       const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
       
@@ -232,7 +235,12 @@ export const useOrderData = (toast: any) => {
         
         // Process each updated item
         for (const item of updatedOrder.items) {
-          if (item.id && existingItemMap.has(item.id)) {
+          if (!item.id) {
+            console.error("Item missing ID:", item);
+            continue;
+          }
+          
+          if (existingItemMap.has(item.id)) {
             // Convert item to snake_case
             const itemForDb = adaptOrderItemToSnakeCase(item);
             console.log(`Updating item ${item.id}:`, {
@@ -412,7 +420,7 @@ export const useOrderData = (toast: any) => {
       console.error('Error updating order:', error);
       toast({
         title: "Error",
-        description: "Failed to update order.",
+        description: "Failed to update order: " + (error instanceof Error ? error.message : String(error)),
         variant: "destructive",
       });
       return false;

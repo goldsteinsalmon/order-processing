@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { OrderItem } from '@/types';
 import { Check, Printer, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,12 +91,27 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
            (item.originalQuantity !== item.quantity);
   };
 
-  // Handle checkbox change with direct state update 
-  const handleCheckboxChange = (itemId: string, checked: boolean) => {
+  // Use memoized handlers to prevent unnecessary re-renders
+  const handleCheckboxChange = useCallback((itemId: string, checked: boolean) => {
     console.log(`ItemsTable: Checkbox changed for item ${itemId} to ${checked}`);
     // Call the parent handler immediately with the new state
     onCheckItem(itemId, checked);
-  };
+  }, [onCheckItem]);
+
+  const handleBatchNumberChange = useCallback((itemId: string, value: string, boxNumber: number) => {
+    console.log(`ItemsTable: Batch number changed for item ${itemId} to ${value}`);
+    onBatchNumberChange(itemId, value, boxNumber);
+  }, [onBatchNumberChange]);
+
+  const handleWeightChange = useCallback((itemId: string, weight: number) => {
+    console.log(`ItemsTable: Weight changed for item ${itemId} to ${weight}`);
+    onWeightChange(itemId, weight);
+  }, [onWeightChange]);
+
+  const handleMissingItemChange = useCallback((itemId: string, quantity: number) => {
+    console.log(`ItemsTable: Missing item changed for ${itemId} to ${quantity}`);
+    onMissingItemChange(itemId, quantity);
+  }, [onMissingItemChange]);
 
   // Render a box section
   const renderBoxSection = (boxNumber: number, boxItems: ExtendedOrderItem[]) => {
@@ -179,7 +194,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     <Input 
                       type="text"
                       value={item.batchNumber || ''}
-                      onChange={e => onBatchNumberChange(item.id, e.target.value, boxNumber)}
+                      onChange={(e) => handleBatchNumberChange(item.id, e.target.value, boxNumber)}
                       className="w-full"
                       placeholder="Enter batch #"
                     />
@@ -191,7 +206,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           <Input
                             type="number"
                             value={(item.pickedWeight || '').toString()}
-                            onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
+                            onChange={(e) => handleWeightChange(item.id, parseFloat(e.target.value) || 0)}
                             className="w-full"
                             placeholder="Weight"
                           />
@@ -205,7 +220,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       <Input
                         type="number"
                         value={missingItems.find(mi => mi.id === item.id)?.quantity.toString() || '0'}
-                        onChange={e => onMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
+                        onChange={(e) => handleMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
                         className="w-16"
                         min={0}
                         max={item.quantity}
@@ -284,7 +299,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     <Input 
                       type="text"
                       value={item.batchNumber || ''}
-                      onChange={e => onBatchNumberChange(item.id, e.target.value, 0)}
+                      onChange={(e) => handleBatchNumberChange(item.id, e.target.value, 0)}
                       className="w-full"
                       placeholder="Enter batch #"
                     />
@@ -296,7 +311,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                           <Input
                             type="number"
                             value={(item.pickedWeight || '').toString()}
-                            onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
+                            onChange={(e) => handleWeightChange(item.id, parseFloat(e.target.value) || 0)}
                             className="w-full"
                             placeholder="Weight"
                           />
@@ -309,7 +324,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     <Input
                       type="number"
                       value={missingItems.find(mi => mi.id === item.id)?.quantity.toString() || '0'}
-                      onChange={e => onMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
+                      onChange={(e) => handleMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
                       className="w-16"
                       min={0}
                       max={item.quantity}
