@@ -44,3 +44,17 @@ export const getNextBoxToProcess = (order: OrderBase): number | null => {
   const nextBox = boxes.find(box => !completedBoxes.includes(box.boxNumber));
   return nextBox ? nextBox.boxNumber : null;
 };
+
+/**
+ * Safely get batch number from a box, handling both camelCase and snake_case properties
+ */
+export const getBoxBatchNumber = (box: any): string | undefined => {
+  return box.batchNumber || box.batch_number;
+};
+
+/**
+ * Safely get batch number from a box item, handling both camelCase and snake_case properties
+ */
+export const getBoxItemBatchNumber = (item: any): string | undefined => {
+  return item.batchNumber || item.batch_number;
+};
