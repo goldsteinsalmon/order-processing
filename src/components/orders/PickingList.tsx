@@ -24,7 +24,7 @@ interface PickingListProps {
 }
 
 const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
-  const { orders, loading: ordersLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder } = useData();
+  const { orders, isLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   
   // Load order data
   useEffect(() => {
-    if (ordersLoading) {
+    if (isLoading) {
       return;
     }
     
@@ -108,7 +108,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       console.error("Error processing order data:", error);
       setOrderError("There was an error processing this order data. Please try again later.");
     }
-  }, [orderId, orders, ordersLoading, missingItems, updateOrder]);
+  }, [orderId, orders, isLoading, missingItems, updateOrder]);
   
   // Effect to scroll to next box if specified
   useEffect(() => {
@@ -375,7 +375,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     return orderItems.filter(item => item.boxNumber === boxNumber);
   };
   
-  if (ordersLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <DebugLoader isLoading={true} context="Picking List" />

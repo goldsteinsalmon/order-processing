@@ -13,7 +13,7 @@ import { DebugLoader } from "@/components/ui/debug-loader";
 
 const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { orders, ordersLoading } = useData();
+  const { orders, isLoading } = useData();
   const navigate = useNavigate();
   
   return (
@@ -35,9 +35,9 @@ const OrdersPage: React.FC = () => {
         </Button>
       </div>
       
-      <DebugLoader isLoading={ordersLoading} context="Orders Page" />
+      <DebugLoader isLoading={isLoading} context="Orders Page" />
       
-      {!ordersLoading && orders.length === 0 ? (
+      {!isLoading && orders.length === 0 ? (
         <Card className="w-full">
           <CardContent className="flex flex-col items-center justify-center p-6">
             <div className="text-center p-6">
