@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -74,7 +75,7 @@ interface SupabaseDataContextType {
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
   recordAllBatchUsagesForOrder: (order: any) => void;
   refreshData: () => Promise<void>;
-  fetchProducts: () => Promise<void>; // Add this method to the interface
+  fetchProducts: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -998,3 +999,403 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
       
       if (fetchError) {
         throw fetchError;
+      }
+      
+      // Convert to camelCase
+      const formattedReturn = adaptReturnToCamelCase(data);
+      
+      // Update the returns state with the updated return
+      setReturns(prev => 
+        prev.map(r => r.id === returnItem.id ? formattedReturn : r)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating return:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update return.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Complaint operations
+  const addComplaint = async (complaint: any): Promise<any | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .insert([complaint])
+        .select('*, product:products(*)');
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Convert to camelCase
+      const formattedComplaint = adaptComplaintToCamelCase(data[0]);
+      
+      setComplaints(prev => [...prev, formattedComplaint]);
+      return formattedComplaint;
+    } catch (error) {
+      console.error("Error adding complaint:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add complaint.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const updateComplaint = async (complaint: any): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('complaints')
+        .update(complaint)
+        .eq('id', complaint.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      const { data, error: fetchError } = await supabase
+        .from('complaints')
+        .select('*, product:products(*)')
+        .eq('id', complaint.id)
+        .single();
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      // Convert to camelCase
+      const formattedComplaint = adaptComplaintToCamelCase(data);
+      
+      // Update the complaints state with the updated complaint
+      setComplaints(prev => 
+        prev.map(c => c.id === complaint.id ? formattedComplaint : c)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating complaint:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update complaint.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // User operations
+  const addUser = async (user: any): Promise<any | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .insert([user])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers(prev => [...prev, data[0]]);
+      return data[0];
+    } catch (error) {
+      console.error("Error adding user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add user.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const updateUser = async (user: any): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update(user)
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers(prev => 
+        prev.map(u => u.id === user.id ? user : u)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update user.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      return true;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Picker operations
+  const addPicker = async (picker: any): Promise<any | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('pickers')
+        .insert([picker])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setPickers(prev => [...prev, data[0]]);
+      return data[0];
+    } catch (error) {
+      console.error("Error adding picker:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add picker.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const updatePicker = async (picker: any): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('pickers')
+        .update(picker)
+        .eq('id', picker.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setPickers(prev => 
+        prev.map(p => p.id === picker.id ? picker : p)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating picker:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update picker.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deletePicker = async (pickerId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('pickers')
+        .delete()
+        .eq('id', pickerId);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setPickers(prev => prev.filter(p => p.id !== pickerId));
+      return true;
+    } catch (error) {
+      console.error("Error deleting picker:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete picker.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Non-working days operations
+  const addNonWorkingDay = async (date: string, description?: string): Promise<any | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('non_working_days')
+        .insert([{
+          date,
+          description
+        }])
+        .select();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setNonWorkingDays(prev => [...prev, data[0]]);
+      return data[0];
+    } catch (error) {
+      console.error("Error adding non-working day:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add non-working day.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const updateNonWorkingDay = async (id: string, description: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('non_working_days')
+        .update({ description })
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setNonWorkingDays(prev => 
+        prev.map(d => d.id === id ? { ...d, description } : d)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating non-working day:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update non-working day.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const deleteNonWorkingDay = async (id: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('non_working_days')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      setNonWorkingDays(prev => prev.filter(d => d.id !== id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting non-working day:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete non-working day.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Batch usage operations
+  const getBatchUsages = () => {
+    return batchUsages;
+  };
+
+  const getBatchUsageByBatchNumber = (batchNumber: string) => {
+    return batchUsages.find(usage => usage.batchNumber === batchNumber);
+  };
+
+  const recordBatchUsage = (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => {
+    // Implementation would go here
+    console.log("Recording batch usage:", { batchNumber, productId, quantity, orderId, manualWeight });
+    // This would typically update the database and local state
+  };
+
+  const recordAllBatchUsagesForOrder = (order: any) => {
+    // Implementation would go here
+    console.log("Recording batch usages for order:", order.id);
+    // This would typically iterate through order items and record batch usage for each
+  };
+
+  // Value object for the context provider
+  const value: SupabaseDataContextType = {
+    customers,
+    products,
+    orders,
+    completedOrders,
+    standingOrders,
+    returns,
+    complaints,
+    missingItems,
+    users,
+    pickers,
+    batchUsages,
+    nonWorkingDays,
+    addNonWorkingDay,
+    updateNonWorkingDay,
+    deleteNonWorkingDay,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    addOrder,
+    updateOrder,
+    deleteOrder,
+    completeOrder,
+    addStandingOrder,
+    updateStandingOrder,
+    processStandingOrders,
+    addReturn,
+    updateReturn,
+    addComplaint,
+    updateComplaint,
+    addMissingItem,
+    removeMissingItem,
+    addUser,
+    updateUser,
+    deleteUser,
+    addPicker,
+    updatePicker,
+    deletePicker,
+    getBatchUsages,
+    getBatchUsageByBatchNumber,
+    recordBatchUsage,
+    recordAllBatchUsagesForOrder,
+    refreshData,
+    fetchProducts,
+    isLoading
+  };
+
+  return (
+    <SupabaseDataContext.Provider value={value}>
+      {children}
+    </SupabaseDataContext.Provider>
+  );
+};
