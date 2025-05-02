@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -70,7 +71,7 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
       customerOrderNumber: standingOrder.customerOrderNumber,
       orderDate: new Date().toISOString(),
       requiredDate: deliveryDate,
-      deliveryMethod: standingOrder.deliveryMethod,
+      deliveryMethod: standingOrder.schedule.deliveryMethod,
       notes: modifiedDelivery.notes || standingOrder.notes,
       status: "Pending",
       fromStandingOrder: standingOrder.id,
