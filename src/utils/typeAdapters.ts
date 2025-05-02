@@ -17,6 +17,9 @@ export const adaptCustomerToCamelCase = (customer: any): Customer => {
     needsDetailedBoxLabels: customer.needs_detailed_box_labels || false
   };
 
+  console.log("adaptCustomerToCamelCase - Input:", customer);
+  console.log("adaptCustomerToCamelCase - Output:", result);
+  
   return result;
 };
 
@@ -36,6 +39,9 @@ export const adaptCustomerToSnakeCase = (customer: Customer): any => {
     hold_reason: customer.holdReason,
     needs_detailed_box_labels: customer.needsDetailedBoxLabels || false
   };
+  
+  console.log("adaptCustomerToSnakeCase - Input:", customer);
+  console.log("adaptCustomerToSnakeCase - Output:", result);
   
   return result;
 };

@@ -162,18 +162,30 @@ const CustomerDetailsPage: React.FC = () => {
   const toggleHoldStatus = () => {
     if (!processedCustomer) return;
     
+    console.log("toggleHoldStatus - Current customer state:", processedCustomer);
+    
     if (processedCustomer.onHold) {
       // Remove hold
       const updatedCustomer = {
         ...processedCustomer,
         onHold: false,
         holdReason: undefined,
+        // Make sure we preserve all important fields
+        accountNumber: processedCustomer.accountNumber,
+        needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels,
         updated: new Date().toISOString()
       };
+      
+      console.log("toggleHoldStatus - Removing hold, updated customer:", updatedCustomer);
       
       updateCustomer(updatedCustomer)
         .then(success => {
           if (success) {
+            // Force refresh the customer data
+            const refreshedCustomer = customers.find(c => c.id === processedCustomer.id);
+            
+            console.log("toggleHoldStatus - Hold removed, refreshed customer:", refreshedCustomer);
+            
             toast({
               title: "Hold removed",
               description: `${processedCustomer.name}'s account is now active.`
@@ -190,17 +202,30 @@ const CustomerDetailsPage: React.FC = () => {
   const applyHold = () => {
     if (!processedCustomer) return;
     
+    console.log("applyHold - Current customer state:", processedCustomer);
+    
     const updatedCustomer = {
       ...processedCustomer,
       onHold: true,
       holdReason: holdReason,
+      // Make sure we preserve all important fields
+      accountNumber: processedCustomer.accountNumber,
+      needsDetailedBoxLabels: processedCustomer.needsDetailedBoxLabels,
       updated: new Date().toISOString()
     };
+    
+    console.log("applyHold - Adding hold, updated customer:", updatedCustomer);
     
     updateCustomer(updatedCustomer)
       .then(success => {
         if (success) {
           setShowHoldDialog(false);
+          
+          // Force refresh the customer data
+          const refreshedCustomer = customers.find(c => c.id === processedCustomer.id);
+          
+          console.log("applyHold - Hold applied, refreshed customer:", refreshedCustomer);
+          
           toast({
             title: "Account on hold",
             description: `${processedCustomer.name}'s account has been placed on hold.`

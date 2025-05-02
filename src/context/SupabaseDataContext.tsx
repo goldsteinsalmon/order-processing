@@ -22,6 +22,7 @@ import {
   adaptComplaintToCamelCase,
   adaptMissingItemToCamelCase,
   adaptBatchUsageToCamelCase,
+  adaptCustomerToSnakeCase
 } from "@/utils/typeAdapters";
 import { useToast } from "@/hooks/use-toast";
 import { useMissingItemData } from "@/hooks/data/useMissingItemData";
@@ -297,17 +298,28 @@ export const SupabaseDataProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const updateCustomer = async (customer: any): Promise<boolean> => {
     try {
+      console.log("SupabaseDataContext updateCustomer - Received customer:", customer);
+      
+      // Convert to snake_case before sending to database
+      const customerForDb = adaptCustomerToSnakeCase(customer);
+      console.log("SupabaseDataContext updateCustomer - Converted to snake_case for DB:", customerForDb);
+      
       const { error } = await supabase
         .from('customers')
-        .update(customer)
+        .update(customerForDb)
         .eq('id', customer.id);
       
       if (error) {
+        console.error("Supabase update customer error:", error);
         throw error;
       }
       
+      // Convert back to camelCase for state update
+      const updatedCustomer = adaptCustomerToCamelCase(customerForDb);
+      console.log("SupabaseDataContext updateCustomer - Updated customer for state:", updatedCustomer);
+      
       setCustomers(prev =>
-        prev.map(c => c.id === customer.id ? customer : c)
+        prev.map(c => c.id === customer.id ? updatedCustomer : c)
       );
       
       return true;
