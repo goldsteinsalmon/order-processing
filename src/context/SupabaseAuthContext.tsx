@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface SupabaseAuthContextType {
   user: User | null;
@@ -29,6 +30,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Function to handle redirects after authentication events
   const redirectAfterAuth = (event: string) => {
@@ -37,13 +39,15 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         title: "Signed in",
         description: "You have been signed in successfully.",
       });
-      window.location.href = '/orders';
+      // Use React Router navigate instead of window.location.href
+      navigate('/orders');
     } else if (event === 'SIGNED_OUT') {
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
-      window.location.href = '/login';
+      // Use React Router navigate instead of window.location.href
+      navigate('/login');
     }
   };
 
@@ -56,8 +60,13 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setUser(newSession?.user ?? null);
         
         // Handle session changes - but don't navigate in the initial load
+        // Instead of redirecting directly, we'll set appropriate state
+        // and let components handle navigation if needed
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          redirectAfterAuth(event);
+          // Only redirect if this is an actual auth event, not the initial session check
+          if (isLoading === false) {
+            redirectAfterAuth(event);
+          }
         }
       }
     );
@@ -75,7 +84,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => {
       subscription.unsubscribe();
     };
-  }, [toast]);
+  }, [toast, navigate, isLoading]);
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {

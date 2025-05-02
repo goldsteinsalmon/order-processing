@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, session, redirectAfterAuth } = useSupabaseAuth();
+  const { signIn, session } = useSupabaseAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -46,8 +46,14 @@ const LoginPage: React.FC = () => {
       const { success, error } = await signIn(email, password);
       
       if (success) {
-        // Force redirect after successful login
-        redirectAfterAuth('SIGNED_IN');
+        // Use React Router for navigation instead of redirectAfterAuth
+        toast({
+          title: "Success",
+          description: "You have been signed in successfully.",
+        });
+        
+        // Navigate to the redirect path
+        navigate(from, { replace: true });
       } else {
         toast({
           title: "Error",
