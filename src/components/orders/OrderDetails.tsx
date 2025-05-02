@@ -126,7 +126,7 @@ const OrderDetails: React.FC = () => {
             <dl className="grid grid-cols-1 gap-3 text-sm">
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order ID:</dt>
-                <dd className="col-span-2">{order.id}</dd>
+                <dd className="col-span-2">#{order.orderNumber || order.order_number || order.id.substring(0, 8)}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>

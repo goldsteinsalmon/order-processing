@@ -47,6 +47,7 @@ export interface SupabaseOrderItem {
 
 export interface SupabaseOrder {
   id: string;
+  order_number?: number;
   customer_id: string;
   customer?: SupabaseCustomer;
   customer_order_number?: string;

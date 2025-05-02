@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { Edit, ClipboardList } from "lucide-react";
@@ -25,6 +24,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
     return orders.filter(order => 
       order.customer?.name?.toLowerCase().includes(lowerSearchTerm) ||
       order.id.toLowerCase().includes(lowerSearchTerm) ||
+      (order.orderNumber?.toString().includes(lowerSearchTerm)) ||
+      (order.order_number?.toString().includes(lowerSearchTerm)) ||
       order.deliveryMethod?.toLowerCase().includes(lowerSearchTerm) ||
       order.status?.toLowerCase().includes(lowerSearchTerm)
     );
@@ -189,7 +190,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium">Order ID</th>
+                <th className="px-4 py-3 text-left font-medium">Order No.</th>
                 <th className="px-4 py-3 text-left font-medium">Customer</th>
                 <th className="px-4 py-3 text-left font-medium">Order Date</th>
                 <th className="px-4 py-3 text-left font-medium">Delivery Method</th>
@@ -219,6 +220,9 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                   const statusDisplay = getOrderStatusDisplay(order);
                   const highlightChanges = shouldHighlightChanges(order);
                   
+                  // Get the order number, with a fallback to a truncated UUID
+                  const orderNumber = order.orderNumber || order.order_number || `#${order.id.substring(0, 8)}`;
+                  
                   return (
                     <tr 
                       key={order.id}
@@ -228,7 +232,9 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
                         highlightChanges ? "bg-amber-50" : ""
                       }`}
                     >
-                      <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
+                      <td className="px-4 py-3">
+                        {typeof orderNumber === 'number' ? orderNumber : orderNumber}
+                      </td>
                       <td className="px-4 py-3">{order.customer?.name || "Unknown Customer"}</td>
                       <td className="px-4 py-3">
                         {safeFormatDate(getOrderDate(order))}

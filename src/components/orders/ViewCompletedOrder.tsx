@@ -30,7 +30,9 @@ const ViewCompletedOrder: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Completed Order Details</h2>
+        <h2 className="text-2xl font-bold">
+          Completed Order #{selectedOrder?.orderNumber || selectedOrder?.order_number || selectedOrder?.id.substring(0, 8)}
+        </h2>
         <Button variant="outline" onClick={handlePrint}>
           <Printer className="h-4 w-4 mr-2" /> Print Order
         </Button>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -29,6 +28,7 @@ export const useOrderData = (toast: any) => {
           notes: orderForDb.notes,
           status: orderForDb.status,
           created: new Date().toISOString()
+          // order_number will be assigned automatically by the database trigger
         })
         .select();
       

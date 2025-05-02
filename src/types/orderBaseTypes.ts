@@ -6,6 +6,7 @@ import { Customer } from "@/types";
  */
 export interface OrderBase {
   id: string;
+  orderNumber?: number;
   customerId: string;
   customer?: Customer;
   customerOrderNumber?: string;
@@ -58,6 +59,7 @@ export interface OrderBase {
   
   // Legacy properties for backward compatibility
   customer_id?: string;
+  order_number?: number;
   customer_order_number?: string;
   order_date?: string;
   required_date?: string;

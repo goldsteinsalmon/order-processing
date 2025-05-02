@@ -569,6 +569,7 @@ export type Database = {
           is_picked: boolean | null
           notes: string | null
           order_date: string
+          order_number: number | null
           picked_at: string | null
           picked_by: string | null
           picker: string | null
@@ -594,6 +595,7 @@ export type Database = {
           is_picked?: boolean | null
           notes?: string | null
           order_date: string
+          order_number?: number | null
           picked_at?: string | null
           picked_by?: string | null
           picker?: string | null
@@ -619,6 +621,7 @@ export type Database = {
           is_picked?: boolean | null
           notes?: string | null
           order_date?: string
+          order_number?: number | null
           picked_at?: string | null
           picked_by?: string | null
           picker?: string | null
