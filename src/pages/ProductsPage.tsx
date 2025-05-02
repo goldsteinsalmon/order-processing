@@ -1,18 +1,17 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusCircle, Search, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DebugLoader } from "@/components/ui/debug-loader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
   const { products, isLoading, refreshData } = useData();
   const navigate = useNavigate();
 
@@ -40,10 +39,6 @@ const ProductsPage = () => {
   const sortedProducts = [...filteredProducts].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
-
-  // Default all products to active if not specified
-  const activeProducts = sortedProducts.filter((product) => product.active !== false);
-  const inactiveProducts = sortedProducts.filter((product) => product.active === false);
 
   return (
     <Layout>
@@ -79,181 +74,60 @@ const ProductsPage = () => {
         onRetry={handleRetryFetch}
       />
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="inactive">Inactive</TabsTrigger>
-        </TabsList>
-        <TabsContent value="all" className="mt-4">
-          {isLoading ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[80%]" />
-                      <Skeleton className="h-4 w-[60%]" />
-                      <Skeleton className="h-4 w-[40%]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : sortedProducts.length === 0 ? (
-            <Card className="w-full">
-              <CardContent className="flex flex-col items-center justify-center p-6">
-                <div className="text-center p-6">
-                  <h3 className="font-semibold text-lg mb-2">No products yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Add your first product to get started
-                  </p>
-                  <Button onClick={() => navigate("/create-product")}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create Product
-                  </Button>
+      {isLoading ? (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[80%]" />
+                  <Skeleton className="h-4 w-[60%]" />
+                  <Skeleton className="h-4 w-[40%]" />
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {sortedProducts.map((product) => (
-                <Card key={product.id}>
-                  <CardHeader>
-                    <CardTitle>{product.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p>Description: {product.description || "N/A"}</p>
-                    <p>SKU: {product.sku || "N/A"}</p>
-                    <p>Barcode: {product.barcode || "N/A"}</p>
-                    <p>Active: {product.active !== false ? "Yes" : "No"}</p>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => navigate(`/edit-product/${product.id}`)}
-                      className="mt-2"
-                    >
-                      Edit
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+          ))}
+        </div>
+      ) : sortedProducts.length === 0 ? (
+        <Card className="w-full">
+          <CardContent className="flex flex-col items-center justify-center p-6">
+            <div className="text-center p-6">
+              <h3 className="font-semibold text-lg mb-2">No products yet</h3>
+              <p className="text-muted-foreground mb-4">
+                Add your first product to get started
+              </p>
+              <Button onClick={() => navigate("/create-product")}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create Product
+              </Button>
             </div>
-          )}
-        </TabsContent>
-        <TabsContent value="active" className="mt-4">
-          {isLoading ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[80%]" />
-                      <Skeleton className="h-4 w-[60%]" />
-                      <Skeleton className="h-4 w-[40%]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : activeProducts.length === 0 ? (
-            <Card className="w-full">
-              <CardContent className="flex flex-col items-center justify-center p-6">
-                <div className="text-center p-6">
-                  <h3 className="font-semibold text-lg mb-2">No active products</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Add a product or activate an existing one
-                  </p>
-                  <Button onClick={() => navigate("/create-product")}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create Product
-                  </Button>
-                </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+          {sortedProducts.map((product) => (
+            <Card key={product.id}>
+              <CardHeader>
+                <CardTitle>{product.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Description: {product.description || "N/A"}</p>
+                <p>SKU: {product.sku || "N/A"}</p>
+                <p>Barcode: {product.barcode || "N/A"}</p>
+                <p>Active: {product.active !== false ? "Yes" : "No"}</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigate(`/edit-product/${product.id}`)}
+                  className="mt-2"
+                >
+                  Edit
+                </Button>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {activeProducts.map((product) => (
-                <Card key={product.id}>
-                  <CardHeader>
-                    <CardTitle>{product.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p>Description: {product.description || "N/A"}</p>
-                    <p>SKU: {product.sku || "N/A"}</p>
-                    <p>Barcode: {product.barcode || "N/A"}</p>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => navigate(`/edit-product/${product.id}`)}
-                      className="mt-2"
-                    >
-                      Edit
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="inactive" className="mt-4">
-          {isLoading ? (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i}>
-                  <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <Skeleton className="h-4 w-[80%]" />
-                      <Skeleton className="h-4 w-[60%]" />
-                      <Skeleton className="h-4 w-[40%]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : inactiveProducts.length === 0 ? (
-            <Card className="w-full">
-              <CardContent className="flex flex-col items-center justify-center p-6">
-                <div className="text-center p-6">
-                  <h3 className="font-semibold text-lg mb-2">
-                    No inactive products
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Deactivate a product to see it here
-                  </p>
-                  <Button onClick={() => navigate("/create-product")}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create Product
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {inactiveProducts.map((product) => (
-                <Card key={product.id}>
-                  <CardHeader>
-                    <CardTitle>{product.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p>Description: {product.description || "N/A"}</p>
-                    <p>SKU: {product.sku || "N/A"}</p>
-                    <p>Barcode: {product.barcode || "N/A"}</p>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => navigate(`/edit-product/${product.id}`)}
-                      className="mt-2"
-                    >
-                      Edit
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          ))}
+        </div>
+      )}
     </Layout>
   );
 };
