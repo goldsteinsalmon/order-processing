@@ -22,6 +22,10 @@ export async function runOrderNumberMigration() {
     // Set the sequence to start at 1000 (or higher if there are existing orders)
     const startValue = Math.max(1000, data?.order_number || 0);
     
+    // Use the SUPABASE_PUBLISHABLE_KEY from the client file
+    // This is the same public API key that's used throughout the app
+    const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyY2h5d255b3Fjd3dma3h6c2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMDk1MzksImV4cCI6MjA2MTU4NTUzOX0.mmi8EHZnmbFg9m7DJEOf0izPHPOLU6Qo8PrbY9a38Fg";
+    
     // Execute a query to directly set the sequence value
     // Use a POST request since Supabase doesn't allow direct SQL execution through the client
     const response = await fetch(
@@ -30,8 +34,8 @@ export async function runOrderNumberMigration() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': supabase.supabaseKey,
-          'Authorization': `Bearer ${supabase.supabaseKey}`
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
         },
         body: JSON.stringify({
           sql_query: `SELECT setval('public.order_number_seq', ${startValue}, true)`
