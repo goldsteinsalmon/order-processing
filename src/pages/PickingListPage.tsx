@@ -1,10 +1,11 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import PickingList from "@/components/orders/PickingList";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const PickingListPage: React.FC = () => {
   // Get the order ID from the URL parameters
@@ -12,7 +13,8 @@ const PickingListPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Check if we need to highlight a specific box (coming back from printing)
   const searchParams = new URLSearchParams(location.search);
@@ -21,23 +23,40 @@ const PickingListPage: React.FC = () => {
 
   console.log("PickingListPage: Rendering with orderId:", id, "nextBox:", nextBox);
 
+  // Clear any previous errors when component loads or ID changes
+  useEffect(() => {
+    setError(null);
+  }, [id]);
+
   // Handle navigation errors gracefully
-  const handleNavigationError = () => {
+  const handleNavigationError = (errorMsg?: string) => {
     setIsLoading(false);
+    const message = errorMsg || "There was an issue loading the order. Please try again.";
+    setError(message);
     toast({
       title: "Error",
-      description: "There was an issue loading the order. Please try again.",
+      description: message,
       variant: "destructive",
     });
-    navigate("/orders");
+    
+    // Don't navigate away immediately if we have a specific error to show
+    if (!errorMsg) {
+      setTimeout(() => {
+        navigate("/orders");
+      }, 3000);
+    }
   };
 
   if (!id) {
     console.error("PickingListPage: No order ID found in URL parameters");
     return (
       <Layout>
-        <div className="p-4 text-red-500">
-          Error: No order ID provided in the URL.
+        <div className="p-4">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>No order ID provided in the URL.</AlertDescription>
+          </Alert>
         </div>
       </Layout>
     );
@@ -49,8 +68,8 @@ const PickingListPage: React.FC = () => {
     setIsLoading(true);
   };
 
-  const handleSaveComplete = (success: boolean) => {
-    console.log(`Save operation completed with status: ${success}`);
+  const handleSaveComplete = (success: boolean, errorMessage?: string) => {
+    console.log(`Save operation completed with status: ${success}, message: ${errorMessage || 'none'}`);
     setIsLoading(false);
     if (success) {
       toast({
@@ -58,9 +77,10 @@ const PickingListPage: React.FC = () => {
         description: "Order progress saved successfully",
       });
     } else {
+      setError(errorMessage || "Unknown error occurred");
       toast({
         title: "Error",
-        description: "Failed to save order progress. Please try again.",
+        description: errorMessage || "Failed to save order progress. Please try again.",
         variant: "destructive",
       });
     }
@@ -77,6 +97,14 @@ const PickingListPage: React.FC = () => {
               <p className="text-sm text-gray-500">Please wait, don't navigate away.</p>
             </div>
           </div>
+        )}
+        
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
         
         <PickingList 

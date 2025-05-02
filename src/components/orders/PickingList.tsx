@@ -1,11 +1,10 @@
-
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, CheckCircle, Printer, Save, ArrowLeft } from "lucide-react";
+import { Loader2, CheckCircle, Printer, Save, ArrowLeft, Bug } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
 import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
@@ -14,13 +13,15 @@ import { Order, OrderItem, MissingItem } from "@/types";
 import { getOrderDate, getDeliveryMethod, getPickingInProgress, getBoxDistributions, getCustomerOrderNumber, getCustomerId } from "@/utils/propertyHelpers";
 import { DebugLoader } from "@/components/ui/debug-loader";
 import OrderDetailsCard from "./picking/OrderDetailsCard";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface PickingListProps {
   orderId: string;
   nextBoxToFocus?: number;
   onSaveStart?: () => void;
-  onSaveComplete?: (success: boolean) => void;
-  onNavigationError?: () => void;
+  onSaveComplete?: (success: boolean, errorMessage?: string) => void;
+  onNavigationError?: (errorMessage?: string) => void;
 }
 
 const PickingList: React.FC<PickingListProps> = ({ 
@@ -50,6 +51,7 @@ const PickingList: React.FC<PickingListProps> = ({
   const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
   const [pickingStartAttempted, setPickingStartAttempted] = useState<boolean>(false);
   const [lastSavedItems, setLastSavedItems] = useState<ExtendedOrderItem[]>([]);
+  const [debugMode, setDebugMode] = useState<boolean>(false);
   
   // Load order data
   useEffect(() => {
@@ -71,7 +73,7 @@ const PickingList: React.FC<PickingListProps> = ({
       console.error("PickingList: Order not found with ID:", orderId);
       setOrderError("Order not found. It may have been deleted or you don't have permission to view it.");
       if (onNavigationError) {
-        onNavigationError();
+        onNavigationError("Order not found. It may have been deleted or you don't have permission to view it.");
       }
       return;
     }
@@ -105,7 +107,8 @@ const PickingList: React.FC<PickingListProps> = ({
         id: item.id,
         name: item.product?.name,
         checked: item.checked,
-        boxNumber: item.boxNumber || item.box_number
+        boxNumber: item.boxNumber || item.box_number,
+        batchNumber: item.batchNumber || item.batch_number
       })));
       
       // IMPORTANT: Force originalQuantity to undefined for all items in new orders
@@ -120,7 +123,7 @@ const PickingList: React.FC<PickingListProps> = ({
         return {
           ...item,
           checked: !!item.checked,
-          boxNumber: item.boxNumber || item.box_number,
+          boxNumber: item.boxNumber || item.box_number || 0,
           batchNumber: item.batchNumber || item.batch_number || "",
           // Only set originalQuantity if there's an actual recorded change
           originalQuantity: hasRecordedChange ? item.originalQuantity : undefined
@@ -139,7 +142,7 @@ const PickingList: React.FC<PickingListProps> = ({
       );
       
       setOrderItems(initialItems);
-      setLastSavedItems(initialItems);
+      setLastSavedItems(JSON.parse(JSON.stringify(initialItems))); // Deep copy to prevent reference issues
       
       // Load existing completed boxes if any
       if (order.completedBoxes && order.completedBoxes.length > 0) {
@@ -164,7 +167,7 @@ const PickingList: React.FC<PickingListProps> = ({
       console.error("Error processing order data:", error);
       setOrderError("There was an error processing this order data. Please try again later.");
       if (onNavigationError) {
-        onNavigationError();
+        onNavigationError("There was an error processing this order data: " + (error instanceof Error ? error.message : String(error)));
       }
     }
   }, [orderId, orders, isLoading, missingItems, updateOrder, pickers, onNavigationError]);
@@ -210,39 +213,39 @@ const PickingList: React.FC<PickingListProps> = ({
     }
   }, [nextBoxToFocus]);
   
-  const handleCheckItem = (itemId: string, checked: boolean) => {
+  const handleCheckItem = useCallback((itemId: string, checked: boolean) => {
     console.log(`CheckItem: Setting item ${itemId} checked to ${checked}`);
     setOrderItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId ? { ...item, checked } : item
       )
     );
-  };
+  }, []);
   
-  const handleBatchNumberChange = (itemId: string, batchNumber: string, boxNumber: number = 0) => {
+  const handleBatchNumberChange = useCallback((itemId: string, batchNumber: string, boxNumber: number = 0) => {
     console.log(`BatchNumber: Setting item ${itemId} batch to ${batchNumber}`);
     setOrderItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId ? { ...item, batchNumber, boxNumber } : item
       )
     );
-  };
+  }, []);
   
-  const handleWeightChange = (itemId: string, weight: number) => {
+  const handleWeightChange = useCallback((itemId: string, weight: number) => {
     console.log(`Weight: Setting item ${itemId} weight to ${weight}`);
     setOrderItems(prevItems =>
       prevItems.map(item =>
         item.id === itemId ? { ...item, pickedWeight: weight } : item
       )
     );
-  };
+  }, []);
   
-  const handlePickerChange = (pickerId: string) => {
+  const handlePickerChange = useCallback((pickerId: string) => {
     console.log(`Picker: Setting picker to ${pickerId}`);
     setSelectedPickerId(pickerId);
-  };
+  }, []);
   
-  const handleMissingItemChange = (itemId: string, quantity: number) => {
+  const handleMissingItemChange = useCallback((itemId: string, quantity: number) => {
     const item = orderItems.find(i => i.id === itemId);
     if (!item) return;
     
@@ -280,9 +283,9 @@ const PickingList: React.FC<PickingListProps> = ({
       // Remove missing item if quantity is 0
       handleResolveMissingItem(item.id);
     }
-  };
+  }, [orderItems, orderMissingItems, selectedOrder, addMissingItem]);
   
-  const handleResolveMissingItem = (itemId: string) => {
+  const handleResolveMissingItem = useCallback((itemId: string) => {
     const item = orderItems.find(i => i.id === itemId);
     if (!item) return;
     
@@ -294,7 +297,7 @@ const PickingList: React.FC<PickingListProps> = ({
       // Update local state
       setOrderMissingItems(prev => prev.filter(mi => mi.id !== missingItemId));
     }
-  };
+  }, [orderItems, orderMissingItems, removeMissingItem]);
   
   const handleSave = async () => {
     if (!selectedOrder) return;
@@ -310,6 +313,10 @@ const PickingList: React.FC<PickingListProps> = ({
         checked: i.checked,
         batchNumber: i.batchNumber
       })));
+      
+      if (debugMode) {
+        console.log("DEBUG: Full item state before saving:", JSON.stringify(orderItems, null, 2));
+      }
       
       // Map the order items to the format expected by the database
       const updatedOrderItems = orderItems.map(item => {
@@ -379,7 +386,8 @@ const PickingList: React.FC<PickingListProps> = ({
         missing_items: orderMissingItems, // Add this for database compatibility
         completedBoxes,
         completed_boxes: completedBoxes, // Add this for database compatibility
-        savedBoxes
+        savedBoxes,
+        saved_boxes: savedBoxes
       };
       
       console.log("Saving order with status:", newStatus);
@@ -406,7 +414,7 @@ const PickingList: React.FC<PickingListProps> = ({
           return;
         } else {
           console.error("Failed to complete order!");
-          if (onSaveComplete) onSaveComplete(false);
+          if (onSaveComplete) onSaveComplete(false, "Failed to complete order");
         }
       } else {
         const success = await updateOrder(updatedOrder);
@@ -414,7 +422,7 @@ const PickingList: React.FC<PickingListProps> = ({
         // If update was successful, update our local state reference
         if (success) {
           console.log("Order update successful, updating last saved items");
-          setLastSavedItems([...orderItems]);
+          setLastSavedItems(JSON.parse(JSON.stringify(orderItems))); // Deep copy to avoid reference issues
           
           toast({
             title: "Order saved",
@@ -431,17 +439,18 @@ const PickingList: React.FC<PickingListProps> = ({
             variant: "destructive",
           });
           
-          if (onSaveComplete) onSaveComplete(false);
+          if (onSaveComplete) onSaveComplete(false, "Failed to update order in the database");
         }
       }
     } catch (error) {
       console.error("Error saving order:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       toast({
         title: "Error",
-        description: "Failed to save order. Please try again.",
+        description: "Failed to save order: " + errorMessage,
         variant: "destructive",
       });
-      if (onSaveComplete) onSaveComplete(false);
+      if (onSaveComplete) onSaveComplete(false, errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -473,10 +482,10 @@ const PickingList: React.FC<PickingListProps> = ({
     });
   };
   
-  const handlePrintBoxLabel = (boxNumber: number) => {
+  const handlePrintBoxLabel = useCallback((boxNumber: number) => {
     setSelectedBoxToPrint(boxNumber);
     setShowBoxPrintDialog(true);
-  };
+  }, []);
   
   const handleConfirmPrintBox = () => {
     // Close dialog
@@ -540,6 +549,11 @@ const PickingList: React.FC<PickingListProps> = ({
     return orderItems.filter(item => item.boxNumber === boxNumber);
   };
   
+  // Toggle debug mode
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode);
+  };
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -590,15 +604,51 @@ const PickingList: React.FC<PickingListProps> = ({
       {/* Header with back button */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Picking List</h1>
-        <Button 
-          variant="outline" 
-          onClick={handleCancel}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Orders
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center space-x-2">
+            <Switch id="debug-mode" checked={debugMode} onCheckedChange={toggleDebugMode} />
+            <Label htmlFor="debug-mode" className="flex items-center">
+              <Bug className="h-4 w-4 mr-1" /> Debug Mode
+            </Label>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleCancel}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Orders
+          </Button>
+        </div>
       </div>
+      
+      {/* Debug info panel when debug mode is enabled */}
+      {debugMode && (
+        <div className="p-4 bg-slate-50 border rounded-lg mb-4">
+          <h3 className="font-semibold text-lg mb-2">Debug Information</h3>
+          <div className="space-y-2 text-sm">
+            <p><strong>Order ID:</strong> {selectedOrder.id}</p>
+            <p><strong>Items Count:</strong> {orderItems.length}</p>
+            <p><strong>Has Unsaved Changes:</strong> {hasUnsavedChanges ? "Yes" : "No"}</p>
+            <p><strong>Missing Items Count:</strong> {missingItemCount}</p>
+            <p><strong>Selected Picker:</strong> {selectedPickerId || "None"}</p>
+            <p><strong>Completed Boxes:</strong> {completedBoxes.join(", ") || "None"}</p>
+            
+            <div className="mt-2">
+              <p className="font-semibold">Item State Sample (First 2 Items):</p>
+              <pre className="bg-slate-100 p-2 rounded text-xs overflow-x-auto">
+                {JSON.stringify(orderItems.slice(0, 2).map(item => ({
+                  id: item.id,
+                  name: item.product?.name,
+                  checked: item.checked,
+                  batchNumber: item.batchNumber,
+                  boxNumber: item.boxNumber
+                })), null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Order details card with picker selection */}
       <OrderDetailsCard 

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
@@ -8,6 +7,16 @@ import { adaptOrderItemToSnakeCase } from "@/utils/orderItemAdapters";
 export const useOrderData = (toast: any) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  // Helper function to log and format database errors
+  const handleDatabaseError = (error: any, operation: string): string => {
+    const errorMessage = error?.message || error?.toString() || "Unknown database error";
+    console.error(`Database error during ${operation}:`, error);
+    console.error(`Error details:`, JSON.stringify(error, null, 2));
+    setLastError(`${operation} error: ${errorMessage}`);
+    return errorMessage;
+  };
 
   // Add order
   const addOrder = async (order: Order): Promise<Order | null> => {
@@ -166,12 +175,18 @@ export const useOrderData = (toast: any) => {
   const updateOrder = async (updatedOrder: Order): Promise<boolean> => {
     try {
       console.log("Starting order update with ID:", updatedOrder.id);
+      setLastError(null);
       
       // Check if the order is in orders list or completedOrders
       const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
       
       console.log("Updating order:", updatedOrder.id);
       console.log("Order items count:", updatedOrder.items?.length);
+      
+      // Safeguard against undefined values
+      if (!updatedOrder.id) {
+        throw new Error("Cannot update order: missing order ID");
+      }
       
       // Convert to snake_case for database
       const orderForDb = adaptOrderToSnakeCase(updatedOrder);
@@ -204,8 +219,8 @@ export const useOrderData = (toast: any) => {
         .eq('id', updatedOrder.id);
       
       if (orderError) {
-        console.error("Error updating order details:", orderError);
-        throw orderError;
+        const errorMsg = handleDatabaseError(orderError, "Update order details");
+        throw new Error(errorMsg);
       }
       
       console.log("Order details successfully updated");
@@ -221,8 +236,8 @@ export const useOrderData = (toast: any) => {
           .eq('order_id', updatedOrder.id);
         
         if (itemsError) {
-          console.error("Error fetching existing items:", itemsError);
-          throw itemsError;
+          const errorMsg = handleDatabaseError(itemsError, "Fetch existing items");
+          throw new Error(errorMsg);
         }
         
         console.log(`Found ${existingItems?.length || 0} existing items in database`);
@@ -240,6 +255,9 @@ export const useOrderData = (toast: any) => {
             continue;
           }
           
+          // Log batch number to debug disappearing values
+          console.log(`Processing item ${item.id} with batch number: ${item.batchNumber || 'none'} and checked: ${item.checked}`);
+          
           if (existingItemMap.has(item.id)) {
             // Convert item to snake_case
             const itemForDb = adaptOrderItemToSnakeCase(item);
@@ -256,8 +274,8 @@ export const useOrderData = (toast: any) => {
                 unavailable_quantity: itemForDb.unavailable_quantity,
                 is_unavailable: itemForDb.is_unavailable,
                 blown_pouches: itemForDb.blown_pouches,
-                batch_number: itemForDb.batch_number,
-                checked: itemForDb.checked,
+                batch_number: itemForDb.batch_number || "", // Ensure null batch numbers are saved as empty strings
+                checked: itemForDb.checked !== undefined ? itemForDb.checked : false, // Default to false if undefined
                 missing_quantity: itemForDb.missing_quantity,
                 picked_quantity: itemForDb.picked_quantity,
                 picked_weight: itemForDb.picked_weight,
@@ -268,8 +286,11 @@ export const useOrderData = (toast: any) => {
               .eq('id', item.id);
             
             if (updateItemError) {
-              console.error(`Error updating item ${item.id}:`, updateItemError);
-              throw updateItemError;
+              const errorMsg = handleDatabaseError(updateItemError, `Update item ${item.id}`);
+              console.error(`Error updating item ${item.id}:`, errorMsg);
+              // Continue with other items instead of throwing to ensure partial updates are saved
+            } else {
+              console.log(`Successfully updated item ${item.id}`);
             }
             
             // Remove from map to track what's been processed
@@ -297,8 +318,9 @@ export const useOrderData = (toast: any) => {
               });
             
             if (insertItemError) {
-              console.error("Error inserting new item:", insertItemError);
-              throw insertItemError;
+              const errorMsg = handleDatabaseError(insertItemError, "Insert new item");
+              console.error("Error inserting new item:", errorMsg);
+              // Continue with other items
             }
           }
         }
@@ -313,8 +335,9 @@ export const useOrderData = (toast: any) => {
             .in('id', itemsToDelete);
           
           if (deleteItemsError) {
-            console.error("Error deleting removed items:", deleteItemsError);
-            throw deleteItemsError;
+            const errorMsg = handleDatabaseError(deleteItemsError, "Delete removed items");
+            console.error("Error deleting removed items:", errorMsg);
+            // Continue anyway
           }
         }
         
@@ -416,11 +439,11 @@ export const useOrderData = (toast: any) => {
       }
       
       return true;
-    } catch (error) {
-      console.error('Error updating order:', error);
+    } catch (error: any) {
+      const errorMessage = handleDatabaseError(error, "Update order");
       toast({
         title: "Error",
-        description: "Failed to update order: " + (error instanceof Error ? error.message : String(error)),
+        description: "Failed to update order: " + errorMessage,
         variant: "destructive",
       });
       return false;
@@ -635,6 +658,10 @@ export const useOrderData = (toast: any) => {
     }
   };
 
+  // Get last error
+  const getLastError = () => lastError;
+  const clearLastError = () => setLastError(null);
+
   return {
     orders,
     completedOrders,
@@ -643,6 +670,8 @@ export const useOrderData = (toast: any) => {
     addOrder,
     updateOrder,
     deleteOrder,
-    completeOrder
+    completeOrder,
+    getLastError,
+    clearLastError
   };
 };
