@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Extended OrderItem type to include UI state properties
 export interface ExtendedOrderItem extends OrderItem {
@@ -89,101 +90,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 
   // Helper function to check if quantity has changed
   const hasQuantityChanged = (item: ExtendedOrderItem) => {
-    // Make sure we have both original and current quantity and they're different
     return (item.originalQuantity !== undefined) && 
            (item.originalQuantity !== null) &&
            (item.originalQuantity !== item.quantity);
   };
 
-  // Render item row
-  const renderItemRow = (item: ExtendedOrderItem, boxNumber: number = 0) => {
-    // Find if this item has been marked as missing
-    const missingItem = missingItems.find(mi => mi.id === item.id);
-    const missingQuantity = missingItem ? missingItem.quantity : 0;
-    
-    // Check if item requires weight input
-    const requiresWeightInput = item.product.requiresWeightInput;
-    
-    // Determine if there's been a quantity change
-    const quantityChanged = hasQuantityChanged(item);
-    
-    // For debugging
-    if (quantityChanged) {
-      console.log(`Item ${item.product.name} shows as changed:`, {
-        originalQuantity: item.originalQuantity,
-        currentQuantity: item.quantity
-      });
-    }
-    
-    return (
-      <tr key={item.id} className={`border-b ${quantityChanged ? 'bg-yellow-50' : ''}`}>
-        <td className="p-2">
-          <Checkbox 
-            checked={item.checked} 
-            onCheckedChange={checked => onCheckItem(item.id, !!checked)}
-          />
-        </td>
-        <td className="p-2">
-          <div className={quantityChanged ? 'font-medium text-amber-700' : ''}>
-            {item.product.name}
-          </div>
-          {quantityChanged && (
-            <div className="text-xs text-amber-700">
-              Changed from {item.originalQuantity}
-            </div>
-          )}
-        </td>
-        <td className="p-2 text-center">{item.quantity}</td>
-        <td className="p-2">
-          <Input 
-            type="text"
-            value={item.batchNumber || ''}
-            onChange={e => onBatchNumberChange(item.id, e.target.value, boxNumber)}
-            className="w-24"
-            placeholder="Batch #"
-          />
-        </td>
-        {requiresWeightInput && (
-          <td className="p-2">
-            <Input
-              type="number"
-              value={(item.pickedWeight || '').toString()}
-              onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
-              className="w-24"
-              placeholder="Weight"
-            />
-            <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
-          </td>
-        )}
-        <td className="p-2">
-          <div className="flex items-center space-x-2">
-            <Input
-              type="number"
-              value={missingQuantity.toString()}
-              onChange={e => onMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
-              className="w-16"
-              min={0}
-              max={item.quantity}
-            />
-            {missingQuantity > 0 && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => onResolveMissingItem(item.id)}
-                className="text-xs h-8"
-              >
-                <Check className="h-3 w-3 mr-1" /> Resolved
-              </Button>
-            )}
-          </div>
-        </td>
-      </tr>
-    );
-  };
-
   // Render a box section
   const renderBoxSection = (boxNumber: number, boxItems: ExtendedOrderItem[]) => {
-    // Check if this box number has already been completed
     const isCompleted = completedBoxes.includes(boxNumber);
     const isSaved = savedBoxes.includes(boxNumber);
     const boxIsComplete = isBoxComplete(boxItems);
@@ -219,25 +132,89 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-2 w-10">&nbsp;</th>
-                  <th className="text-left p-2">Product</th>
-                  <th className="p-2 w-20 text-center">Qty</th>
-                  <th className="p-2 w-32">Batch #</th>
-                  {boxItems.some(item => item.product.requiresWeightInput) && (
-                    <th className="p-2 w-32">Weight</th>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">Picked</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-center">Quantity</TableHead>
+                <TableHead>Batch Number</TableHead>
+                {boxItems.some(item => item.product.requiresWeightInput) && (
+                  <TableHead>Weight</TableHead>
+                )}
+                <TableHead>Missing</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {boxItems.map(item => (
+                <TableRow 
+                  key={item.id} 
+                  className={hasQuantityChanged(item) ? 'bg-yellow-50' : ''}
+                >
+                  <TableCell>
+                    <Checkbox 
+                      checked={item.checked} 
+                      onCheckedChange={checked => onCheckItem(item.id, !!checked)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className={hasQuantityChanged(item) ? 'font-medium text-amber-700' : ''}>
+                      {item.product.name}
+                    </div>
+                    {hasQuantityChanged(item) && (
+                      <div className="text-xs text-amber-700">
+                        Changed from {item.originalQuantity}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">{item.quantity}</TableCell>
+                  <TableCell>
+                    <Input 
+                      type="text"
+                      value={item.batchNumber || ''}
+                      onChange={e => onBatchNumberChange(item.id, e.target.value, boxNumber)}
+                      className="w-full"
+                      placeholder="Enter batch #"
+                    />
+                  </TableCell>
+                  {item.product.requiresWeightInput && (
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={(item.pickedWeight || '').toString()}
+                        onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
+                        className="w-full"
+                        placeholder="Weight"
+                      />
+                      <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
+                    </TableCell>
                   )}
-                  <th className="p-2 w-32">Missing</th>
-                </tr>
-              </thead>
-              <tbody>
-                {boxItems.map(item => renderItemRow(item, boxNumber))}
-              </tbody>
-            </table>
-          </div>
+                  <TableCell>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="number"
+                        value={missingItems.find(mi => mi.id === item.id)?.quantity.toString() || '0'}
+                        onChange={e => onMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
+                        className="w-16"
+                        min={0}
+                        max={item.quantity}
+                      />
+                      {missingItems.find(mi => mi.id === item.id && mi.quantity > 0) && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => onResolveMissingItem(item.id)}
+                          className="text-xs h-8"
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Resolved
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     );
@@ -246,25 +223,101 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   // Render simple list without box grouping
   const renderSimpleList = () => {
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left p-2 w-10">&nbsp;</th>
-              <th className="text-left p-2">Product</th>
-              <th className="p-2 w-20 text-center">Qty</th>
-              <th className="p-2 w-32">Batch #</th>
-              {items.some(item => item.product.requiresWeightInput) && (
-                <th className="p-2 w-32">Weight</th>
-              )}
-              <th className="p-2 w-32">Missing</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => renderItemRow(item))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Items to Pick</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">Picked</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-center">Quantity</TableHead>
+                <TableHead>Batch Number</TableHead>
+                {items.some(item => item.product.requiresWeightInput) && (
+                  <TableHead>Weight</TableHead>
+                )}
+                <TableHead>Missing</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map(item => (
+                <TableRow 
+                  key={item.id}
+                  className={hasQuantityChanged(item) ? 'bg-yellow-50' : ''}
+                >
+                  <TableCell>
+                    <Checkbox 
+                      checked={item.checked} 
+                      onCheckedChange={checked => onCheckItem(item.id, !!checked)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div className={hasQuantityChanged(item) ? 'font-medium text-amber-700' : ''}>
+                      {item.product.name}
+                    </div>
+                    {hasQuantityChanged(item) && (
+                      <div className="text-xs text-amber-700">
+                        Changed from {item.originalQuantity}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">{item.quantity}</TableCell>
+                  <TableCell>
+                    <Input 
+                      type="text"
+                      value={item.batchNumber || ''}
+                      onChange={e => onBatchNumberChange(item.id, e.target.value, 0)}
+                      className="w-full"
+                      placeholder="Enter batch #"
+                    />
+                  </TableCell>
+                  {items.some(item => item.product.requiresWeightInput) && (
+                    <TableCell>
+                      {item.product.requiresWeightInput ? (
+                        <div>
+                          <Input
+                            type="number"
+                            value={(item.pickedWeight || '').toString()}
+                            onChange={e => onWeightChange(item.id, parseFloat(e.target.value) || 0)}
+                            className="w-full"
+                            placeholder="Weight"
+                          />
+                          <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
+                        </div>
+                      ) : null}
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <Input
+                      type="number"
+                      value={missingItems.find(mi => mi.id === item.id)?.quantity.toString() || '0'}
+                      onChange={e => onMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
+                      className="w-16"
+                      min={0}
+                      max={item.quantity}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {missingItems.find(mi => mi.id === item.id && mi.quantity > 0) && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => onResolveMissingItem(item.id)}
+                        className="text-xs h-8"
+                      >
+                        <Check className="h-3 w-3 mr-1" /> Resolved
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     );
   };
 

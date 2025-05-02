@@ -34,11 +34,13 @@ const PickingListPage: React.FC = () => {
 
   return (
     <Layout>
-      <PickingList 
-        orderId={id} 
-        nextBoxToFocus={nextBoxNumber} 
-        key={`picking-${id}-${nextBox || 'default'}`} // Force re-render on box change
-      />
+      <div className="container mx-auto px-4 py-6">
+        <PickingList 
+          orderId={id} 
+          nextBoxToFocus={nextBoxNumber} 
+          key={`picking-${id}-${nextBox || 'default'}`} // Force re-render on box change
+        />
+      </div>
     </Layout>
   );
 };

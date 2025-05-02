@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Order, Picker } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { 
   Select,
@@ -26,53 +26,42 @@ const OrderDetailsCard: React.FC<OrderDetailsCardProps> = ({
   pickers 
 }) => {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle>Order Details</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Column 1 - Customer Info */}
-          <div className="space-y-2">
-            <div>
-              <Label>Customer</Label>
-              <div className="font-medium">{selectedOrder.customer.name}</div>
-            </div>
+    <Card className="mb-6">
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Left Column - Order Details */}
+          <div className="space-y-6 col-span-2">
+            <h2 className="text-2xl font-bold">Order Details</h2>
             
-            <div>
-              <Label>Order Date</Label>
-              <div>{format(new Date(selectedOrder.order_date), "MMM d, yyyy")}</div>
-            </div>
-            
-            <div>
-              <Label>Delivery Method</Label>
-              <div>{selectedOrder.delivery_method}</div>
-            </div>
-          </div>
-          
-          {/* Column 2 - Notes */}
-          <div className="space-y-2">
-            {selectedOrder.notes && (
+            <div className="space-y-4">
               <div>
-                <Label>Notes</Label>
-                <div className="text-sm bg-gray-50 p-2 rounded border">
-                  {selectedOrder.notes}
+                <Label className="text-gray-500 block mb-1">Customer</Label>
+                <div className="font-medium text-lg">{selectedOrder.customer.name}</div>
+              </div>
+              
+              <div>
+                <Label className="text-gray-500 block mb-1">Order Date</Label>
+                <div className="font-medium">
+                  {format(new Date(selectedOrder.order_date), "MMMM d, yyyy")}
                 </div>
               </div>
-            )}
+              
+              <div>
+                <Label className="text-gray-500 block mb-1">Delivery Method</Label>
+                <div className="font-medium">{selectedOrder.delivery_method}</div>
+              </div>
+            </div>
           </div>
           
-          {/* Column 3 - Picker Selection */}
-          <div className="space-y-2">
-            <div className="bg-blue-50 p-3 rounded-md border-2 border-blue-200">
-              <Label htmlFor="picker" className="text-lg font-bold text-blue-700 block mb-2">
-                Picked By
-              </Label>
+          {/* Right Column - Picker Selection */}
+          <div>
+            <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
+              <h3 className="text-xl font-bold text-blue-700 mb-4">Picked By</h3>
               <Select 
                 value={selectedPickerId} 
                 onValueChange={onPickerChange}
               >
-                <SelectTrigger id="picker" className="border-2 border-blue-300 bg-white">
+                <SelectTrigger id="picker" className="w-full border border-gray-300 bg-white">
                   <SelectValue placeholder="Select picker" />
                 </SelectTrigger>
                 <SelectContent>

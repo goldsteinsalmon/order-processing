@@ -2,21 +2,18 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle, PenSquare, Trash2, Save, Printer, Clock, AlertTriangle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, Printer, Save, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
 import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
 import PrintablePickingList from "./picking/PrintablePickingList";
-import { Order, OrderItem, MissingItem, Box, BoxItem } from "@/types";
+import { Order, OrderItem, MissingItem } from "@/types";
 import { getCustomerId, getOrderDate, getDeliveryMethod, getPickingInProgress, getBoxDistributions, getCustomerOrderNumber } from "@/utils/propertyHelpers";
 import { DebugLoader } from "@/components/ui/debug-loader";
+import OrderDetailsCard from "./picking/OrderDetailsCard";
 
 interface PickingListProps {
   orderId: string;
@@ -24,8 +21,7 @@ interface PickingListProps {
 }
 
 const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
-  // Fix the loading property name to match the DataContext type
-  const { orders, isLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder } = useData();
+  const { orders, isLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder, pickers } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   const printRef = useRef<HTMLDivElement>(null);
@@ -41,6 +37,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   const [showBoxPrintDialog, setShowBoxPrintDialog] = useState<boolean>(false);
   const [groupByBox, setGroupByBox] = useState<boolean>(false);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [selectedPickerId, setSelectedPickerId] = useState<string>("");
   
   // Load order data
   useEffect(() => {
@@ -69,6 +66,13 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       
       // Set the order
       setSelectedOrder(order);
+      
+      // Set picker if exists
+      if (order.picked_by) {
+        setSelectedPickerId(order.picked_by);
+      } else if (pickers.length > 0) {
+        setSelectedPickerId(pickers[0].id);
+      }
       
       // Check if order has box distributions and use that to determine grouping
       const hasBoxDistributions = getBoxDistributions(order) && getBoxDistributions(order).length > 0;
@@ -124,7 +128,6 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       // Start picking progress
       if (!getPickingInProgress(order)) {
         // Update order to indicate picking has started
-        // IMPORTANT: Changed status from "Processing" to "Picking" to match database constraint
         const updatedOrder = {
           ...order,
           pickingInProgress: true,
@@ -140,7 +143,7 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       console.error("Error processing order data:", error);
       setOrderError("There was an error processing this order data. Please try again later.");
     }
-  }, [orderId, orders, isLoading, missingItems, updateOrder]);
+  }, [orderId, orders, isLoading, missingItems, updateOrder, pickers]);
   
   // Effect to scroll to next box if specified
   useEffect(() => {
@@ -174,6 +177,10 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         item.id === itemId ? { ...item, pickedWeight: weight } : item
       )
     );
+  };
+  
+  const handlePickerChange = (pickerId: string) => {
+    setSelectedPickerId(pickerId);
   };
   
   const handleMissingItemChange = (itemId: string, quantity: number) => {
@@ -238,13 +245,6 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
     try {
       // Map the order items to the format expected by the database
       const updatedOrderItems = orderItems.map(item => {
-        // Log item state before saving
-        console.log(`Saving item ${item.product?.name}:`, {
-          quantity: item.quantity,
-          originalQuantity: item.originalQuantity,
-          hasOriginalQuantity: item.originalQuantity !== undefined
-        });
-        
         return {
           id: item.id,
           orderId: item.orderId,
@@ -275,7 +275,6 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
       } else if (updatedOrderItems.some(item => item.checked)) {
         newStatus = "Partially Picked";
       } else {
-        // IMPORTANT: Keep "Picking" instead of "Processing" to match database constraint
         newStatus = "Picking";
       }
 
@@ -298,9 +297,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         items: updatedOrderItems,
         status: newStatus,
         isPicked: allChecked,
-        totalBlownPouches: 0, // TODO: implement blown pouches
+        totalBlownPouches: 0,
         pickingInProgress: !allChecked,
-        pickedBy: "Current User", // TODO: get from auth context
+        pickedBy: selectedPickerId,
         pickedAt: allChecked ? new Date().toISOString() : undefined,
         missingItems: orderMissingItems,
         completedBoxes,
@@ -436,7 +435,6 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   if (orderError) {
     return (
       <Alert variant="destructive" className="mb-6">
-        <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
         <AlertDescription>
           {orderError}
@@ -464,121 +462,77 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   
   return (
     <div className="space-y-6">
-      {/* Order header */}
-      <Card className="mb-6">
-        <CardHeader className="flex flex-row justify-between items-center">
-          <div>
-            <CardTitle className="text-xl">
-              Picking Order #{selectedOrder.id.substring(0, 8)}
-            </CardTitle>
-            {getCustomerOrderNumber(selectedOrder) && (
-              <p className="text-sm text-muted-foreground">
-                {getCustomerOrderNumber(selectedOrder)}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrintClick}
-              className="flex gap-1"
-            >
-              <Printer className="h-4 w-4" /> Print All
-            </Button>
-            <Button
-              onClick={handleCancel}
-              variant="outline"
-              size="sm"
-              className="flex gap-1"
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <h3 className="font-medium mb-1">Customer</h3>
-              <p>{selectedOrder.customer.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {selectedOrder.customer.email}
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium mb-1">Order Details</h3>
-              <p>
-                <span className="text-muted-foreground">Date:</span>{" "}
-                {format(new Date(getOrderDate(selectedOrder)), "MMMM d, yyyy")}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Delivery:</span>{" "}
-                {getDeliveryMethod(selectedOrder)}
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium mb-1">Status</h3>
-              <div className="flex items-center gap-2">
-                {selectedOrder.status === "Completed" ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                ) : selectedOrder.status === "Missing Items" ? (
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
-                ) : (
-                  <Clock className="h-5 w-5 text-blue-500" />
-                )}
-                <span>{selectedOrder.status}</span>
-              </div>
-              {missingItemCount > 0 && (
-                <p className="text-sm text-red-500 mt-1">
-                  {missingItemCount} item(s) missing
-                </p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Picking interface */}
-      <div className="space-y-6">
-        <ItemsTable 
-          items={orderItems}
-          missingItems={orderMissingItems.map(item => ({ id: item.orderId, quantity: item.quantity }))}
-          onCheckItem={handleCheckItem}
-          onBatchNumberChange={handleBatchNumberChange}
-          onMissingItemChange={handleMissingItemChange}
-          onResolveMissingItem={handleResolveMissingItem}
-          onWeightChange={handleWeightChange}
-          onPrintBoxLabel={handlePrintBoxLabel}
-          onSaveBoxProgress={handleSaveBoxProgress}
-          groupByBox={groupByBox}
-          completedBoxes={completedBoxes}
-          savedBoxes={savedBoxes}
-        />
+      {/* Header with back button */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-3xl font-bold">Picking List</h1>
+        <Button 
+          variant="outline" 
+          onClick={handleCancel}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Orders
+        </Button>
       </div>
-
+      
+      {/* Order details card with picker selection */}
+      <OrderDetailsCard 
+        selectedOrder={selectedOrder}
+        selectedPickerId={selectedPickerId}
+        onPickerChange={handlePickerChange}
+        pickers={pickers}
+      />
+      
+      {/* Order title and action buttons */}
+      <div className="flex justify-between items-center mt-8 mb-4">
+        <h2 className="text-xl font-bold">Order for {selectedOrder.customer.name}</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrintClick} className="flex items-center gap-2">
+            <Printer className="h-4 w-4" />
+            Print
+          </Button>
+          <Button variant="outline" onClick={handleSave} className="flex items-center gap-2">
+            <Save className="h-4 w-4" />
+            Save Progress
+          </Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Complete Order
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      
+      {/* Picking interface */}
+      <ItemsTable 
+        items={orderItems}
+        missingItems={orderMissingItems.map(item => ({ id: item.orderId, quantity: item.quantity }))}
+        onCheckItem={handleCheckItem}
+        onBatchNumberChange={handleBatchNumberChange}
+        onMissingItemChange={handleMissingItemChange}
+        onResolveMissingItem={handleResolveMissingItem}
+        onWeightChange={handleWeightChange}
+        onPrintBoxLabel={handlePrintBoxLabel}
+        onSaveBoxProgress={handleSaveBoxProgress}
+        groupByBox={groupByBox}
+        completedBoxes={completedBoxes}
+        savedBoxes={savedBoxes}
+      />
+      
       {/* Notes if any */}
       {selectedOrder.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Order Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{selectedOrder.notes}</p>
-          </CardContent>
-        </Card>
+        <div className="mt-6 p-4 bg-gray-50 border rounded-lg">
+          <h3 className="font-semibold mb-2">Order Notes</h3>
+          <p>{selectedOrder.notes}</p>
+        </div>
       )}
       
       {/* Hidden print component */}
