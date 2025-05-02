@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
@@ -148,8 +147,7 @@ const CustomerDetailsPage: React.FC = () => {
       type: formData.type as "Private" | "Trade",
       onHold: formData.onHold,
       holdReason: formData.onHold ? formData.holdReason : "",
-      needsDetailedBoxLabels: formData.needsDetailedBoxLabels,
-      updated: new Date().toISOString()
+      needsDetailedBoxLabels: formData.needsDetailedBoxLabels
     };
     
     console.log("CustomerDetailsPage - Updating customer:", updatedCustomer);
@@ -197,8 +195,7 @@ const CustomerDetailsPage: React.FC = () => {
       const updatedCustomer: Customer = {
         ...localCustomer,
         onHold: false,
-        holdReason: "",
-        updated: new Date().toISOString()
+        holdReason: ""
       };
       
       console.log("toggleHoldStatus - Removing hold, updated customer:", updatedCustomer);
@@ -245,8 +242,7 @@ const CustomerDetailsPage: React.FC = () => {
     const updatedCustomer: Customer = {
       ...localCustomer,
       onHold: true,
-      holdReason: holdReason,
-      updated: new Date().toISOString()
+      holdReason: holdReason
     };
     
     console.log("applyHold - Adding hold, updated customer:", updatedCustomer);

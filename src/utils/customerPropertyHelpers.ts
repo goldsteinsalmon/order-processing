@@ -5,6 +5,7 @@ import { Customer } from "@/types";
  * Safely get the account number from a customer, handling both camelCase and snake_case properties
  */
 export const getAccountNumber = (customer: Customer): string => {
+  console.log("getAccountNumber called with:", customer);
   return customer.accountNumber || "";
 };
 
@@ -12,6 +13,7 @@ export const getAccountNumber = (customer: Customer): string => {
  * Safely get whether a customer needs detailed box labels, handling both camelCase and snake_case properties
  */
 export const getNeedsDetailedBoxLabels = (customer: Customer): boolean => {
+  console.log("getNeedsDetailedBoxLabels called with:", customer);
   return customer.needsDetailedBoxLabels === true;
 };
 
@@ -19,6 +21,7 @@ export const getNeedsDetailedBoxLabels = (customer: Customer): boolean => {
  * Safely get whether a customer is on hold, handling both camelCase and snake_case properties
  */
 export const getOnHold = (customer: Customer): boolean => {
+  console.log("getOnHold called with:", customer);
   return customer.onHold === true;
 };
 
@@ -26,6 +29,7 @@ export const getOnHold = (customer: Customer): boolean => {
  * Safely get the hold reason for a customer, handling both camelCase and snake_case properties
  */
 export const getHoldReason = (customer: Customer): string => {
+  console.log("getHoldReason called with:", customer);
   // Only return the hold reason if the customer is on hold
   return getOnHold(customer) ? (customer.holdReason || "") : "";
 };
