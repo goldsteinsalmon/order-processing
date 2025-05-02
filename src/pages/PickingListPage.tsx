@@ -18,7 +18,19 @@ const PickingListPage: React.FC = () => {
   useEffect(() => {
     // This effect will trigger whenever the search params change
     // which happens when returning from print page with nextBox param
-  }, [location.search]);
+    console.log("PickingListPage: Rendering with orderId:", id, "nextBox:", nextBox);
+  }, [location.search, id, nextBox]);
+
+  if (!id) {
+    console.error("PickingListPage: No order ID found in URL parameters");
+    return (
+      <Layout>
+        <div className="p-4 text-red-500">
+          Error: No order ID provided in the URL.
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

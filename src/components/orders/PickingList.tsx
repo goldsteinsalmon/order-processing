@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useData } from "@/context/DataContext";
@@ -46,18 +45,27 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
   // Load order data
   useEffect(() => {
     if (isLoading) {
+      console.log("PickingList: Loading data...");
       return;
+    }
+    
+    console.log("PickingList: Looking for order with ID:", orderId);
+    console.log("PickingList: Total orders available:", orders.length);
+    
+    if (orders.length > 0) {
+      console.log("PickingList: First few order IDs:", orders.slice(0, 3).map(o => o.id));
     }
     
     const order = orders.find(o => o.id === orderId);
     
     if (!order) {
+      console.error("PickingList: Order not found with ID:", orderId);
       setOrderError("Order not found. It may have been deleted or you don't have permission to view it.");
       return;
     }
     
     try {
-      console.log("Found order:", order);
+      console.log("PickingList: Found order:", order);
       
       // Set the order
       setSelectedOrder(order);
@@ -74,11 +82,21 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         return;
       }
       
-      const initialItems: ExtendedOrderItem[] = items.map(item => ({
-        ...item,
-        checked: !!item.checked,
-        boxNumber: item.boxNumber || item.box_number,
-      }));
+      // Only set originalQuantity if it's actually different from the current quantity
+      // This is the key fix to prevent items from showing as changed when they haven't been
+      const initialItems: ExtendedOrderItem[] = items.map(item => {
+        const hasActualQuantityChange = 
+          item.originalQuantity !== undefined && 
+          item.originalQuantity !== item.quantity;
+        
+        return {
+          ...item,
+          checked: !!item.checked,
+          boxNumber: item.boxNumber || item.box_number,
+          // Only include originalQuantity if there was an actual change
+          originalQuantity: hasActualQuantityChange ? item.originalQuantity : undefined
+        };
+      });
       
       setOrderItems(initialItems);
       
@@ -216,7 +234,9 @@ const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) =>
         checked: item.checked,
         pickedQuantity: item.checked ? item.quantity : 0,
         pickedWeight: item.pickedWeight || 0,
-        boxNumber: item.boxNumber || 0
+        boxNumber: item.boxNumber || 0,
+        // Only include originalQuantity if it was explicitly set
+        ...(item.originalQuantity !== undefined && {originalQuantity: item.originalQuantity})
       }));
       
       // Prepare total missing and completed data
