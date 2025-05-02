@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/Layout";
 import OrdersList from "@/components/orders/OrdersList";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,14 @@ import { DebugLoader } from "@/components/ui/debug-loader";
 
 const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { orders, isLoading } = useData();
+  const { orders, isLoading, refreshData } = useData();
   const navigate = useNavigate();
+  
+  // Add useEffect to refresh data when the component mounts
+  useEffect(() => {
+    console.log("OrdersPage: Refreshing data on mount");
+    refreshData();
+  }, [refreshData]);
   
   return (
     <Layout>
