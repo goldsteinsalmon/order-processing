@@ -6,33 +6,17 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://qrchywnyoqcwwfkxzsja.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyY2h5d255b3Fjd3dma3h6c2phIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMDk1MzksImV4cCI6MjA2MTU4NTUzOX0.mmi8EHZnmbFg9m7DJEOf0izPHPOLU6Qo8PrbY9a38Fg";
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
-
 export const supabase = createClient<Database>(
   SUPABASE_URL, 
   SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
-      storage: localStorage,
-      autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false, // Disable URL-based detection to avoid race conditions
-      flowType: 'implicit' // Use implicit flow for more predictable behavior
+      autoRefreshToken: true,
+      detectSessionInUrl: false // Disable URL-based detection to prevent race conditions
     }
   }
 );
 
-// Simple session status check for debugging
-if (process.env.NODE_ENV !== 'production') {
-  // Check session on startup
-  supabase.auth.getSession().then(({ data }) => {
-    console.log('[Supabase Client] Initial session check:', 
-      data.session ? `User logged in: ${data.session.user.email}` : 'No session found');
-  });
-
-  // Log auth events for debugging
-  supabase.auth.onAuthStateChange((event) => {
-    console.log(`[Supabase Client] Auth state changed: ${event}`);
-  });
-}
+// Debug session status on client init
+console.log("[Supabase Client] Initialized");

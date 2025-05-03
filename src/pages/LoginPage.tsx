@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,35 +13,42 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-
-  // Get redirect path from location state or default to "/orders"
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/orders";
 
   // Check for existing session on component mount
   useEffect(() => {
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        console.log("[LoginPage] Existing session found, redirecting to:", from);
-        navigate(from, { replace: true });
+      try {
+        // Simpler session check
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("[LoginPage] Error checking session:", error.message);
+          return;
+        }
+        
+        if (data?.session) {
+          console.log("[LoginPage] Existing session found, redirecting to /orders");
+          navigate("/orders", { replace: true });
+        }
+      } catch (err) {
+        console.error("[LoginPage] Unexpected error checking session:", err);
       }
     };
     
     checkSession();
-  }, [navigate, from]);
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Clear previous errors
+    setLoginError("");
+    
     if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please enter both email and password",
-        variant: "destructive",
-      });
+      setLoginError("Please enter both email and password");
       return;
     }
     
@@ -56,6 +63,7 @@ const LoginPage: React.FC = () => {
       
       if (error) {
         console.error("[LoginPage] Login error:", error.message);
+        setLoginError(error.message || "Invalid email or password");
         toast({
           title: "Login Failed",
           description: error.message || "Invalid email or password",
@@ -72,11 +80,18 @@ const LoginPage: React.FC = () => {
           description: "Login successful! Redirecting...",
         });
         
-        // Navigate after successful login
-        navigate(from, { replace: true });
+        // Add a short delay before navigating to ensure state updates properly
+        setTimeout(() => {
+          navigate("/orders", { replace: true });
+        }, 100);
+      } else {
+        console.error("[LoginPage] No session returned after login");
+        setLoginError("Login failed. Please try again.");
+        setIsLoading(false);
       }
     } catch (error: any) {
       console.error("[LoginPage] Unexpected error:", error);
+      setLoginError("An unexpected error occurred");
       toast({
         title: "Error",
         description: "An unexpected error occurred",
@@ -134,6 +149,14 @@ const LoginPage: React.FC = () => {
                   />
                 </div>
               </div>
+              
+              {/* Show any login errors */}
+              {loginError && (
+                <div className="text-sm font-medium text-red-500">
+                  {loginError}
+                </div>
+              )}
+              
               <Button 
                 type="submit" 
                 className="w-full" 
