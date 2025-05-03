@@ -146,7 +146,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addPicker,
     updatePicker,
     deletePicker,
-  } = usePickersData(toast);
+  } = usePickersData();
 
   // Fetch pickers
   const fetchPickers = useCallback(async () => {

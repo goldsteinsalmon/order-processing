@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Picker } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
-export const usePickerData = (toast?: any) => {
+export const usePickerData = () => {
+  const { toast } = useToast();
   const [pickers, setPickers] = useState<Picker[]>([]);
 
   // Add picker

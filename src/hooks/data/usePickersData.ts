@@ -1,7 +1,7 @@
 
 import { usePickerData } from "./usePickerData";
 
-// This function is used in DataContext
-export const usePickersData = (toast?: any) => {
-  return usePickerData(toast);
+// This function is used in DataContext, now without toast parameter
+export const usePickersData = () => {
+  return usePickerData();
 };
