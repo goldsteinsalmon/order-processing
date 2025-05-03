@@ -4,8 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Search, Trash2, Edit, ClipboardList, Eye } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Trash2, Edit, ClipboardList, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { useData } from "@/context/DataContext";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -15,8 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import EditableCell from "@/components/ui/editable-cell";
-import { type Customer } from "@/types";
 import OrderStatusBadge from "./OrderStatusBadge";
 
 interface OrdersListProps {
@@ -75,6 +73,40 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
     await updateOrder(updatedOrder);
   };
 
+  // Navigation handlers with error handling
+  const handleViewOrderClick = (orderId: string) => {
+    try {
+      console.log("Navigating to order details:", orderId);
+      navigate(`/orders/${orderId}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      // Fallback to direct URL change if navigate fails
+      window.location.href = `/orders/${orderId}`;
+    }
+  };
+
+  const handlePickingListClick = (orderId: string) => {
+    try {
+      console.log("Navigating to picking list:", orderId);
+      navigate(`/orders/${orderId}/picking`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      // Fallback to direct URL change if navigate fails
+      window.location.href = `/orders/${orderId}/picking`;
+    }
+  };
+
+  const handleEditClick = (orderId: string) => {
+    try {
+      console.log("Navigating to edit order:", orderId);
+      navigate(`/orders/${orderId}/edit`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      // Fallback to direct URL change if navigate fails
+      window.location.href = `/orders/${orderId}/edit`;
+    }
+  };
+
   return (
     <>
       <Card className="border rounded-lg overflow-hidden">
@@ -131,7 +163,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => navigate(`/orders/${order.id}`)}
+                        onClick={() => handleViewOrderClick(order.id)}
                         className="flex items-center"
                       >
                         <Eye className="h-4 w-4 mr-2" />
@@ -140,7 +172,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => navigate(`/orders/${order.id}/picking`)}
+                        onClick={() => handlePickingListClick(order.id)}
                         className="flex items-center"
                       >
                         <ClipboardList className="h-4 w-4 mr-2" />
@@ -149,7 +181,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => navigate(`/orders/${order.id}/edit`)}
+                        onClick={() => handleEditClick(order.id)}
                         title="Edit"
                       >
                         <Edit size={16} />

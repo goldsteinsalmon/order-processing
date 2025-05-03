@@ -23,7 +23,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
 
-const CreateOrderSteps: React.FC = () => {
+const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
   const navigate = useNavigate();
   const { customers, products, addOrder } = useData();
   const { toast } = useToast();
@@ -211,8 +211,8 @@ const CreateOrderSteps: React.FC = () => {
         description: "You've canceled the on-hold customer selection. Returning to orders list.",
       });
       
-      // Force navigation back to the orders list
-      window.location.href = "/orders";
+      // Use navigate instead of direct location change
+      navigate("/orders");
     }, 0);
   };
   
@@ -373,7 +373,7 @@ const CreateOrderSteps: React.FC = () => {
               title: "Order created",
               description: "The order has been created successfully.",
             });
-            // Reset form and navigate back
+            // Reset form and navigate back using React Router
             resetForm();
             navigate("/orders");
           } else {
@@ -435,8 +435,11 @@ const CreateOrderSteps: React.FC = () => {
   };
 
   const handleCancel = () => {
-    // Use window.location for more reliable navigation
-    window.location.href = "/orders";
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate("/orders");
+    }
   };
 
   // Determine progress percentage based on completed steps
