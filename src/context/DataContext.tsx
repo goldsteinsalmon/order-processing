@@ -140,7 +140,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     deleteReturnsComplaints,
     addReturn,
     addComplaint
-  } = useReturnsComplaintsData(toast);
+  } = useReturnsComplaintsData();
 
   const {
     addPicker,

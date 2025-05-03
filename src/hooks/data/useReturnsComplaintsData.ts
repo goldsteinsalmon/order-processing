@@ -1,8 +1,10 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-export const useReturnsComplaintsData = (toast: any) => {
+export const useReturnsComplaintsData = () => {
+  const { toast } = useToast();
   const [returnsComplaints, setReturnsComplaints] = useState<any[]>([]);
 
   const addReturnsComplaints = async (data: any): Promise<any | null> => {
