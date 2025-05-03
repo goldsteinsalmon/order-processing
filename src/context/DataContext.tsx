@@ -129,7 +129,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   } = useCustomerData(toast);
 
   const {
-    addProduct,
+    addProduct: addProductSingle,
     updateProduct,
     deleteProduct,
   } = useProductData(toast);
@@ -737,8 +737,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
-        completedBoxes: newOrderData.completed_boxes ? Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : [] : [],
-        savedBoxes: newOrderData.saved_boxes ? Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : [] : [],
+        completedBoxes: Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : [],
+        savedBoxes: Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : [],
       } as Order; // Type assertion to Order
 
       setOrders([...orders, adaptedOrder]);
@@ -948,6 +948,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return false;
     }
+  };
+
+  // Function to add a product that can handle both single products and arrays
+  const addProduct = async (product: Product): Promise<Product | null> => {
+    // Simply call the useProductData hook's addProduct function which handles a single product
+    return addProductSingle(product);
   };
 
   // Function to add a missing item
@@ -1227,8 +1233,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: orderData.is_picked,
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
-        completedBoxes: orderData.completed_boxes ? Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : [] : [],
-        savedBoxes: orderData.saved_boxes ? Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : [] : [],
+        completedBoxes: Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : [],
+        savedBoxes: Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : [],
         items: orderData.items.map(item => ({
           id: item.id,
           orderId: item.order_id,
@@ -1278,11 +1284,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMissingItems,
     setPickers,
     addCustomer,
-    addProduct: (product: Product): Promise<Product | null> => {
-      // Since we're forced to use the useProductData hook which only handles single products,
-      // we'll have to implement array handling at the call site if needed
-      return addProduct(product);
-    },
+    addProduct,
     addOrder,
     addStandingOrder,
     addMissingItem,
