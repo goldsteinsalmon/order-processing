@@ -146,7 +146,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addPicker,
     updatePicker,
     deletePicker,
-  } = usePickerData();
+  } = usePickerData(toast);
 
   // Fetch pickers
   const fetchPickers = useCallback(async () => {
@@ -294,8 +294,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isPicked: order.is_picked || false,
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
-            completedBoxes: order.completed_boxes || [], // Make sure it's an array
-            savedBoxes: order.saved_boxes || [], // Make sure it's an array
+            completedBoxes: Array.isArray(order.completed_boxes) ? order.completed_boxes : [], 
+            savedBoxes: Array.isArray(order.saved_boxes) ? order.saved_boxes : [],
           } as Order; // Type assertion to Order
         });
         setOrders(adaptedOrders);
@@ -495,17 +495,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: item.id,
           customerId: item.customer_id,
           customerName: item.customer_name,
-          customerType: item.customer_type || 'Private', // Providing a default value
+          customerType: (item.customer_type || 'Private') as 'Private' | 'Trade', // Type assertion
           dateReturned: item.date_returned,
           productId: item.product_id,
           productSku: item.product_sku,
-          quantity: item.quantity,
+          quantity: item.quantity || 0,
           reason: item.reason,
           returnsRequired: item.returns_required,
           returnStatus: item.return_status,
           resolutionStatus: item.resolution_status,
           created: item.created || new Date().toISOString() // Providing a default value
-        })));
+        })) as Return[]);
       }
     } catch (error) {
       console.error('Error fetching returns:', error);
@@ -515,7 +515,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [toast, setReturns]);
 
   // Fetch complaints
   const fetchComplaints = useCallback(async () => {
@@ -539,7 +539,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: item.id,
           customerId: item.customer_id,
           customerName: item.customer_name,
-          customerType: item.customer_type || 'Private', // Providing a default value
+          customerType: (item.customer_type || 'Private') as 'Private' | 'Trade', // Type assertion
           dateSubmitted: item.date_submitted,
           complaintType: item.complaint_type,
           complaintDetails: item.complaint_details,
@@ -549,7 +549,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           returnStatus: item.return_status,
           resolutionStatus: item.resolution_status,
           created: item.created || new Date().toISOString() // Providing a default value
-        })));
+        })) as Complaint[]);
       }
     } catch (error) {
       console.error('Error fetching complaints:', error);
@@ -559,7 +559,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [toast, setComplaints]);
 
   // Fetch batch usages
   const fetchBatchUsages = useCallback(async () => {
@@ -737,8 +737,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
-        completedBoxes: newOrderData.completed_boxes || [], // Make sure it's an array
-        savedBoxes: newOrderData.saved_boxes || [], // Make sure it's an array
+        completedBoxes: Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : [], 
+        savedBoxes: Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : [], 
       } as Order; // Type assertion to Order
 
       setOrders([...orders, adaptedOrder]);
@@ -1227,8 +1227,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: orderData.is_picked,
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
-        completedBoxes: orderData.completed_boxes || [], // Make sure it's an array
-        savedBoxes: orderData.saved_boxes || [], // Make sure it's an array
+        completedBoxes: Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : [], 
+        savedBoxes: Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : [], 
         items: orderData.items.map(item => ({
           id: item.id,
           orderId: item.order_id,
