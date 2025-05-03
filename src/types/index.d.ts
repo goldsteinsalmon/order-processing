@@ -1,3 +1,4 @@
+
 export interface Customer {
   id: string;
   name: string;
@@ -58,7 +59,7 @@ export interface Order {
   customerId: string;
   customer?: Customer;
   customerOrderNumber?: string;
-  orderNumber?: number;
+  orderNumber?: number; // Added orderNumber property
   orderDate: string;
   requiredDate: string;
   deliveryMethod: "Delivery" | "Collection";
@@ -130,4 +131,44 @@ export interface Box {
 export interface BoxItem {
   productId: string;
   quantity: number;
+}
+
+export interface BatchUsage {
+  id: string;
+  batchNumber: string;
+  productId: string;
+  productName: string;
+  totalWeight: number;
+  usedWeight: number;
+  ordersCount: number;
+  firstUsed: string;
+  lastUsed: string;
+}
+
+export interface Return {
+  id: string;
+  customerId?: string;
+  customerName: string;
+  dateReturned: string;
+  productId: string;
+  productSku: string;
+  quantity: number;
+  reason?: string;
+  returnsRequired: string;
+  returnStatus: string;
+  resolutionStatus: string;
+}
+
+export interface Complaint {
+  id: string;
+  customerId?: string;
+  customerName: string;
+  dateSubmitted: string;
+  complaintType: string;
+  complaintDetails: string;
+  productId?: string;
+  productSku?: string;
+  returnsRequired: string;
+  returnStatus: string;
+  resolutionStatus: string;
 }

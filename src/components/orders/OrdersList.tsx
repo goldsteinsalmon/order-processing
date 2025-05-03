@@ -39,9 +39,11 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
       // Search in customer name
       const customerNameMatch = order.customer?.name?.toLowerCase().includes(searchLower);
       
-      // Search in order ID or number
+      // Search in order ID or number - adding null check for orderNumber
       const orderIdMatch = order.id?.toLowerCase().includes(searchLower);
-      const orderNumberMatch = order.orderNumber ? String(order.orderNumber)?.toLowerCase().includes(searchLower) : false;
+      const orderNumberMatch = order.orderNumber !== undefined && order.orderNumber !== null 
+        ? String(order.orderNumber)?.toLowerCase().includes(searchLower) 
+        : false;
       
       // Search in customer order number
       const customerOrderMatch = order.customerOrderNumber?.toLowerCase().includes(searchLower);

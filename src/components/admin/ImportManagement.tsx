@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -42,8 +41,7 @@ const ImportManagement = () => {
         weight: parseFloat(String(productData.weight || "0")) || 0,
         requiresWeightInput: productData.requiresWeightInput === 'true',
         unit: String(productData.unit || ""),
-        required: productData.required === 'true',
-        created: new Date().toISOString(),
+        required: productData.required === 'true'
       };
 
       // Check if a product with the same SKU already exists

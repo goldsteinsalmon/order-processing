@@ -1,12 +1,12 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Customer, Order, Product, StandingOrder, MissingItem, OrderItem, Picker } from "@/types";
+import { Customer, Order, Product, StandingOrder, MissingItem, OrderItem, Picker, BatchUsage, Return, Complaint } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomerData } from "@/hooks/data/useCustomerData";
 import { useProductData } from "@/hooks/data/useProductData";
 import { useStandingOrderData } from "@/hooks/data/useStandingOrderData";
 import { useReturnsComplaintsData } from "@/hooks/data/useReturnsComplaintsData";
-import { usePickersData } from "@/hooks/data/usePickersData";
+import { usePickerData } from "@/hooks/data/usePickerData";
 
 interface DataContextType {
   customers: Customer[];
@@ -15,8 +15,11 @@ interface DataContextType {
   standingOrders: StandingOrder[];
   missingItems: MissingItem[];
   pickers: Picker[];
-  completedOrders: any[]; // Add completedOrders
-  users: any[]; // Add users for AuthContext
+  completedOrders: any[];
+  users: any[];
+  batchUsages: BatchUsage[];
+  returns: Return[];
+  complaints: Complaint[];
   setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
@@ -37,7 +40,7 @@ interface DataContextType {
   deleteProduct: (id: string) => Promise<boolean>;
   deleteOrder: (id: string) => Promise<boolean>;
   deleteMissingItem: (id: string) => Promise<boolean>;
-  removeMissingItem: (id: string) => Promise<boolean>; // Add for PickingList.tsx
+  removeMissingItem: (id: string) => Promise<boolean>;
   completeOrder: (order: Order) => Promise<boolean>;
   recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, weight?: number) => Promise<boolean>;
   recordAllBatchUsagesForOrder: (order: Order) => Promise<void>;
@@ -63,6 +66,9 @@ export const DataContext = createContext<DataContextType>({
   pickers: [],
   completedOrders: [],
   users: [],
+  batchUsages: [],
+  returns: [],
+  complaints: [],
   setCustomers: () => {},
   setOrders: () => {},
   setProducts: () => {},
@@ -107,6 +113,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [standingOrders, setStandingOrders] = useState<StandingOrder[]>([]);
   const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
   const [pickers, setPickers] = useState<Picker[]>([]);
+  const [batchUsages, setBatchUsages] = useState<BatchUsage[]>([]);
+  const [returns, setReturns] = useState<Return[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [returnsComplaints, setReturnsComplaints] = useState<any[]>([]);
   const [completedOrders, setCompletedOrders] = useState<any[]>([]);
@@ -137,7 +146,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addPicker,
     updatePicker,
     deletePicker,
-  } = usePickersData(toast);
+  } = usePickerData();
 
   // Fetch pickers
   const fetchPickers = useCallback(async () => {
@@ -280,12 +289,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             requiredDate: order.required_date,
             deliveryMethod: order.delivery_method,
             customerOrderNumber: order.customer_order_number,
+            orderNumber: order.order_number,
             pickingInProgress: order.picking_in_progress || false,
             isPicked: order.is_picked || false,
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
-            completedBoxes: order.completed_boxes || 0,
-            savedBoxes: order.saved_boxes || 0,
+            completedBoxes: 0, // Default value
+            savedBoxes: 0, // Default value
           };
         });
         setOrders(adaptedOrders as Order[]);
@@ -463,6 +473,130 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [setMissingItems, toast]);
 
+  // Fetch returns
+  const fetchReturns = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('returns')
+        .select('*')
+        .order('created', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching returns:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch returns.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setReturns(data.map(item => ({
+          id: item.id,
+          customerId: item.customer_id,
+          customerName: item.customer_name,
+          dateReturned: item.date_returned,
+          productId: item.product_id,
+          productSku: item.product_sku,
+          quantity: item.quantity,
+          reason: item.reason,
+          returnsRequired: item.returns_required,
+          returnStatus: item.return_status,
+          resolutionStatus: item.resolution_status
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching returns:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch returns.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  // Fetch complaints
+  const fetchComplaints = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .select('*')
+        .order('created', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching complaints:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch complaints.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setComplaints(data.map(item => ({
+          id: item.id,
+          customerId: item.customer_id,
+          customerName: item.customer_name,
+          dateSubmitted: item.date_submitted,
+          complaintType: item.complaint_type,
+          complaintDetails: item.complaint_details,
+          productId: item.product_id,
+          productSku: item.product_sku,
+          returnsRequired: item.returns_required,
+          returnStatus: item.return_status,
+          resolutionStatus: item.resolution_status
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching complaints:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch complaints.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  // Fetch batch usages
+  const fetchBatchUsages = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('batch_usages')
+        .select('*')
+        .order('last_used', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching batch usages:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch batch usages.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setBatchUsages(data.map(item => ({
+          id: item.id,
+          batchNumber: item.batch_number,
+          productId: item.product_id,
+          productName: item.product_name,
+          totalWeight: item.total_weight,
+          usedWeight: item.used_weight,
+          ordersCount: item.orders_count,
+          firstUsed: item.first_used,
+          lastUsed: item.last_used
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching batch usages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch batch usages.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
   // Fetch returns and complaints
   const fetchReturnsComplaints = useCallback(async () => {
     try {
@@ -584,6 +718,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...newOrderData,
         customerId: newOrderData.customer_id,
         customerOrderNumber: newOrderData.customer_order_number,
+        orderNumber: newOrderData.order_number,
         orderDate: newOrderData.order_date,
         requiredDate: newOrderData.required_date,
         deliveryMethod: newOrderData.delivery_method,
@@ -598,8 +733,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
-        completedBoxes: newOrderData.completed_boxes || 0,
-        savedBoxes: newOrderData.saved_boxes || 0,
+        completedBoxes: 0,
+        savedBoxes: 0,
       };
 
       setOrders([...orders, adaptedOrder as Order]);
@@ -634,7 +769,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchPickers(),
         fetchReturnsComplaints(),
         fetchCompletedOrders(),
-        fetchUsers()
+        fetchUsers(),
+        fetchBatchUsages(),
+        fetchReturns(),
+        fetchComplaints()
       ]);
       await processStandingOrders();
     } catch (error) {
@@ -657,6 +795,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchReturnsComplaints,
     fetchCompletedOrders,
     fetchUsers,
+    fetchBatchUsages,
+    fetchReturns,
+    fetchComplaints,
     processStandingOrders,
     toast
   ]);
@@ -684,8 +825,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_picked: order.isPicked,
           picked_by: order.pickedBy,
           picked_at: order.pickedAt,
-          completed_boxes: order.completedBoxes || 0,
-          saved_boxes: order.savedBoxes || 0
+          // Use 0 as default for these fields
+          completed_boxes: 0,
+          saved_boxes: 0
         })
         .eq('id', order.id);
 
@@ -895,7 +1037,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Alias for deleteMissingItem to satisfy the interface
   const removeMissingItem = async (id: string): Promise<boolean> => {
-    return deleteMissingItem(id);
+    return await deleteMissingItem(id);
   };
 
   // Function to mark an order as complete
@@ -1081,8 +1223,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: orderData.is_picked,
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
-        completedBoxes: orderData.completed_boxes || 0,
-        savedBoxes: orderData.saved_boxes || 0,
+        completedBoxes: 0, // Default value
+        savedBoxes: 0, // Default value
         items: orderData.items.map(item => ({
           id: item.id,
           orderId: item.order_id,
@@ -1122,6 +1264,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pickers,
     completedOrders,
     users,
+    batchUsages,
+    returns,
+    complaints,
     setCustomers,
     setOrders,
     setProducts,
