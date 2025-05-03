@@ -34,34 +34,41 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Function to handle redirects after authentication events
   const redirectAfterAuth = (event: string) => {
+    console.log(`[SupabaseAuthContext] Handling redirect after auth event: ${event}`);
+    
     if (event === 'SIGNED_IN') {
       console.log("[SupabaseAuthContext] Auth event: SIGNED_IN, redirecting to orders");
       toast({
         title: "Signed in",
         description: "You have been signed in successfully.",
       });
-      navigate('/orders');
+      navigate('/orders', { replace: true });
     } else if (event === 'SIGNED_OUT') {
       console.log("[SupabaseAuthContext] Auth event: SIGNED_OUT, redirecting to login");
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
-      navigate('/login');
+      navigate('/login', { replace: true });
     }
   };
 
   useEffect(() => {
+    let mounted = true;
     let authListener: { data: { subscription: { unsubscribe: () => void } } };
     
     const initAuth = async () => {
+      if (!mounted) return;
+      
       setIsLoading(true);
       console.log("[SupabaseAuthContext] Setting up auth state listener");
       
       try {
         // First set up the auth listener before checking session
         authListener = supabase.auth.onAuthStateChange((event, newSession) => {
-          console.log("[SupabaseAuthContext] Auth state change event:", event);
+          console.log("[SupabaseAuthContext] Auth state change event:", event, newSession ? "Session exists" : "No session");
+          
+          if (!mounted) return;
           
           // Always update state
           setSession(newSession);
@@ -70,9 +77,12 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           // Handle events for navigation once app is initialized
           if (!isLoading && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
             console.log(`[SupabaseAuthContext] Auth event ${event} detected while app is running`);
+            
             // Use a small timeout to ensure state is updated first
             setTimeout(() => {
-              redirectAfterAuth(event);
+              if (mounted) {
+                redirectAfterAuth(event);
+              }
             }, 100);
           }
         });
@@ -86,22 +96,28 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           throw error;
         }
         
-        console.log("[SupabaseAuthContext] Initial session check:", 
-          data.session?.user?.id ? "User authenticated" : "No active session");
-        
-        setSession(data.session);
-        setUser(data.session?.user || null);
+        if (mounted) {
+          console.log("[SupabaseAuthContext] Initial session check:", 
+            data.session?.user?.id ? "User authenticated" : "No active session");
+          
+          setSession(data.session);
+          setUser(data.session?.user || null);
+        }
 
       } catch (error) {
         console.error("[SupabaseAuthContext] Error during auth initialization:", error);
-        toast({
-          title: "Authentication Error",
-          description: "Failed to initialize authentication. Please refresh the page.",
-          variant: "destructive",
-        });
+        if (mounted) {
+          toast({
+            title: "Authentication Error",
+            description: "Failed to initialize authentication. Please refresh the page.",
+            variant: "destructive",
+          });
+        }
       } finally {
-        console.log("[SupabaseAuthContext] Initial auth setup complete");
-        setIsLoading(false);
+        if (mounted) {
+          console.log("[SupabaseAuthContext] Initial auth setup complete");
+          setIsLoading(false);
+        }
       }
     };
     
@@ -111,16 +127,19 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Cleanup
     return () => {
       console.log("[SupabaseAuthContext] Cleaning up auth subscription");
+      mounted = false;
       if (authListener) {
         authListener.data.subscription.unsubscribe();
       }
     };
   }, []);
 
-  // Sign in with email and password
+  // Sign in with email and password - improved with better error handling and manual state updates
   const signIn = async (email: string, password: string) => {
     try {
       console.log("[SupabaseAuthContext] Starting sign in process with email:", email);
+      setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -141,6 +160,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch (error: any) {
       console.error('[SupabaseAuthContext] Unexpected error during sign in:', error);
       return { success: false, error: error.message || 'An unexpected error occurred' };
+    } finally {
+      // Don't reset loading state here, let the auth state listener handle it
+      // or let the component calling this function handle it
     }
   };
 
@@ -185,13 +207,13 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Sign out
+  // Sign out with improved session clearing
   const signOut = async () => {
     try {
       setIsLoading(true);
       console.log("[SupabaseAuthContext] Starting sign out process...");
       
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
       
       if (error) {
         console.error("[SupabaseAuthContext] Error during signOut:", error);
@@ -205,7 +227,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // Manually clear user and session state for immediate feedback
         setUser(null);
         setSession(null);
-        // Auth state listener will handle the redirect
+        // Auth state listener will also handle the redirect
       }
     } catch (error) {
       console.error("[SupabaseAuthContext] Exception during signOut:", error);

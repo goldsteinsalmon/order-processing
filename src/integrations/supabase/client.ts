@@ -17,8 +17,8 @@ export const supabase = createClient<Database>(
       storage: localStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
-      flowType: 'implicit'
+      detectSessionInUrl: true, // Enable URL-based session detection as a fallback
+      flowType: 'pkce' // Use PKCE flow for more reliable token handling
     }
   }
 );
@@ -33,5 +33,10 @@ if (process.env.NODE_ENV !== 'production') {
       console.log('[Supabase Client] Initial session check:', 
         data.session?.user ? `User logged in: ${data.session.user.email}` : 'No session found');
     }
+  });
+
+  // Log auth events for debugging
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log(`[Supabase Client] Auth state changed: ${event}`, session ? 'Session exists' : 'No session');
   });
 }

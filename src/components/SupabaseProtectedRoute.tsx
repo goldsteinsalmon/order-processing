@@ -18,7 +18,7 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
   
   useEffect(() => {
-    // Debug logging
+    // Enhanced debug logging
     console.log("[SupabaseProtectedRoute] Rendering with:", { 
       isLoading, 
       hasUser: !!user, 
@@ -28,20 +28,26 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
       allowUserAccess,
       path: location.pathname
     });
+    
+    // If we have a session but not a user, log the inconsistency
+    if (session && !user) {
+      console.warn("[SupabaseProtectedRoute] Detected session without user - possible auth state inconsistency");
+    }
   }, [isLoading, user, session, requireAdmin, allowUserAccess, location]);
   
-  // Show loading state
+  // Show loading state, but not for too long
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+        <p className="text-gray-500">Verifying your access...</p>
       </div>
     );
   }
   
-  // Redirect to login if not authenticated
+  // More strict check: both user and session are required
   if (!user || !session) {
-    console.log("[SupabaseProtectedRoute] No authenticated user found, redirecting to login", location);
+    console.log("[SupabaseProtectedRoute] Authentication required, redirecting to login", location);
     // Remember the current location to redirect back after login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

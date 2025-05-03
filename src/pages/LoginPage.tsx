@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, session } = useSupabaseAuth();
+  const { signIn, session, user } = useSupabaseAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -23,13 +24,13 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     // Clear any lingering loading state when component mounts
     setIsLoading(false);
-    
-    // Redirect if already logged in
-    if (session) {
-      console.log("User already logged in, redirecting to:", from);
+
+    // Explicit check for session and user to handle redirection
+    if (session && user) {
+      console.log("[LoginPage] User already logged in, redirecting to:", from);
       navigate(from, { replace: true });
     }
-  }, [session, navigate, from]);
+  }, [session, user, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +57,7 @@ const LoginPage: React.FC = () => {
           description: error || "Invalid email or password",
           variant: "destructive",
         });
-        // Ensure loading state is reset on failure
+        // Always reset loading state on failure
         setIsLoading(false);
       } else {
         console.log("[LoginPage] Authentication successful");
@@ -64,13 +65,16 @@ const LoginPage: React.FC = () => {
           title: "Success",
           description: "Authentication successful",
         });
-        // Keep isLoading true until redirection, which will happen automatically via useEffect
-        // But add a safety timeout to ensure we don't get stuck
+        
+        // Let auth context handle the redirection after successful login
+        // Add a safety timeout to reset loading state if navigation doesn't happen
         setTimeout(() => {
-          setIsLoading(false);
-          // Force navigate if the session listener hasn't triggered yet
-          navigate(from, { replace: true });
-        }, 2000);
+          if (document.location.pathname === '/login') {
+            console.log("[LoginPage] Safety timeout triggered, forcing navigation");
+            setIsLoading(false);
+            navigate(from, { replace: true });
+          }
+        }, 3000);
       }
     } catch (error) {
       console.error("[LoginPage] Exception during authentication:", error);
@@ -139,6 +143,12 @@ const LoginPage: React.FC = () => {
               >
                 {isLoading ? "Processing..." : "Log In"}
               </Button>
+              
+              {isLoading && (
+                <div className="text-center text-sm text-gray-500 mt-2">
+                  Please wait while we log you in...
+                </div>
+              )}
             </form>
           </CardContent>
         </Card>
