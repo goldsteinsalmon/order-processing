@@ -72,7 +72,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     
     // Check if all items that require weight have weights entered
     const weightInputComplete = boxItems
-      .filter(item => item.product.requiresWeightInput)
+      .filter(item => item.product?.requiresWeightInput)
       .every(item => (item.pickedWeight) && 
              (item.pickedWeight > 0));
         
@@ -91,11 +91,13 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
            (item.originalQuantity !== item.quantity);
   };
 
-  // Use memoized handlers to prevent unnecessary re-renders
+  // Fix: Use a more reliable event handler that prevents default behaviors
   const handleCheckboxChange = useCallback((itemId: string, checked: boolean) => {
     console.log(`ItemsTable: Checkbox changed for item ${itemId} to ${checked}`);
-    // Call the parent handler immediately with the new state
-    onCheckItem(itemId, checked);
+    // Prevent any default event behavior and ensure the value is truly boolean
+    const isChecked = checked === true;
+    // Call the parent handler with explicit boolean value
+    onCheckItem(itemId, isChecked);
   }, [onCheckItem]);
 
   const handleBatchNumberChange = useCallback((itemId: string, value: string, boxNumber: number) => {
@@ -157,7 +159,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <TableHead>Product</TableHead>
                 <TableHead className="text-center">Quantity</TableHead>
                 <TableHead>Batch Number</TableHead>
-                {boxItems.some(item => item.product.requiresWeightInput) && (
+                {boxItems.some(item => item.product?.requiresWeightInput) && (
                   <TableHead>Weight</TableHead>
                 )}
                 <TableHead>Missing</TableHead>
@@ -174,14 +176,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       checked={item.checked} 
                       onCheckedChange={(checked) => {
                         console.log(`Checkbox clicked: ${item.id}, setting to:`, checked);
-                        handleCheckboxChange(item.id, !!checked);
+                        // Fix: Added explicit type cast to boolean to avoid any issues
+                        handleCheckboxChange(item.id, checked === true);
                       }}
                       id={`checkbox-${item.id}`}
                     />
                   </TableCell>
                   <TableCell>
                     <div className={hasQuantityChanged(item) ? 'font-medium text-amber-700' : ''}>
-                      {item.product.name}
+                      {item.product?.name}
                     </div>
                     {hasQuantityChanged(item) && (
                       <div className="text-xs text-amber-700">
@@ -199,9 +202,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       placeholder="Enter batch #"
                     />
                   </TableCell>
-                  {boxItems.some(item => item.product.requiresWeightInput) && (
+                  {boxItems.some(item => item.product?.requiresWeightInput) && (
                     <TableCell>
-                      {item.product.requiresWeightInput ? (
+                      {item.product?.requiresWeightInput ? (
                         <div>
                           <Input
                             type="number"
@@ -210,7 +213,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                             className="w-full"
                             placeholder="Weight"
                           />
-                          <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
+                          <span className="ml-1 text-xs text-gray-500">{item.product?.unit || 'g'}</span>
                         </div>
                       ) : null}
                     </TableCell>
@@ -261,7 +264,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <TableHead>Product</TableHead>
                 <TableHead className="text-center">Quantity</TableHead>
                 <TableHead>Batch Number</TableHead>
-                {items.some(item => item.product.requiresWeightInput) && (
+                {items.some(item => item.product?.requiresWeightInput) && (
                   <TableHead>Weight</TableHead>
                 )}
                 <TableHead>Missing</TableHead>
@@ -279,14 +282,15 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       checked={item.checked}
                       onCheckedChange={(checked) => {
                         console.log(`Checkbox clicked: ${item.id}, setting to:`, checked);
-                        handleCheckboxChange(item.id, !!checked);
+                        // Fix: Added explicit type cast to boolean to avoid any issues
+                        handleCheckboxChange(item.id, checked === true);
                       }}
                       id={`checkbox-${item.id}`}
                     />
                   </TableCell>
                   <TableCell>
                     <div className={hasQuantityChanged(item) ? 'font-medium text-amber-700' : ''}>
-                      {item.product.name}
+                      {item.product?.name}
                     </div>
                     {hasQuantityChanged(item) && (
                       <div className="text-xs text-amber-700">
@@ -304,9 +308,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                       placeholder="Enter batch #"
                     />
                   </TableCell>
-                  {items.some(item => item.product.requiresWeightInput) && (
+                  {items.some(item => item.product?.requiresWeightInput) && (
                     <TableCell>
-                      {item.product.requiresWeightInput ? (
+                      {item.product?.requiresWeightInput ? (
                         <div>
                           <Input
                             type="number"
@@ -315,7 +319,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                             className="w-full"
                             placeholder="Weight"
                           />
-                          <span className="ml-1 text-xs text-gray-500">{item.product.unit || 'g'}</span>
+                          <span className="ml-1 text-xs text-gray-500">{item.product?.unit || 'g'}</span>
                         </div>
                       ) : null}
                     </TableCell>

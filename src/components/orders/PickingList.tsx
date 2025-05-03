@@ -213,11 +213,16 @@ const PickingList: React.FC<PickingListProps> = ({
     }
   }, [nextBoxToFocus]);
   
+  // Handle checkbox changes more robustly
   const handleCheckItem = useCallback((itemId: string, checked: boolean) => {
-    console.log(`CheckItem: Setting item ${itemId} checked to ${checked}`);
+    console.log(`CheckItem: Setting item ${itemId} checked to ${checked} (type: ${typeof checked})`);
+    
+    // Ensure we're using a boolean value here to avoid any type issues
+    const isChecked = Boolean(checked);
+    
     setOrderItems(prevItems =>
       prevItems.map(item =>
-        item.id === itemId ? { ...item, checked } : item
+        item.id === itemId ? { ...item, checked: isChecked } : item
       )
     );
   }, []);
@@ -325,9 +330,10 @@ const PickingList: React.FC<PickingListProps> = ({
           orderId: item.orderId,
           productId: item.productId,
           quantity: item.quantity,
-          // Batch number can be empty, no need to verify it before saving
+          // Ensure batch number is properly initialized
           batchNumber: item.batchNumber || "",
-          checked: item.checked,
+          // Always include checked status (critical fix)
+          checked: item.checked === true,
           pickedQuantity: item.checked ? item.quantity : 0,
           pickedWeight: item.pickedWeight || 0,
           boxNumber: item.boxNumber || 0,
@@ -353,19 +359,34 @@ const PickingList: React.FC<PickingListProps> = ({
       } else {
         newStatus = "Picking";
       }
+      
+      // Log current state before recording batch usage
+      console.log("Processed items before batch usage recording:", 
+        updatedOrderItems.map(item => ({
+          id: item.id, 
+          checked: item.checked,
+          batchNumber: item.batchNumber
+        }))
+      );
 
       // Record batch usage for each item that has a batch number and is checked
-      updatedOrderItems.forEach(item => {
+      for (const item of updatedOrderItems) {
         if (item.batchNumber && item.checked) {
-          recordBatchUsage(
-            item.batchNumber, 
-            item.productId, 
-            item.quantity, 
-            selectedOrder.id,
-            item.pickedWeight
-          );
+          try {
+            recordBatchUsage(
+              item.batchNumber, 
+              item.productId, 
+              item.quantity, 
+              selectedOrder.id,
+              item.pickedWeight
+            );
+            console.log(`Successfully recorded batch usage for ${item.productId} with batch ${item.batchNumber}`);
+          } catch (batchError) {
+            console.error(`Failed to record batch usage for ${item.productId}:`, batchError);
+            // Continue with other items, don't fail the whole save
+          }
         }
-      });
+      }
       
       // Update the order with new items and status
       const updatedOrder = {
@@ -392,64 +413,96 @@ const PickingList: React.FC<PickingListProps> = ({
       
       console.log("Saving order with status:", newStatus);
       console.log("Saving picked_by:", selectedPickerId);
-      console.log("Saving checked items:", updatedOrderItems.filter(item => item.checked).map(i => i.id));
-      console.log("Total items being saved:", updatedOrderItems.length);
+      console.log("Saving checked items count:", updatedOrderItems.filter(item => item.checked).length);
       
       // If order is completed, also record all batch usages and move it to completed orders
       if (newStatus === "Completed") {
         console.log("Order is completed, recording all batch usages and moving to completed orders");
-        recordAllBatchUsagesForOrder(updatedOrder);
-        const success = await completeOrder(updatedOrder);
-        
-        if (success) {
+        try {
+          recordAllBatchUsagesForOrder(updatedOrder);
+          const success = await completeOrder(updatedOrder);
+          
+          if (success) {
+            toast({
+              title: "Order completed",
+              description: "Order has been marked as completed and moved to completed orders"
+            });
+            
+            if (onSaveComplete) onSaveComplete(true);
+            
+            // Navigate back to orders list
+            navigate("/orders");
+            return;
+          } else {
+            console.error("Failed to complete order!");
+            const errorMessage = "Failed to complete order. Please try again.";
+            if (onSaveComplete) onSaveComplete(false, errorMessage);
+            toast({
+              title: "Error",
+              description: errorMessage,
+              variant: "destructive",
+            });
+          }
+        } catch (completeError) {
+          console.error("Error completing order:", completeError);
+          const errorMessage = completeError instanceof Error ? completeError.message : String(completeError);
           toast({
-            title: "Order completed",
-            description: "Order has been marked as completed and moved to completed orders"
+            title: "Error",
+            description: `Error completing order: ${errorMessage}`,
+            variant: "destructive",
           });
-          
-          if (onSaveComplete) onSaveComplete(true);
-          
-          // Navigate back to orders list
-          navigate("/orders");
-          return;
-        } else {
-          console.error("Failed to complete order!");
-          if (onSaveComplete) onSaveComplete(false, "Failed to complete order");
+          if (onSaveComplete) onSaveComplete(false, errorMessage);
         }
       } else {
-        const success = await updateOrder(updatedOrder);
-        
-        // If update was successful, update our local state reference
-        if (success) {
-          console.log("Order update successful, updating last saved items");
-          setLastSavedItems(JSON.parse(JSON.stringify(orderItems))); // Deep copy to avoid reference issues
+        // Regular update for non-completed orders
+        try {
+          const success = await updateOrder(updatedOrder);
           
-          toast({
-            title: "Order saved",
-            description: "Order progress has been saved",
-          });
-          
-          if (onSaveComplete) onSaveComplete(true);
-        } else {
-          console.error("Order update failed!");
+          // If update was successful, update our local state reference
+          if (success) {
+            console.log("Order update successful, updating last saved items");
+            setLastSavedItems(JSON.parse(JSON.stringify(orderItems))); // Deep copy to avoid reference issues
+            
+            toast({
+              title: "Order saved",
+              description: "Order progress has been saved",
+            });
+            
+            if (onSaveComplete) onSaveComplete(true);
+          } else {
+            console.error("Order update failed!");
+            const errorMessage = "Failed to save order. Please try again.";
+            toast({
+              title: "Error",
+              description: errorMessage,
+              variant: "destructive",
+            });
+            
+            if (onSaveComplete) onSaveComplete(false, errorMessage);
+          }
+        } catch (updateError) {
+          console.error("Error updating order:", updateError);
+          const errorMessage = updateError instanceof Error ? updateError.message : String(updateError);
           
           toast({
             title: "Error",
-            description: "Failed to save order",
+            description: `Failed to save order: ${errorMessage}`,
             variant: "destructive",
           });
           
-          if (onSaveComplete) onSaveComplete(false, "Failed to update order in the database");
+          if (onSaveComplete) onSaveComplete(false, errorMessage);
         }
       }
     } catch (error) {
-      console.error("Error saving order:", error);
+      console.error("Error in save process:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      
       toast({
         title: "Error",
         description: "Failed to save order: " + errorMessage,
         variant: "destructive",
       });
+      
       if (onSaveComplete) onSaveComplete(false, errorMessage);
     } finally {
       setIsSaving(false);
