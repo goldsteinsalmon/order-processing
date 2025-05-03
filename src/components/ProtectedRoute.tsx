@@ -34,6 +34,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // Get user role from Supabase metadata
   const userRole = user?.user_metadata?.role || 'User';
+  console.log("[ProtectedRoute] User authenticated with role:", userRole);
   
   if (requireAdmin && userRole !== 'Admin') {
     // User is authenticated but not an admin, redirect to orders
@@ -49,6 +50,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // User is authenticated and has appropriate permissions
+  console.log('[ProtectedRoute] Access granted to:', location.pathname);
   return <>{children}</>;
 };
 

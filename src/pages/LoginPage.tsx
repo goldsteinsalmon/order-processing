@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Mail } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -16,33 +16,20 @@ const LoginPage: React.FC = () => {
   const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn, user, isLoading: authLoading } = useSupabaseAuth();
 
-  // Check for existing session on component mount
+  // Check if already logged in
   useEffect(() => {
-    console.log("[LoginPage] Component mounted, checking for session");
+    console.log("[LoginPage] Component mounted, user status:", { 
+      hasUser: !!user, 
+      isAuthLoading: authLoading 
+    });
     
-    const checkSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error("[LoginPage] Error checking session:", error.message);
-          return;
-        }
-        
-        if (data?.session) {
-          console.log("[LoginPage] Existing session found, redirecting to /orders");
-          navigate("/orders", { replace: true });
-        } else {
-          console.log("[LoginPage] No active session found, staying on login page");
-        }
-      } catch (err) {
-        console.error("[LoginPage] Unexpected error checking session:", err);
-      }
-    };
-    
-    checkSession();
-  }, [navigate]);
+    if (user && !authLoading) {
+      console.log("[LoginPage] User already logged in, redirecting");
+      navigate("/orders", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,11 +47,7 @@ const LoginPage: React.FC = () => {
       setIsLoading(true);
       console.log("[LoginPage] Attempting login with email:", email);
       
-      // Perform authentication
-      const { data, error } = await supabase.auth.signInWithPassword({ 
-        email, 
-        password 
-      });
+      const { data, error } = await signIn(email, password);
       
       // Handle authentication error
       if (error) {
@@ -75,21 +58,18 @@ const LoginPage: React.FC = () => {
           description: error.message || "Invalid email or password",
           variant: "destructive",
         });
-        setIsLoading(false);
         return;
       }
       
       // Handle successful authentication
-      if (data.session) {
-        console.log("[LoginPage] Login successful, user:", data.user?.email);
+      if (data?.session) {
+        console.log("[LoginPage] Login successful, session acquired");
         toast({
           title: "Success",
           description: "Login successful!",
         });
         
-        // Auth listener will handle the redirect
-        // But we'll navigate directly too as a fallback
-        navigate("/orders", { replace: true });
+        // Navigation will be handled by the auth context
       } else {
         console.error("[LoginPage] No session returned after login");
         setLoginError("Login failed. Please try again.");
@@ -106,6 +86,21 @@ const LoginPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  // If auth is still loading, show a loading indicator
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+        <p className="text-gray-500">Loading authentication...</p>
+      </div>
+    );
+  }
+
+  // Don't render login form if already authenticated
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">

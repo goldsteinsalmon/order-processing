@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
@@ -36,6 +37,7 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // Check for admin access if required
   const userRole = user.user_metadata?.role || 'User';
+  console.log("[SupabaseProtectedRoute] User authenticated with role:", userRole);
   
   if (requireAdmin && userRole !== 'Admin') {
     console.log('[SupabaseProtectedRoute] User is not admin, redirecting to orders');
@@ -49,6 +51,7 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
   
   // If all checks pass, render the children
+  console.log('[SupabaseProtectedRoute] Access granted to:', location.pathname);
   return <>{children}</>;
 };
 
