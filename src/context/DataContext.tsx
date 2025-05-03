@@ -267,7 +267,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data) {
         // Adapt the order items to camelCase
-        const adaptedOrders = data.map(order => {
+        const adaptedOrders: Order[] = data.map(order => {
           // Use null checks and safe defaults for potentially missing fields
           return {
             ...order,
@@ -294,11 +294,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isPicked: order.is_picked || false,
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
-            completedBoxes: 0, // Default value
-            savedBoxes: 0, // Default value
-          };
+            completedBoxes: order.completed_boxes || [], // Make sure it's an array
+            savedBoxes: order.saved_boxes || [], // Make sure it's an array
+          } as Order; // Type assertion to Order
         });
-        setOrders(adaptedOrders as Order[]);
+        setOrders(adaptedOrders);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -495,6 +495,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: item.id,
           customerId: item.customer_id,
           customerName: item.customer_name,
+          customerType: item.customer_type || 'Private', // Providing a default value
           dateReturned: item.date_returned,
           productId: item.product_id,
           productSku: item.product_sku,
@@ -502,7 +503,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           reason: item.reason,
           returnsRequired: item.returns_required,
           returnStatus: item.return_status,
-          resolutionStatus: item.resolution_status
+          resolutionStatus: item.resolution_status,
+          created: item.created || new Date().toISOString() // Providing a default value
         })));
       }
     } catch (error) {
@@ -537,6 +539,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: item.id,
           customerId: item.customer_id,
           customerName: item.customer_name,
+          customerType: item.customer_type || 'Private', // Providing a default value
           dateSubmitted: item.date_submitted,
           complaintType: item.complaint_type,
           complaintDetails: item.complaint_details,
@@ -544,7 +547,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           productSku: item.product_sku,
           returnsRequired: item.returns_required,
           returnStatus: item.return_status,
-          resolutionStatus: item.resolution_status
+          resolutionStatus: item.resolution_status,
+          created: item.created || new Date().toISOString() // Providing a default value
         })));
       }
     } catch (error) {
@@ -733,12 +737,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
-        completedBoxes: 0,
-        savedBoxes: 0,
-      };
+        completedBoxes: newOrderData.completed_boxes || [], // Make sure it's an array
+        savedBoxes: newOrderData.saved_boxes || [], // Make sure it's an array
+      } as Order; // Type assertion to Order
 
-      setOrders([...orders, adaptedOrder as Order]);
-      return adaptedOrder as Order;
+      setOrders([...orders, adaptedOrder]);
+      return adaptedOrder;
     } catch (error) {
       console.error('Error adding order:', error);
       toast({
@@ -1223,8 +1227,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: orderData.is_picked,
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
-        completedBoxes: 0, // Default value
-        savedBoxes: 0, // Default value
+        completedBoxes: orderData.completed_boxes || [], // Make sure it's an array
+        savedBoxes: orderData.saved_boxes || [], // Make sure it's an array
         items: orderData.items.map(item => ({
           id: item.id,
           orderId: item.order_id,
@@ -1247,7 +1251,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           date: item.date,
           status: item.status
         })) : []
-      } as Order;
+      } as Order; // Type assertion to Order
     } catch (error) {
       console.error("Error fetching order by ID:", error);
       throw error;

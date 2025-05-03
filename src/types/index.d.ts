@@ -1,4 +1,3 @@
-
 export interface Customer {
   id: string;
   name: string;
@@ -66,7 +65,7 @@ export interface Order {
   items: OrderItem[];
   missingItems?: MissingItem[];
   notes?: string;
-  status: "Pending" | "Processing" | "Completed" | "Missing Items" | "Cancelled";
+  status: "Pending" | "Processing" | "Completed" | "Missing Items" | "Cancelled" | "Picking" | "Modified" | "Partially Picked";
   created?: string;
   fromStandingOrder?: string;
   pickingInProgress?: boolean;
@@ -74,8 +73,8 @@ export interface Order {
   pickedBy?: string;
   pickedAt?: string;
   boxDistributions?: Box[];
-  completedBoxes?: number;
-  savedBoxes?: number;
+  completedBoxes?: number[]; // Ensure this is an array
+  savedBoxes?: number[]; // Ensure this is an array
 }
 
 export interface StandingOrderItem {

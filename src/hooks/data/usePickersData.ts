@@ -82,6 +82,7 @@ export const usePickerData = () => {
   };
 };
 
+// This is the function that should be used in DataContext
 export const usePickersData = () => {
   return usePickerData();
 };
