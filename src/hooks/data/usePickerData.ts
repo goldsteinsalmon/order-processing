@@ -7,20 +7,20 @@ export const usePickerData = (toast: any) => {
   const [pickers, setPickers] = useState<Picker[]>([]);
 
   // Add picker
-  const addPicker = async (picker: Partial<Picker>): Promise<Picker | null> => {
+  const addPicker = async (picker: Partial<Picker>): Promise<Picker> => {
     try {
       const { data, error } = await supabase
         .from('pickers')
         .insert({
           name: picker.name,
-          active: picker.active
+          active: picker.active !== undefined ? picker.active : true,
         })
         .select();
       
       if (error) throw error;
       
-      const newPicker: Picker = data[0];
-      setPickers([...pickers, newPicker]);
+      const newPicker = data[0] as Picker;
+      setPickers([newPicker, ...pickers]);
       return newPicker;
     } catch (error) {
       console.error('Error adding picker:', error);
@@ -29,7 +29,7 @@ export const usePickerData = (toast: any) => {
         description: "Failed to add picker.",
         variant: "destructive",
       });
-      return null;
+      throw error;
     }
   };
 
@@ -40,7 +40,7 @@ export const usePickerData = (toast: any) => {
         .from('pickers')
         .update({
           name: updatedPicker.name,
-          active: updatedPicker.active
+          active: updatedPicker.active,
         })
         .eq('id', updatedPicker.id);
       

@@ -1,312 +1,244 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { format, parseISO } from "date-fns";
-import { Edit, ClipboardList } from "lucide-react";
-import { useData } from "@/context/DataContext";
-import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
-import { Button } from "@/components/ui/button";
+
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
-import { 
-  getOrderDate, 
-  getHasChanges, 
-  getMissingItems, 
-  getCompletedBoxes, 
-  getBoxDistributions, 
-  getPickingInProgress,
-  getOrderNumber
-} from "@/utils/propertyHelpers";
+import { format } from "date-fns";
+import { useData } from "@/context/DataContext";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Eye, Edit, ClipboardList } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface OrdersListProps {
-  searchTerm?: string;
-}
+// Helper function to safely format dates
+const safeFormatDate = (dateString?: string | null) => {
+  if (!dateString) return "Not specified";
+  try {
+    return format(new Date(dateString), "MMMM d, yyyy");
+  } catch (error) {
+    console.error("Error formatting date:", dateString, error);
+    return "Invalid date";
+  }
+};
 
-const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
-  const { orders } = useData();
+const OrdersList: React.FC = () => {
   const navigate = useNavigate();
-  
-  // Filter orders by search term
+  const { orders, customers } = useData();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
+
+  // Filter orders based on search term, status, and customer
   const filteredOrders = useMemo(() => {
-    if (!searchTerm.trim()) return orders;
-    
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    return orders.filter(order => 
-      order.customer?.name?.toLowerCase().includes(lowerSearchTerm) ||
-      order.id.toLowerCase().includes(lowerSearchTerm) ||
-      String(getOrderNumber(order)).toLowerCase().includes(lowerSearchTerm) ||
-      order.deliveryMethod?.toLowerCase().includes(lowerSearchTerm) ||
-      order.status?.toLowerCase().includes(lowerSearchTerm)
-    );
-  }, [orders, searchTerm]);
-  
-  // Sort orders by date closest to now
-  const sortedOrders = useMemo(() => {
-    const now = new Date().getTime();
-    return [...filteredOrders].sort((a, b) => {
-      const dateA = getOrderDate(a) ? new Date(getOrderDate(a)).getTime() : now;
-      const dateB = getOrderDate(b) ? new Date(getOrderDate(b)).getTime() : now;
-      
-      // If either date is invalid (NaN), put it at the end
-      if (isNaN(dateA)) return 1;
-      if (isNaN(dateB)) return -1;
-      if (isNaN(dateA) && isNaN(dateB)) return 0;
-      
-      // Calculate absolute difference from current date
-      const diffA = Math.abs(now - dateA);
-      const diffB = Math.abs(now - dateB);
-      
-      // Sort by closest date to now
-      return diffA - diffB;
-    });
-  }, [filteredOrders]);
+    return orders
+      .filter(
+        (order) =>
+          order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (order.customerOrderNumber?.toLowerCase() || "").includes(
+            searchTerm.toLowerCase()
+          )
+      )
+      .filter((order) =>
+        statusFilter === "all" ? true : order.status === statusFilter
+      )
+      .filter((order) =>
+        customerFilter === "all" ? true : order.customer.id === customerFilter
+      );
+  }, [orders, searchTerm, statusFilter, customerFilter]);
 
-  // State for tracking which orders are next day orders
-  const [nextDayOrders, setNextDayOrders] = useState<Set<string>>(new Set());
-  const [sameDayOrders, setSameDayOrders] = useState<Set<string>>(new Set());
-
-  // Check for same day and next day orders asynchronously
-  useEffect(() => {
-    const checkOrderDates = async () => {
-      const nextDayOrderIds = new Set<string>();
-      const sameDayOrderIds = new Set<string>();
-
-      for (const order of sortedOrders) {
-        try {
-          const orderDateStr = getOrderDate(order);
-          if (orderDateStr) {
-            if (isSameDayOrder(orderDateStr)) {
-              sameDayOrderIds.add(order.id);
-            }
-            
-            // Check asynchronously for next working day orders
-            const isNextDay = await isNextWorkingDayOrder(orderDateStr);
-            if (isNextDay) {
-              nextDayOrderIds.add(order.id);
-            }
-          }
-        } catch (e) {
-          console.error("Error checking order dates:", e);
-        }
-      }
-
-      setNextDayOrders(nextDayOrderIds);
-      setSameDayOrders(sameDayOrderIds);
-    };
-
-    checkOrderDates();
-  }, [sortedOrders]);
-
-  // Helper function to generate change description
-  const getChangeDescription = (order) => {
-    if (!order.changes || order.changes.length === 0) return null;
-    
-    // Get the list of changed products
-    const changedProducts = order.changes.map(change => {
-      if (change.originalQuantity === 0) {
-        return `Added ${change.newQuantity} ${change.productName}`;
-      } else if (change.newQuantity === 0) {
-        return `Removed ${change.productName}`;
-      } else {
-        return `Changed ${change.productName} from ${change.originalQuantity} to ${change.newQuantity}`;
+  // Get unique customer list for the filter dropdown
+  const uniqueCustomers = useMemo(() => {
+    const customersMap = new Map();
+    orders.forEach((order) => {
+      if (order.customer && !customersMap.has(order.customer.id)) {
+        customersMap.set(order.customer.id, order.customer);
       }
     });
-    
-    return changedProducts.join("; ");
+    return Array.from(customersMap.values());
+  }, [orders]);
+
+  const handleViewOrder = (orderId: string) => {
+    navigate(`/orders/${orderId}`);
   };
 
-  // Function to determine the order status display
-  const getOrderStatusDisplay = (order) => {
-    // If the order has explicit status, use that
-    if (order.status === "Modified") {
-      return {
-        label: "Modified",
-        color: "bg-blue-100 text-blue-800"
-      };
-    }
-    
-    // Check for missing items
-    const missingItemsList = getMissingItems(order);
-    if (missingItemsList && missingItemsList.length > 0) {
-      return {
-        label: "Missing Items",
-        color: "bg-amber-100 text-amber-800"
-      };
-    }
-
-    // Check for partially picked boxes
-    const boxDistributions = getBoxDistributions(order);
-    const completedBoxes = getCompletedBoxes(order);
-    if (boxDistributions && completedBoxes && 
-        boxDistributions.length > 0 && 
-        completedBoxes.length > 0 && 
-        completedBoxes.length < boxDistributions.length) {
-      return {
-        label: "Partially Picked",
-        color: "bg-purple-100 text-purple-800"
-      };
-    }
-
-    // Check for picking in progress
-    if (getPickingInProgress(order)) {
-      return {
-        label: "Picking In Progress",
-        color: "bg-indigo-100 text-indigo-800"
-      };
-    }
-    
-    // Default to pending
-    return {
-      label: order.status || "Pending",
-      color: "bg-blue-100 text-blue-800"
-    };
+  const handleEditOrder = (orderId: string) => {
+    navigate(`/orders/${orderId}/edit`);
   };
 
-  // Handle navigation to picking list
-  const handlePickingListClick = (orderId) => {
-    // Ensure we navigate directly to the picking list with this order selected
-    navigate(`/orders/${order.id}/picking`);
-  };
-  
-  // Determine if an order should be highlighted for changes
-  const shouldHighlightChanges = (order) => {
-    // Highlight orders with changes regardless of picking status
-    if (getHasChanges(order)) {
-      return true;
-    }
-    return false;
+  const handleViewPickingList = (orderId: string) => {
+    navigate(`/orders/${orderId}/picking`);
   };
 
-  // Safe format date function
-  const safeFormatDate = (dateString) => {
-    try {
-      if (!dateString) return "Invalid Date";
-      const date = parseISO(dateString);
-      if (isNaN(date.getTime())) return "Invalid Date";
-      return format(date, "dd/MM/yyyy");
-    } catch (e) {
-      console.error("Error formatting date:", dateString, e);
-      return "Invalid Date";
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case "Pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "In Progress":
+        return "bg-blue-100 text-blue-800";
+      case "Completed":
+        return "bg-green-100 text-green-800";
+      case "Cancelled":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Orders</h2>
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-center">
+            <CardTitle>Orders</CardTitle>
+            <Button onClick={() => navigate("/create-order")}>New Order</Button>
+          </div>
+          <CardDescription>
+            View and manage customer orders
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by customer or order number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <div className="w-full md:w-48">
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-64">
+              <Select
+                value={customerFilter}
+                onValueChange={(value) => setCustomerFilter(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  {uniqueCustomers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-      <div className="rounded-md border">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="px-4 py-3 text-left font-medium">Order No.</th>
-                <th className="px-4 py-3 text-left font-medium">Customer</th>
-                <th className="px-4 py-3 text-left font-medium">Order Date</th>
-                <th className="px-4 py-3 text-left font-medium">Delivery Method</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    {searchTerm ? "No matching orders found" : "No orders found"}
-                  </td>
-                </tr>
-              ) : (
-                sortedOrders.map((order) => {
-                  // Adapt customer to ensure camelCase properties are available
-                  if (order.customer) {
-                    order.customer = adaptCustomerToCamelCase(order.customer);
-                  }
-                  
-                  // Use the precomputed checks from state
-                  const isSameDay = sameDayOrders.has(order.id);
-                  const isNextDay = nextDayOrders.has(order.id);
-                  
-                  const changeDesc = getChangeDescription(order);
-                  const statusDisplay = getOrderStatusDisplay(order);
-                  const highlightChanges = shouldHighlightChanges(order);
-                  
-                  // Get the order number, with a fallback to a truncated UUID
-                  const orderNumber = getOrderNumber(order);
-                  
-                  return (
-                    <tr 
-                      key={order.id}
-                      className={`border-b ${
-                        isSameDay ? "bg-red-50" : 
-                        isNextDay ? "bg-green-50" : 
-                        highlightChanges ? "bg-amber-50" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3">
-                        {orderNumber}
-                      </td>
-                      <td className="px-4 py-3">{order.customer?.name || "Unknown Customer"}</td>
-                      <td className="px-4 py-3">
-                        {safeFormatDate(getOrderDate(order))}
-                      </td>
-                      <td className="px-4 py-3">{order.deliveryMethod || "N/A"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
-                          {statusDisplay.label}
-                        </span>
-                        
-                        {order.status === "Modified" && order.picker && (
-                          <div className="text-xs mt-1">
-                            Picked by: {order.picker}
-                          </div>
-                        )}
-                        
-                        {statusDisplay.label === "Missing Items" && getMissingItems(order) && (
-                          <div className="text-xs mt-1">
-                            {getMissingItems(order).length} item{getMissingItems(order).length > 1 ? 's' : ''} missing
-                          </div>
-                        )}
-                        
-                        {statusDisplay.label === "Partially Picked" && getCompletedBoxes(order) && (
-                          <div className="text-xs mt-1">
-                            {getCompletedBoxes(order).length} of {getBoxDistributions(order).length} boxes picked
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col space-y-2">
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => navigate(`/orders/${order.id}`)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              View Order
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handlePickingListClick(order.id)}
-                            >
-                              <ClipboardList className="h-4 w-4 mr-1" />
-                              Picking List
-                            </Button>
-                          </div>
-                          
-                          {/* Show change description for all modified orders */}
-                          {changeDesc && (
-                            <div className="text-red-600 text-xs font-medium">
-                              Changes: {changeDesc}
-                            </div>
-                          )}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Order Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Delivery Method</TableHead>
+                  <TableHead>Customer Order #</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">
+                      No orders found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">
+                        {order.customer?.name || "Unknown Customer"}
+                      </TableCell>
+                      <TableCell>
+                        {safeFormatDate(order.orderDate)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className={getStatusBadgeColor(order.status)}
+                          variant="outline"
+                        >
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{order.deliveryMethod}</TableCell>
+                      <TableCell>
+                        {order.customerOrderNumber || "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewOrder(order.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditOrder(order.id)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewPickingList(order.id)}
+                          >
+                            <ClipboardList className="h-4 w-4 mr-1" />
+                            Picking List
+                          </Button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
