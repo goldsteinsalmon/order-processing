@@ -39,11 +39,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
       // Search in customer name
       const customerNameMatch = order.customer?.name?.toLowerCase().includes(searchLower);
       
-      // Search in order ID or number - adding null check for orderNumber
+      // Search in order ID
       const orderIdMatch = order.id?.toLowerCase().includes(searchLower);
-      const orderNumberMatch = order.orderNumber !== undefined && order.orderNumber !== null 
-        ? String(order.orderNumber)?.toLowerCase().includes(searchLower) 
-        : false;
       
       // Search in customer order number
       const customerOrderMatch = order.customerOrderNumber?.toLowerCase().includes(searchLower);
@@ -52,7 +49,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
       const statusMatch = order.status?.toLowerCase().includes(searchLower);
       
       // Return true if any of the fields match
-      return customerNameMatch || orderIdMatch || orderNumberMatch || customerOrderMatch || statusMatch;
+      return customerNameMatch || orderIdMatch || customerOrderMatch || statusMatch;
     });
   }, [orders, searchTerm]);
 

@@ -59,7 +59,7 @@ export interface Order {
   customerId: string;
   customer?: Customer;
   customerOrderNumber?: string;
-  orderNumber?: number; // Added orderNumber property
+  orderNumber?: number;
   orderDate: string;
   requiredDate: string;
   deliveryMethod: "Delivery" | "Collection";
@@ -80,7 +80,7 @@ export interface Order {
 
 export interface StandingOrderItem {
   id: string;
-  standingOrderId: string;
+  standingOrderId?: string;
   productId: string;
   product?: Product;
   quantity: number;
@@ -106,6 +106,7 @@ export interface StandingOrder {
   updated?: string;
   nextProcessingDate?: string;
   lastProcessedDate?: string;
+  active?: boolean;
 }
 
 export interface ModifiedDelivery {
@@ -157,6 +158,9 @@ export interface Return {
   returnsRequired: string;
   returnStatus: string;
   resolutionStatus: string;
+  customerType: string;
+  created: string;
+  updated?: string;
 }
 
 export interface Complaint {
@@ -171,4 +175,7 @@ export interface Complaint {
   returnsRequired: string;
   returnStatus: string;
   resolutionStatus: string;
+  customerType: string;
+  created: string;
+  updated?: string;
 }

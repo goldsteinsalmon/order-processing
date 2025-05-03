@@ -82,6 +82,6 @@ export const usePickerData = () => {
   };
 };
 
-export const usePickersData = (toast: any) => {
+export const usePickersData = () => {
   return usePickerData();
 };

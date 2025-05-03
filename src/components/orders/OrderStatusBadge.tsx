@@ -1,32 +1,34 @@
 
-import React from "react";
+import React from 'react';
 import { Badge } from "@/components/ui/badge";
 
+type OrderStatus = 'Pending' | 'Processing' | 'Completed' | 'Missing Items' | 'Cancelled';
+
 interface OrderStatusBadgeProps {
-  status: string;
+  status: OrderStatus;
 }
 
 const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status }) => {
-  const getStatusColor = (): string => {
+  const getStatusVariant = () => {
     switch (status) {
-      case "Completed":
-        return "bg-green-500 hover:bg-green-600";
-      case "Processing":
-        return "bg-blue-500 hover:bg-blue-600";
-      case "Pending":
-        return "bg-yellow-500 hover:bg-yellow-600";
-      case "Missing Items":
-        return "bg-orange-500 hover:bg-orange-600";
-      case "Cancelled":
-        return "bg-red-500 hover:bg-red-600";
+      case 'Pending':
+        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+      case 'Processing':
+        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
+      case 'Completed':
+        return 'bg-green-100 text-green-800 hover:bg-green-200';
+      case 'Missing Items':
+        return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800 hover:bg-red-200';
       default:
-        return "bg-gray-500 hover:bg-gray-600";
+        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
     }
   };
 
   return (
-    <Badge className={`${getStatusColor()} text-white`}>
-      {status || "Unknown"}
+    <Badge className={`font-medium ${getStatusVariant()}`} variant="outline">
+      {status}
     </Badge>
   );
 };
