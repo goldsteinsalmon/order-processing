@@ -1,10 +1,11 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
-export const useUserData = (toast: any) => {
+export const useUserData = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const { toast } = useToast();
 
   // Add user
   const addUser = async (user: User): Promise<User | null> => {

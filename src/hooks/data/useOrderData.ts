@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Order, OrderItem } from "@/types";
 import { adaptOrderToCamelCase, adaptOrderToSnakeCase } from "@/utils/typeAdapters";
 import { adaptOrderItemToSnakeCase } from "@/utils/orderItemAdapters";
+import { useToast } from "@/hooks/use-toast";
 
-export const useOrderData = (toast: any) => {
+export const useOrderData = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Helper function to log and format database errors
   const handleDatabaseError = (error: any, operation: string): string => {

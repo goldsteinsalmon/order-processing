@@ -3,9 +3,11 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Complaint } from "@/types";
 import { adaptComplaintToCamelCase } from "@/utils/typeAdapters";
+import { useToast } from "@/hooks/use-toast";
 
-export const useComplaintData = (toast: any) => {
+export const useComplaintData = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const { toast } = useToast();
 
   const fetchComplaints = async () => {
     try {

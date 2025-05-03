@@ -1,12 +1,13 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BatchUsage, Product, Order, OrderItem } from "@/types";
 import { adaptBatchUsageToCamelCase } from "@/utils/typeAdapters";
+import { useToast } from "@/hooks/use-toast";
 
-export const useBatchUsageData = (toast: any, products: Product[]) => {
+export const useBatchUsageData = (products: Product[]) => {
   const [batchUsages, setBatchUsages] = useState<BatchUsage[]>([]);
   const [processedBatchOrderItems, setProcessedBatchOrderItems] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   const fetchBatchUsages = async () => {
     try {

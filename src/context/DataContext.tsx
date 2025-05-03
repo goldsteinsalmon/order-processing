@@ -7,6 +7,12 @@ import { useProductData } from "@/hooks/data/useProductData";
 import { useStandingOrderData } from "@/hooks/data/useStandingOrderData";
 import { useReturnsComplaintsData } from "@/hooks/data/useReturnsComplaintsData";
 import { usePickersData } from "@/hooks/data/usePickersData";
+import { useOrderData } from "@/hooks/data/useOrderData";
+import { useBatchUsageData } from "@/hooks/data/useBatchUsageData";
+import { useMissingItemData } from "@/hooks/data/useMissingItemData";
+import { useReturnData } from "@/hooks/data/useReturnData";
+import { useComplaintData } from "@/hooks/data/useComplaintData";
+import { useUserData } from "@/hooks/data/useUserData";
 
 interface DataContextType {
   customers: Customer[];
@@ -147,6 +153,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updatePicker,
     deletePicker,
   } = usePickersData();
+
+  const {
+    orders: orderData,
+    completedOrders: completedOrdersData,
+    addOrder,
+    updateOrder,
+    deleteOrder,
+    completeOrder,
+  } = useOrderData();
+
+  const {
+    batchUsages: batchUsagesData,
+    recordBatchUsage,
+    recordAllBatchUsagesForOrder,
+  } = useBatchUsageData(products);
+
+  const {
+    missingItems: missingItemsData,
+    addMissingItem,
+    removeMissingItem,
+  } = useMissingItemData();
+
+  const {
+    returns: returnsData,
+  } = useReturnData();
+
+  const {
+    complaints: complaintsData,
+  } = useComplaintData();
+
+  const {
+    users: usersData,
+  } = useUserData();
 
   // Fetch pickers
   const fetchPickers = useCallback(async () => {

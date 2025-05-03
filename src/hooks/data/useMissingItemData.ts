@@ -3,9 +3,11 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { MissingItem, Product } from "@/types";
 import { adaptMissingItemToCamelCase, adaptMissingItemToSnakeCase } from "@/utils/typeAdapters";
+import { useToast } from "@/hooks/use-toast";
 
-export const useMissingItemData = (toast: any) => {
+export const useMissingItemData = () => {
   const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
+  const { toast } = useToast();
 
   const fetchMissingItems = async () => {
     try {

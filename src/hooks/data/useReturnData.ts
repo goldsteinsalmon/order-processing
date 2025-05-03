@@ -3,9 +3,11 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Return } from "@/types";
 import { adaptReturnToCamelCase } from "@/utils/typeAdapters";
+import { useToast } from "@/hooks/use-toast";
 
-export const useReturnData = (toast: any) => {
+export const useReturnData = () => {
   const [returns, setReturns] = useState<Return[]>([]);
+  const { toast } = useToast();
 
   const fetchReturns = async () => {
     try {
