@@ -15,9 +15,23 @@ export const supabase = createClient<Database>(
   {
     auth: {
       storage: localStorage,
-      persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false, // Disable session detection in URL to avoid potential redirects
+      persistSession: true,
+      detectSessionInUrl: false,
+      flowType: 'implicit'
     }
   }
 );
+
+// Log session for debugging
+if (process.env.NODE_ENV !== 'production') {
+  // Check session on startup
+  supabase.auth.getSession().then(({ data, error }) => {
+    if (error) {
+      console.error('[Supabase Client] Session check error:', error);
+    } else {
+      console.log('[Supabase Client] Initial session check:', 
+        data.session?.user ? `User logged in: ${data.session.user.email}` : 'No session found');
+    }
+  });
+}

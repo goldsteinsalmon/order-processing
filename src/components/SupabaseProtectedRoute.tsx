@@ -14,20 +14,21 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdmin = false,
   allowUserAccess = true 
 }) => {
-  const { user, isLoading } = useSupabaseAuth();
+  const { user, isLoading, session } = useSupabaseAuth();
   const location = useLocation();
   
   useEffect(() => {
     // Debug logging
-    console.log("Protected route rendering with:", { 
+    console.log("[SupabaseProtectedRoute] Rendering with:", { 
       isLoading, 
       hasUser: !!user, 
+      hasSession: !!session,
       userRole: user?.user_metadata?.role,
       requireAdmin,
       allowUserAccess,
       path: location.pathname
     });
-  }, [isLoading, user, requireAdmin, allowUserAccess, location]);
+  }, [isLoading, user, session, requireAdmin, allowUserAccess, location]);
   
   // Show loading state
   if (isLoading) {
@@ -39,8 +40,8 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
   
   // Redirect to login if not authenticated
-  if (!user) {
-    console.log("No user found, redirecting to login", location);
+  if (!user || !session) {
+    console.log("[SupabaseProtectedRoute] No authenticated user found, redirecting to login", location);
     // Remember the current location to redirect back after login
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -50,13 +51,13 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   
   // Check if admin access is required but user is not an admin
   if (requireAdmin && userRole !== 'Admin') {
-    console.log('Access denied: Admin access required but user role is', userRole);
+    console.log('[SupabaseProtectedRoute] Access denied: Admin access required but user role is', userRole);
     return <Navigate to="/orders" replace />;
   }
   
   // Check if regular user is accessing a restricted route
   if (!allowUserAccess && userRole === 'User') {
-    console.log('Access denied: Regular user accessing restricted route');
+    console.log('[SupabaseProtectedRoute] Access denied: Regular user accessing restricted route');
     return <Navigate to="/orders" replace />;
   }
   

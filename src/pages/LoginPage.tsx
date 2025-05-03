@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,6 +21,9 @@ const LoginPage: React.FC = () => {
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/orders";
 
   useEffect(() => {
+    // Clear any lingering loading state when component mounts
+    setIsLoading(false);
+    
     // Redirect if already logged in
     if (session) {
       console.log("User already logged in, redirecting to:", from);
@@ -43,33 +45,41 @@ const LoginPage: React.FC = () => {
     
     try {
       setIsLoading(true);
-      console.log("Attempting to sign in with email:", email);
+      console.log("[LoginPage] Attempting to sign in with email:", email);
       
       const { success, error } = await signIn(email, password);
       
       if (!success) {
-        console.error("Authentication failed:", error);
+        console.error("[LoginPage] Authentication failed:", error);
         toast({
-          title: "Error",
+          title: "Login Failed",
           description: error || "Invalid email or password",
           variant: "destructive",
         });
+        // Ensure loading state is reset on failure
+        setIsLoading(false);
       } else {
-        // Only show toast on success, don't navigate - let the session listener handle that
+        console.log("[LoginPage] Authentication successful");
         toast({
           title: "Success",
           description: "Authentication successful",
         });
+        // Keep isLoading true until redirection, which will happen automatically via useEffect
+        // But add a safety timeout to ensure we don't get stuck
+        setTimeout(() => {
+          setIsLoading(false);
+          // Force navigate if the session listener hasn't triggered yet
+          navigate(from, { replace: true });
+        }, 2000);
       }
     } catch (error) {
-      console.error("Exception during authentication:", error);
+      console.error("[LoginPage] Exception during authentication:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred",
         variant: "destructive",
       });
-    } finally {
-      // Always reset loading state regardless of outcome
+      // Always reset loading state on exceptions
       setIsLoading(false);
     }
   };
