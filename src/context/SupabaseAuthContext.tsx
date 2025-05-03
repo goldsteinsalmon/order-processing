@@ -40,7 +40,6 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         title: "Signed in",
         description: "You have been signed in successfully.",
       });
-      // Use React Router navigate instead of window.location.href
       navigate('/orders');
     } else if (event === 'SIGNED_OUT') {
       console.log("Auth event: SIGNED_OUT, redirecting to login");
@@ -48,71 +47,66 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
-      // Use React Router navigate instead of window.location.href
       navigate('/login');
     }
   };
 
   useEffect(() => {
-    console.log("Setting up auth state listener");
+    let authListener: { data: { subscription: { unsubscribe: () => void } } };
     
-    // Set initial loading state
-    setIsLoading(true);
-    
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
-      console.log("Auth state change:", event, newSession?.user?.id);
+    const initAuth = async () => {
+      setIsLoading(true);
+      console.log("Setting up auth state listener");
       
-      // Update session and user state
-      setSession(newSession);
-      setUser(newSession?.user || null);
-      
-      // Handle auth state changes after initial load
-      if (!isLoading) {
-        console.log("Auth state change detected while app is running:", event);
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          // Allow a small delay for state to update before redirecting
+      // First set up the auth listener before checking session
+      authListener = supabase.auth.onAuthStateChange((event, newSession) => {
+        console.log("Auth state change:", event, newSession?.user?.id);
+        
+        // Always update state
+        setSession(newSession);
+        setUser(newSession?.user || null);
+        
+        // Handle events for navigation once app is initialized
+        if (!isLoading && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+          console.log(`Auth event ${event} detected while app is running`);
+          // Use a small timeout to ensure state is updated first
           setTimeout(() => {
             redirectAfterAuth(event);
-          }, 500); // Increased delay for more reliable state updates
+          }, 100);
         }
-      } else {
-        console.log("Auth state initialized with:", event);
-      }
-    });
-    
-    // THEN check for existing session
-    const checkSession = async () => {
+      });
+      
+      // Then check for existing session
       try {
         console.log("Checking for existing session...");
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error("Error getting session:", error);
-          setIsLoading(false);
-          return;
+        } else {
+          console.log("Initial session check:", data.session?.user?.id ? "User authenticated" : "No active session");
+          setSession(data.session);
+          setUser(data.session?.user || null);
         }
-        
-        console.log("Initial session check:", data.session?.user?.id ? "User authenticated" : "No active session");
-        setSession(data.session);
-        setUser(data.session?.user || null);
       } catch (error) {
-        console.error("Error checking session:", error);
+        console.error("Error during initial session check:", error);
       } finally {
-        console.log("Finished initial auth check, setting isLoading to false");
+        console.log("Initial auth setup complete");
         setIsLoading(false);
       }
     };
     
-    // Check session
-    checkSession();
+    // Initialize auth
+    initAuth();
     
-    // Cleanup subscription
+    // Cleanup
     return () => {
       console.log("Cleaning up auth subscription");
-      subscription.unsubscribe();
+      if (authListener) {
+        authListener.data.subscription.unsubscribe();
+      }
     };
-  }, []); // Remove isLoading from dependencies to prevent refresh loops
+  }, []);
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
@@ -129,9 +123,6 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       
       console.log("Sign in API call successful, user ID:", data.user?.id);
-      
-      // Let the auth listener handle session state updates
-      // No need for manual navigation here
       return { success: true };
     } catch (error: any) {
       console.error('Unexpected error during sign in:', error);
@@ -183,10 +174,11 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Sign out
   const signOut = async () => {
     try {
+      setIsLoading(true);
       console.log("Starting sign out process...");
-      setIsLoading(true); // Set loading state before signing out
       
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
         console.error("Error during signOut:", error);
         toast({
@@ -196,10 +188,8 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         });
       } else {
         console.log("Sign out API call successful");
-        // Let the auth state listener handle the redirect
+        // Auth state listener will handle the redirect
       }
-      
-      setIsLoading(false); // Reset loading state
     } catch (error) {
       console.error("Exception during signOut:", error);
       toast({
@@ -207,7 +197,8 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         description: "Failed to sign out. Please try again.",
         variant: "destructive",
       });
-      setIsLoading(false); // Reset loading state on error
+    } finally {
+      setIsLoading(false);
     }
   };
 

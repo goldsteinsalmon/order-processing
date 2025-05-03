@@ -41,43 +41,36 @@ const LoginPage: React.FC = () => {
       return;
     }
     
-    setIsLoading(true);
-    
     try {
+      setIsLoading(true);
       console.log("Attempting to sign in with email:", email);
+      
       const { success, error } = await signIn(email, password);
       
-      if (success) {
-        // Success message
-        toast({
-          title: "Success",
-          description: "You have been signed in successfully.",
-        });
-        
-        // No need to navigate or set loading state here
-        // The session update will trigger the useEffect above
-        console.log("Sign in successful, waiting for session update");
-        
-        // Important: Reset loading state even on success
-        // This ensures the button doesn't stay in loading state
-        setIsLoading(false);
-      } else {
+      if (!success) {
         console.error("Authentication failed:", error);
         toast({
           title: "Error",
           description: error || "Invalid email or password",
           variant: "destructive",
         });
-        setIsLoading(false); // Reset loading state on error
+      } else {
+        // Only show toast on success, don't navigate - let the session listener handle that
+        toast({
+          title: "Success",
+          description: "Authentication successful",
+        });
       }
     } catch (error) {
       console.error("Exception during authentication:", error);
       toast({
         title: "Error",
-        description: "An error occurred during authentication",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
-      setIsLoading(false); // Reset loading state on exception
+    } finally {
+      // Always reset loading state regardless of outcome
+      setIsLoading(false);
     }
   };
 
