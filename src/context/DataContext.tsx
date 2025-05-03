@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+
+import React, { createContext, useState, useEffect, useCallback, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer, Order, Product, StandingOrder, MissingItem, OrderItem, Picker } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -6,7 +7,7 @@ import { useCustomerData } from "@/hooks/data/useCustomerData";
 import { useProductData } from "@/hooks/data/useProductData";
 import { useStandingOrderData } from "@/hooks/data/useStandingOrderData";
 import { useReturnsComplaintsData } from "@/hooks/data/useReturnsComplaintsData";
-import { usePickersData } from "@/hooks/data/usePickersData";
+import { usePickerData } from "@/hooks/data/usePickerData";
 
 interface DataContextType {
   customers: Customer[];
@@ -112,20 +113,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   } = useProductData(toast);
 
   const {
-    addStandingOrder,
-    updateStandingOrder,
-    processStandingOrders
-  } = useStandingOrderData(toast, addOrder);
-
-  const {
     addReturnsComplaints,
     updateReturnsComplaints,
     deleteReturnsComplaints,
   } = useReturnsComplaintsData(toast);
 
-  const {
-    setPickers,
-  } = usePickersData(toast);
+  const { addPickerData } = usePickerData(toast);
 
   // Fetch pickers
   const fetchPickers = useCallback(async () => {
@@ -144,7 +137,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        setPickers(data);
+        setPickers(data as Picker[]);
       }
     } catch (error) {
       console.error('Error fetching pickers:', error);
@@ -174,7 +167,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        setCustomers(data);
+        setCustomers(data as Customer[]);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -204,7 +197,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        setProducts(data);
+        setProducts(data as Product[]);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -271,11 +264,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isPicked: order.is_picked,
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
-            completedBoxes: order.completed_boxes,
-            savedBoxes: order.saved_boxes,
+            completedBoxes: order.completed_boxes || 0,
+            savedBoxes: order.saved_boxes || 0,
           };
         });
-        setOrders(adaptedOrders);
+        setOrders(adaptedOrders as Order[]);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -336,7 +329,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             lastProcessedDate: standingOrder.last_processed_date
           };
         });
-        setStandingOrders(adaptedStandingOrders);
+        setStandingOrders(adaptedStandingOrders as StandingOrder[]);
       }
     } catch (error) {
       console.error('Error fetching standing orders:', error);
@@ -369,7 +362,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
-        setMissingItems(data);
+        setMissingItems(data as MissingItem[]);
       }
     } catch (error) {
       console.error('Error fetching missing items:', error);
@@ -411,46 +404,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [setReturnsComplaints, toast]);
 
-  // Refresh data function
-  const refreshData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await Promise.all([
-        fetchCustomers(),
-        fetchProducts(),
-        fetchOrders(),
-        fetchStandingOrders(),
-        fetchMissingItems(),
-        fetchPickers(),
-        fetchReturnsComplaints()
-      ]);
-      processStandingOrders();
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh data.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    fetchCustomers,
-    fetchProducts,
-    fetchOrders,
-    fetchStandingOrders,
-    fetchMissingItems,
-    fetchPickers,
-    fetchReturnsComplaints,
-    processStandingOrders,
-    toast
-  ]);
-
-  useEffect(() => {
-    refreshData();
-  }, [refreshData]);
-
+  // Create the addOrder function before using it
   // Function to add an order
   const addOrder = async (order: Order): Promise<Order | null> => {
     try {
@@ -541,12 +495,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
-        completedBoxes: newOrderData.completed_boxes,
-        savedBoxes: newOrderData.saved_boxes,
+        completedBoxes: newOrderData.completed_boxes || 0,
+        savedBoxes: newOrderData.saved_boxes || 0,
       };
 
-      setOrders([...orders, adaptedOrder]);
-      return adaptedOrder;
+      setOrders([...orders, adaptedOrder as Order]);
+      return adaptedOrder as Order;
     } catch (error) {
       console.error('Error adding order:', error);
       toast({
@@ -557,6 +511,52 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
   };
+
+  const {
+    addStandingOrder,
+    updateStandingOrder,
+    processStandingOrders
+  } = useStandingOrderData(toast, addOrder);
+
+  // Refresh data function
+  const refreshData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        fetchCustomers(),
+        fetchProducts(),
+        fetchOrders(),
+        fetchStandingOrders(),
+        fetchMissingItems(),
+        fetchPickers(),
+        fetchReturnsComplaints()
+      ]);
+      processStandingOrders();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    fetchCustomers,
+    fetchProducts,
+    fetchOrders,
+    fetchStandingOrders,
+    fetchMissingItems,
+    fetchPickers,
+    fetchReturnsComplaints,
+    processStandingOrders,
+    toast
+  ]);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // Function to update an order
   const updateOrder = async (order: Order): Promise<boolean> => {
@@ -907,8 +907,79 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Helper function to fetch a single order by ID
+  const fetchOrderById = async (orderId: string) => {
+    try {
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:order_items(
+            *,
+            product:products(*)
+          ),
+          missing_items:missing_items(
+            *,
+            product:products(*)
+          )
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+      if (!orderData) throw new Error("Order not found");
+
+      // Transform the order data to the expected format
+      return {
+        id: orderData.id,
+        customerId: orderData.customer_id,
+        customer: orderData.customer,
+        customerOrderNumber: orderData.customer_order_number,
+        orderDate: orderData.order_date,
+        requiredDate: orderData.required_date,
+        deliveryMethod: orderData.delivery_method,
+        notes: orderData.notes,
+        status: orderData.status,
+        created: orderData.created,
+        fromStandingOrder: orderData.from_standing_order,
+        pickingInProgress: orderData.picking_in_progress,
+        isPicked: orderData.is_picked,
+        pickedBy: orderData.picked_by,
+        pickedAt: orderData.picked_at,
+        completedBoxes: orderData.completed_boxes || 0,
+        savedBoxes: orderData.saved_boxes || 0,
+        items: orderData.items.map(item => ({
+          id: item.id,
+          orderId: item.order_id,
+          productId: item.product_id,
+          product: item.product,
+          quantity: item.quantity,
+          batchNumber: item.batch_number,
+          checked: item.checked,
+          pickedQuantity: item.picked_quantity,
+          pickedWeight: item.picked_weight,
+          boxNumber: item.box_number,
+          originalQuantity: item.original_quantity
+        })),
+        missingItems: orderData.missing_items.map(item => ({
+          id: item.id,
+          orderId: item.order_id,
+          productId: item.product_id,
+          product: item.product,
+          quantity: item.quantity,
+          date: item.date,
+          status: item.status
+        }))
+      } as Order;
+    } catch (error) {
+      console.error("Error fetching order by ID:", error);
+      throw error;
+    }
+  };
+
   // Add to the context value object
-  return {
+  const contextValue = {
     customers,
     orders,
     products,
@@ -973,74 +1044,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     deleteReturnsComplaints,
   };
 
-  // Helper function to fetch a single order by ID
-  const fetchOrderById = async (orderId: string) => {
-    try {
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          customer:customers(*),
-          items:order_items(
-            *,
-            product:products(*)
-          ),
-          missing_items:missing_items(
-            *,
-            product:products(*)
-          )
-        `)
-        .eq('id', orderId)
-        .single();
-
-      if (orderError) throw orderError;
-      if (!orderData) throw new Error("Order not found");
-
-      // Transform the order data to the expected format
-      return {
-        id: orderData.id,
-        customerId: orderData.customer_id,
-        customer: orderData.customer,
-        customerOrderNumber: orderData.customer_order_number,
-        orderDate: orderData.order_date,
-        requiredDate: orderData.required_date,
-        deliveryMethod: orderData.delivery_method,
-        notes: orderData.notes,
-        status: orderData.status,
-        created: orderData.created,
-        fromStandingOrder: orderData.from_standing_order,
-        pickingInProgress: orderData.picking_in_progress,
-        isPicked: orderData.is_picked,
-        pickedBy: orderData.picked_by,
-        pickedAt: orderData.picked_at,
-        completedBoxes: orderData.completed_boxes,
-        savedBoxes: orderData.saved_boxes,
-        items: orderData.items.map(item => ({
-          id: item.id,
-          orderId: item.order_id,
-          productId: item.product_id,
-          product: item.product,
-          quantity: item.quantity,
-          batchNumber: item.batch_number,
-          checked: item.checked,
-          pickedQuantity: item.picked_quantity,
-          pickedWeight: item.picked_weight,
-          boxNumber: item.box_number,
-          originalQuantity: item.original_quantity
-        })),
-        missingItems: orderData.missing_items.map(item => ({
-          id: item.id,
-          orderId: item.order_id,
-          productId: item.product_id,
-          product: item.product,
-          quantity: item.quantity,
-          date: item.date,
-          status: item.status
-        }))
-      };
-    } catch (error) {
-      console.error("Error fetching order by ID:", error);
-      throw error;
-    }
-  };
+  return <DataContext.Provider value={contextValue}>{children}</DataContext.Provider>;
 };
+
+// Create a hook for easy context usage
+export const useData = () => useContext(DataContext);
+
+// Export as default for compatibility with existing import in App.tsx
+export default DataProvider;

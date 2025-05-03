@@ -29,7 +29,7 @@ import NotFoundPage from "@/pages/NotFoundPage";
 import SupabaseProtectedRoute from "@/components/SupabaseProtectedRoute";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { SupabaseDataProvider } from "@/context/SupabaseDataContext";
-import DataProvider from "@/context/DataContext";
+import { DataProvider } from "@/context/DataContext";
 import { SupabaseAuthProvider } from "@/context/SupabaseAuthContext";
 import PrintBoxLabelPage from "@/pages/PrintBoxLabelPage";
 import CompletedOrdersPage from "@/pages/CompletedOrdersPage";
@@ -101,7 +101,7 @@ function App() {
                   path="/picking-list/:id"
                   element={
                     <SupabaseProtectedRoute>
-                      <Navigate to={location => `/orders/${location.pathname.split('/').pop()}/picking`} replace />
+                      <Navigate to={(location) => `/orders/${location.pathname.split('/').pop()}/picking`} replace />
                     </SupabaseProtectedRoute>
                   }
                 />

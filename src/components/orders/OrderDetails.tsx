@@ -94,7 +94,7 @@ const OrderDetails: React.FC = () => {
           <Button variant="outline" onClick={() => navigate(`/orders/${order.id}/picking`)}>
             <ClipboardList className="mr-2 h-4 w-4" /> Picking List
           </Button>
-          <Button onClick={() => navigate(`/edit-order/${order.id}`)}>
+          <Button onClick={() => navigate(`/orders/${order.id}/edit`)}>
             <Edit className="mr-2 h-4 w-4" /> Edit Order
           </Button>
           <AlertDialog>
