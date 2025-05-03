@@ -37,7 +37,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const setupAuth = async () => {
       try {
         setIsLoading(true);
-        console.log("[SupabaseAuthContext] Setting up auth");
+        console.log("[SupabaseAuthContext] Setting up auth, current URL:", window.location.href);
         
         // First, check for existing session
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();

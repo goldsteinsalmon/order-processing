@@ -13,7 +13,7 @@ export const supabase = createClient<Database>(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
       storage: localStorage
     },
   }
@@ -23,5 +23,6 @@ export const supabase = createClient<Database>(
 console.log("[Supabase Client] Initialized with auth config:", {
   persistSession: true,
   autoRefreshToken: true,
+  detectSessionInUrl: true,
   storage: "localStorage"
 });

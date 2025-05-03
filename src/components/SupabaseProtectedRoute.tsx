@@ -23,7 +23,8 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
     isLoading, 
     hasUser: !!user, 
     hasSession: !!session,
-    userEmail: user?.email
+    userEmail: user?.email,
+    currentUrl: window.location.href
   });
   
   // Show loading state while checking authentication

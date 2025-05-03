@@ -23,7 +23,8 @@ const LoginPage: React.FC = () => {
     console.log("[LoginPage] Component mounted, auth state:", { 
       hasUser: !!user, 
       hasSession: !!session,
-      isAuthLoading: authLoading 
+      isAuthLoading: authLoading,
+      currentUrl: window.location.href
     });
   }, [user, session, authLoading]);
   
@@ -165,6 +166,8 @@ const LoginPage: React.FC = () => {
               {/* Debug info */}
               <div className="text-xs text-gray-400 bg-gray-50 p-2 rounded mb-2">
                 Auth state: {authLoading ? "Loading" : user ? "Logged in" : "Not logged in"}
+                <br />
+                Current URL: {window.location.href}
               </div>
               
               {/* Show any login errors */}
