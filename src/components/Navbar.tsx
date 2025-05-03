@@ -1,4 +1,3 @@
-
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -93,6 +92,14 @@ const Navbar: React.FC = () => {
                     }
                   >
                     Returns
+                  </NavLink>
+                  <NavLink
+                    to="/missing-items"
+                    className={({ isActive }) =>
+                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                    }
+                  >
+                    Missing Items
                   </NavLink>
                   <NavLink
                     to="/batch-tracking"
