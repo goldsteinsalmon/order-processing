@@ -54,11 +54,12 @@ const LoginPage: React.FC = () => {
           description: "You have been signed in successfully.",
         });
         
-        // Don't navigate here - let the auth context handle it
-        // The session will update which will trigger the useEffect above
+        // No need to navigate or set loading state here
+        // The session update will trigger the useEffect above
         console.log("Sign in successful, waiting for session update");
         
-        // Reset loading state on success too
+        // Important: Reset loading state even on success
+        // This ensures the button doesn't stay in loading state
         setIsLoading(false);
       } else {
         console.error("Authentication failed:", error);

@@ -74,7 +74,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           // Allow a small delay for state to update before redirecting
           setTimeout(() => {
             redirectAfterAuth(event);
-          }, 100);
+          }, 500); // Increased delay for more reliable state updates
         }
       } else {
         console.log("Auth state initialized with:", event);
@@ -84,7 +84,15 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // THEN check for existing session
     const checkSession = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        console.log("Checking for existing session...");
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting session:", error);
+          setIsLoading(false);
+          return;
+        }
+        
         console.log("Initial session check:", data.session?.user?.id ? "User authenticated" : "No active session");
         setSession(data.session);
         setUser(data.session?.user || null);
@@ -121,10 +129,13 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
       
       console.log("Sign in API call successful, user ID:", data.user?.id);
+      
+      // Let the auth listener handle session state updates
+      // No need for manual navigation here
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error during sign in:', error);
-      return { success: false, error: 'An unexpected error occurred' };
+      return { success: false, error: error.message || 'An unexpected error occurred' };
     }
   };
 
@@ -163,9 +174,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       console.log("Sign up successful, user ID:", data.user?.id);
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error during sign up:', error);
-      return { success: false, error: 'An unexpected error occurred' };
+      return { success: false, error: error.message || 'An unexpected error occurred' };
     }
   };
 
@@ -173,13 +184,22 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const signOut = async () => {
     try {
       console.log("Starting sign out process...");
+      setIsLoading(true); // Set loading state before signing out
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Error during signOut:", error);
-        throw error;
+        toast({
+          title: "Error",
+          description: "Failed to sign out. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        console.log("Sign out API call successful");
+        // Let the auth state listener handle the redirect
       }
-      console.log("Sign out API call successful");
-      // Don't need manual navigation here as the auth state listener will handle it
+      
+      setIsLoading(false); // Reset loading state
     } catch (error) {
       console.error("Exception during signOut:", error);
       toast({
@@ -187,7 +207,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         description: "Failed to sign out. Please try again.",
         variant: "destructive",
       });
-      throw error;
+      setIsLoading(false); // Reset loading state on error
     }
   };
 
