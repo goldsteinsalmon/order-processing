@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -90,7 +91,7 @@ const OrderDetails: React.FC = () => {
           <h2 className="text-2xl font-bold">Order Details</h2>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => navigate(`/picking-list/${order.id}`)}>
+          <Button variant="outline" onClick={() => navigate(`/orders/${order.id}/picking`)}>
             <ClipboardList className="mr-2 h-4 w-4" /> Picking List
           </Button>
           <Button onClick={() => navigate(`/edit-order/${order.id}`)}>

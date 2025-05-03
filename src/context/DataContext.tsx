@@ -1,330 +1,1037 @@
-import React, { createContext, useContext, useEffect } from "react";
-import { SupabaseDataProvider, useSupabaseData } from "./SupabaseDataContext";
-import { 
-  Customer,
-  Product,
-  Order,
-  StandingOrder,
-  Return,
-  Complaint,
-  MissingItem,
-  User,
-  Picker,
-  BatchUsage,
-  Box,
-  BoxItem
-} from "../types";
-import { 
-  adaptOrderToCamelCase, 
-  adaptOrderToSnakeCase, 
-  adaptCustomerToCamelCase,
-  adaptCustomerToSnakeCase,
-  adaptProductToCamelCase,
-  adaptProductToSnakeCase,
-  adaptBatchUsageToCamelCase,
-  adaptBatchUsageToSnakeCase,
-  adaptMissingItemToCamelCase,
-  adaptMissingItemToSnakeCase,
-  adaptStandingOrderToCamelCase,
-  adaptStandingOrderToSnakeCase
-} from "@/utils/typeAdapters";
+import React, { createContext, useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Customer, Order, Product, StandingOrder, MissingItem, OrderItem, Picker } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { useCustomerData } from "@/hooks/data/useCustomerData";
+import { useProductData } from "@/hooks/data/useProductData";
+import { useStandingOrderData } from "@/hooks/data/useStandingOrderData";
+import { useReturnsComplaintsData } from "@/hooks/data/useReturnsComplaintsData";
+import { usePickersData } from "@/hooks/data/usePickersData";
 
-// Interface for DataContext
 interface DataContextType {
-  customers: Customer[]; 
+  customers: Customer[];
+  orders: Order[];
   products: Product[];
-  orders: Order[]; 
-  completedOrders: Order[]; 
   standingOrders: StandingOrder[];
-  returns: Return[];
-  complaints: Complaint[];
   missingItems: MissingItem[];
-  users: User[];
   pickers: Picker[];
-  batchUsages: BatchUsage[];
+  setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>;
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  setStandingOrders: React.Dispatch<React.SetStateAction<StandingOrder[]>>;
+  setMissingItems: React.Dispatch<React.SetStateAction<MissingItem[]>>;
+  setPickers: React.Dispatch<React.SetStateAction<Picker[]>>;
   addCustomer: (customer: Customer) => Promise<Customer | null>;
-  updateCustomer: (customer: Customer) => Promise<boolean>;
-  deleteCustomer: (customerId: string) => Promise<boolean>;
-  addProduct: (product: Product | Product[]) => Promise<Product | Product[] | null>;
-  updateProduct: (product: Product) => Promise<boolean>;
-  deleteProduct: (productId: string) => Promise<boolean>;
-  addOrder: (order: Order) => Promise<Order | null>; 
-  updateOrder: (order: Order) => Promise<boolean>; 
-  deleteOrder: (orderId: string) => Promise<boolean>;
-  completeOrder: (order: Order) => Promise<boolean>; 
+  addProduct: (product: Product) => Promise<Product | null>;
+  addOrder: (order: Order) => Promise<Order | null>;
   addStandingOrder: (standingOrder: StandingOrder) => Promise<StandingOrder | null>;
-  updateStandingOrder: (standingOrder: StandingOrder) => Promise<boolean>;
-  processStandingOrders: () => Promise<void>;
-  addReturn: (returnItem: Return) => Promise<Return | null>;
-  updateReturn: (returnItem: Return) => Promise<boolean>;
-  addComplaint: (complaint: Complaint) => Promise<Complaint | null>;
-  updateComplaint: (complaint: Complaint) => Promise<boolean>;
   addMissingItem: (missingItem: MissingItem) => Promise<MissingItem | null>;
-  removeMissingItem: (missingItemId: string) => Promise<boolean>;
-  addUser: (user: User) => Promise<User | null>;
-  updateUser: (user: User) => Promise<boolean>;
-  deleteUser: (userId: string) => Promise<boolean>;
-  addPicker: (picker: Picker) => Promise<Picker | null>;
-  updatePicker: (picker: Picker) => Promise<boolean>;
-  deletePicker: (pickerId: string) => Promise<boolean>;
-  getBatchUsages: () => BatchUsage[];
-  getBatchUsageByBatchNumber: (batchNumber: string) => BatchUsage | undefined;
-  recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, manualWeight?: number) => void;
-  recordAllBatchUsagesForOrder: (order: Order) => void;
+  updateCustomer: (customer: Customer) => Promise<boolean>;
+  updateProduct: (product: Product) => Promise<boolean>;
+  updateOrder: (order: Order) => Promise<boolean>;
+  updateStandingOrder: (standingOrder: StandingOrder) => Promise<boolean>;
+  updateMissingItem: (missingItem: MissingItem) => Promise<boolean>;
+  deleteCustomer: (id: string) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
+  deleteOrder: (id: string) => Promise<boolean>;
+  deleteMissingItem: (id: string) => Promise<boolean>;
+  completeOrder: (order: Order) => Promise<boolean>;
+  recordBatchUsage: (batchNumber: string, productId: string, quantity: number, orderId: string, weight?: number) => Promise<boolean>;
+  recordAllBatchUsagesForOrder: (order: Order) => Promise<void>;
   refreshData: () => Promise<void>;
-  fetchProducts: () => Promise<void>; // Ensure return type is Promise<void>
+  refreshOrderData: (orderId: string) => Promise<void>;
   isLoading: boolean;
+  returnsComplaints: any[];
+  setReturnsComplaints: React.Dispatch<React.SetStateAction<any[]>>;
+  addReturnsComplaints: (returnsComplaints: any) => Promise<any | null>;
+  updateReturnsComplaints: (returnsComplaints: any) => Promise<boolean>;
+  deleteReturnsComplaints: (id: string) => Promise<boolean>;
 }
 
-// Create the context
-const DataContext = createContext<DataContextType | undefined>(undefined);
+export const DataContext = createContext<DataContextType>({
+  customers: [],
+  orders: [],
+  products: [],
+  standingOrders: [],
+  missingItems: [],
+  pickers: [],
+  setCustomers: () => {},
+  setOrders: () => {},
+  setProducts: () => {},
+  setStandingOrders: () => {},
+  setMissingItems: () => {},
+  setPickers: () => {},
+  addCustomer: async () => null,
+  addProduct: async () => null,
+  addOrder: async () => null,
+  addStandingOrder: async () => null,
+  addMissingItem: async () => null,
+  updateCustomer: async () => false,
+  updateProduct: async () => false,
+  updateOrder: async () => false,
+  updateStandingOrder: async () => false,
+  updateMissingItem: async () => false,
+  deleteCustomer: async () => false,
+  deleteProduct: async () => false,
+  deleteOrder: async () => false,
+  deleteMissingItem: async () => false,
+  completeOrder: async () => false,
+  recordBatchUsage: async () => false,
+  recordAllBatchUsagesForOrder: async () => {},
+  refreshData: async () => {},
+  refreshOrderData: async () => {},
+  isLoading: false,
+  returnsComplaints: [],
+  setReturnsComplaints: () => {},
+  addReturnsComplaints: async () => null,
+  updateReturnsComplaints: async () => false,
+  deleteReturnsComplaints: async () => false,
+});
 
-// Custom hook for using the data context
-export const useData = (): DataContextType => {
-  const context = useContext(DataContext);
-  if (!context) {
-    throw new Error("useData must be used within a DataProvider");
-  }
-  return context;
-};
-
-// Provider component
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const supabaseData = useSupabaseData();
-  console.log("DataContext: Loading state from supabaseData:", supabaseData.isLoading);
-  
-  // Convert customers to camelCase for React components
-  const adaptedCustomers = supabaseData.customers.map(customer => {
-    return adaptCustomerToCamelCase(customer);
-  });
-  
-  // Debug to check all customer data
-  useEffect(() => {
-    console.log("DataContext: All adapted customers:", adaptedCustomers);
-    adaptedCustomers.forEach((customer, index) => {
-      console.log(`Customer ${index + 1}: ${customer.name}`);
-      console.log(`  - accountNumber: ${customer.accountNumber || "EMPTY"}`);
-      console.log(`  - onHold: ${customer.onHold}`);
-      console.log(`  - holdReason: ${customer.holdReason || "EMPTY"}`);
-      console.log(`  - needsDetailedBoxLabels: ${customer.needsDetailedBoxLabels}`);
-    });
-  }, [adaptedCustomers]);
-  
-  // Convert orders to camelCase for React components
-  const adaptedOrders = supabaseData.orders.map(order => adaptOrderToCamelCase(order));
-  const adaptedCompletedOrders = supabaseData.completedOrders.map(order => adaptOrderToCamelCase(order));
-  
-  // Convert products to camelCase
-  const adaptedProducts = supabaseData.products.map(product => adaptProductToCamelCase(product));
-  console.log("DataContext: All adapted products:", adaptedProducts);
-  
-  // Convert batch usages to camelCase
-  const adaptedBatchUsages = supabaseData.batchUsages.map(batchUsage => adaptBatchUsageToCamelCase(batchUsage));
-  
-  // Convert missing items to camelCase
-  const adaptedMissingItems = supabaseData.missingItems.map(item => adaptMissingItemToCamelCase(item));
-  
-  // Convert standing orders to camelCase
-  const adaptedStandingOrders = supabaseData.standingOrders.map(standingOrder => adaptStandingOrderToCamelCase(standingOrder));
-  
-  // Wrap the updateCustomer function to convert camelCase back to snake_case
-  const updateCustomer = async (camelCaseCustomer: Customer): Promise<boolean> => {
-    console.log("DataContext updateCustomer called with:", camelCaseCustomer);
-    console.log("DataContext updateCustomer - accountNumber:", camelCaseCustomer.accountNumber || "EMPTY");
-    console.log("DataContext updateCustomer - onHold:", camelCaseCustomer.onHold);
-    console.log("DataContext updateCustomer - holdReason:", camelCaseCustomer.holdReason || "EMPTY");
-    
-    // Make sure we have a valid customer with all properties
-    const completeCustomer: Customer = {
-      ...camelCaseCustomer,
-      accountNumber: camelCaseCustomer.accountNumber || "",
-      onHold: camelCaseCustomer.onHold === true,
-      holdReason: camelCaseCustomer.onHold ? (camelCaseCustomer.holdReason || "") : "",
-      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels === true
-    };
-    
-    const snakeCaseCustomer = adaptCustomerToSnakeCase(completeCustomer);
-    console.log("Converted to snake_case:", snakeCaseCustomer);
-    console.log("DataContext updateCustomer - snake_case account_number:", snakeCaseCustomer.account_number || "EMPTY");
-    console.log("DataContext updateCustomer - snake_case on_hold:", snakeCaseCustomer.on_hold);
-    console.log("DataContext updateCustomer - snake_case hold_reason:", snakeCaseCustomer.hold_reason || "EMPTY");
-    
-    const result = await supabaseData.updateCustomer(snakeCaseCustomer);
-    
-    return result;
-  };
-  
-  // Wrap the addCustomer function to ensure proper data handling
-  const addCustomer = async (camelCaseCustomer: Customer): Promise<Customer | null> => {
-    console.log("DataContext addCustomer called with:", camelCaseCustomer);
-    console.log("DataContext addCustomer - accountNumber:", camelCaseCustomer.accountNumber || "EMPTY");
-    console.log("DataContext addCustomer - onHold:", camelCaseCustomer.onHold);
-    
-    // Make sure we have a valid customer with all properties
-    const completeCustomer: Customer = {
-      ...camelCaseCustomer,
-      accountNumber: camelCaseCustomer.accountNumber || "",
-      onHold: camelCaseCustomer.onHold === true,
-      holdReason: camelCaseCustomer.onHold ? (camelCaseCustomer.holdReason || "") : "",
-      needsDetailedBoxLabels: camelCaseCustomer.needsDetailedBoxLabels === true
-    };
-    
-    const snakeCaseCustomer = adaptCustomerToSnakeCase(completeCustomer);
-    console.log("Converted to snake_case for add:", snakeCaseCustomer);
-    const result = await supabaseData.addCustomer(snakeCaseCustomer);
-    if (result) {
-      const adaptedResult = adaptCustomerToCamelCase(result);
-      console.log("Result after adapting back to camelCase:", adaptedResult);
-      return adaptedResult;
-    }
-    return null;
-  };
-  
-  // Wrap the updateProduct function to convert camelCase back to snake_case
-  const updateProduct = async (camelCaseProduct: Product): Promise<boolean> => {
-    const snakeCaseProduct = adaptProductToSnakeCase(camelCaseProduct);
-    return await supabaseData.updateProduct(snakeCaseProduct);
-  };
-  
-  // Wrap the addProduct function to convert camelCase back to snake_case
-  const addProduct = async (camelCaseProduct: Product | Product[]): Promise<Product | Product[] | null> => {
-    console.log("DataContext addProduct called with:", camelCaseProduct);
-    
-    if (Array.isArray(camelCaseProduct)) {
-      const snakeCaseProducts = camelCaseProduct.map(adaptProductToSnakeCase);
-      console.log("Converted to snake_case for batch add:", snakeCaseProducts);
-      const result = await supabaseData.addProduct(snakeCaseProducts);
-      if (result) {
-        const adaptedResult = Array.isArray(result) 
-          ? result.map(adaptProductToCamelCase) 
-          : adaptProductToCamelCase(result);
-        console.log("Result after batch add:", adaptedResult);
-        return adaptedResult;
-      }
-      return null;
-    } else {
-      const snakeCaseProduct = adaptProductToSnakeCase(camelCaseProduct);
-      console.log("Converted to snake_case for single add:", snakeCaseProduct);
-      const result = await supabaseData.addProduct(snakeCaseProduct);
-      if (result) {
-        const adaptedResult = adaptProductToCamelCase(result);
-        console.log("Result after single add:", adaptedResult);
-        return adaptedResult;
-      }
-      return null;
-    }
-  };
-  
-  // Wrap the updateOrder function to convert camelCase back to snake_case
-  const updateOrder = async (camelCaseOrder: Order): Promise<boolean> => {
-    const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
-    return await supabaseData.updateOrder(snakeCaseOrder);
-  };
-  
-  // Wrap the addOrder function to convert camelCase back to snake_case
-  const addOrder = async (camelCaseOrder: Order): Promise<Order | null> => {
-    const snakeCaseOrder = adaptOrderToSnakeCase(camelCaseOrder);
-    const result = await supabaseData.addOrder(snakeCaseOrder);
-    return result ? adaptOrderToCamelCase(result) : null;
-  };
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [standingOrders, setStandingOrders] = useState<StandingOrder[]>([]);
+  const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
+  const [pickers, setPickers] = useState<Picker[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [returnsComplaints, setReturnsComplaints] = useState<any[]>([]);
+  const { toast } = useToast();
 
-  // Wrap the missing item functions to ensure proper conversion
-  const addMissingItem = async (camelCaseMissingItem: MissingItem): Promise<MissingItem | null> => {
-    const snakeCaseMissingItem = adaptMissingItemToSnakeCase(camelCaseMissingItem);
-    const result = await supabaseData.addMissingItem(snakeCaseMissingItem);
-    return result ? adaptMissingItemToCamelCase(result) : null;
-  };
-  
-  // Create a dedicated fetchProducts function to expose to components
-  const fetchProducts = async (): Promise<void> => {
-    console.log("DataContext: fetchProducts called");
-    try {
-      console.log("DataContext: Calling supabaseData.fetchProducts");
-      await supabaseData.fetchProducts();
-      console.log("DataContext: Products fetched successfully:", supabaseData.products.length);
-    } catch (error) {
-      console.error("DataContext: Error fetching products:", error);
-      throw error;
-    }
-  };
-
-  // Make sure refreshData explicitly returns a Promise<void>
-  const refreshData = async (): Promise<void> => {
-    console.log("DataContext: refreshData called");
-    try {
-      return await supabaseData.refreshData();
-    } catch (error) {
-      console.error("DataContext: Error in refreshData:", error);
-      throw error;
-    }
-  };
-
-  // Wrap the updateStandingOrder function to convert camelCase back to snake_case
-  const updateStandingOrder = async (camelCaseStandingOrder: StandingOrder): Promise<boolean> => {
-    console.log("DataContext updateStandingOrder called with:", camelCaseStandingOrder);
-    const snakeCaseStandingOrder = adaptStandingOrderToSnakeCase(camelCaseStandingOrder);
-    console.log("Converted to snake_case:", snakeCaseStandingOrder);
-    return await supabaseData.updateStandingOrder(snakeCaseStandingOrder);
-  };
-  
-  // Wrap the addStandingOrder function to convert camelCase back to snake_case
-  const addStandingOrder = async (camelCaseStandingOrder: StandingOrder): Promise<StandingOrder | null> => {
-    console.log("DataContext addStandingOrder called with:", camelCaseStandingOrder);
-    const snakeCaseStandingOrder = adaptStandingOrderToSnakeCase(camelCaseStandingOrder);
-    console.log("Converted to snake_case:", snakeCaseStandingOrder);
-    const result = await supabaseData.addStandingOrder(snakeCaseStandingOrder);
-    return result ? adaptStandingOrderToCamelCase(result) : null;
-  };
-
-  const value: DataContextType = {
-    customers: adaptedCustomers,
-    products: adaptedProducts,
-    orders: adaptedOrders,
-    completedOrders: adaptedCompletedOrders,
-    batchUsages: adaptedBatchUsages,
-    missingItems: adaptedMissingItems,
-    standingOrders: adaptedStandingOrders, // Use the adapted standing orders
-    updateCustomer,
+  const {
     addCustomer,
-    updateProduct,
+    updateCustomer,
+    deleteCustomer,
+  } = useCustomerData(toast);
+
+  const {
     addProduct,
-    updateOrder,
-    addOrder,
-    addMissingItem,
+    updateProduct,
+    deleteProduct,
+  } = useProductData(toast);
+
+  const {
+    addStandingOrder,
+    updateStandingOrder,
+    processStandingOrders
+  } = useStandingOrderData(toast, addOrder);
+
+  const {
+    addReturnsComplaints,
+    updateReturnsComplaints,
+    deleteReturnsComplaints,
+  } = useReturnsComplaintsData(toast);
+
+  const {
+    setPickers,
+  } = usePickersData(toast);
+
+  // Fetch pickers
+  const fetchPickers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pickers')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching pickers:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch pickers.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setPickers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching pickers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch pickers.",
+        variant: "destructive",
+      });
+    }
+  }, [setPickers, toast]);
+
+  // Fetch customers
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching customers:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch customers.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setCustomers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch customers.",
+        variant: "destructive",
+      });
+    }
+  }, [setCustomers, toast]);
+
+  // Fetch products
+  const fetchProducts = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch products.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setProducts(data);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch products.",
+        variant: "destructive",
+      });
+    }
+  }, [setProducts, toast]);
+
+  // Fetch orders
+  const fetchOrders = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:order_items(
+            *,
+            product:products(*)
+          ),
+          missing_items:missing_items(
+            *,
+            product:products(*)
+          )
+        `)
+        .order('created', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching orders:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch orders.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        // Adapt the order items to camelCase
+        const adaptedOrders = data.map(order => {
+          return {
+            ...order,
+            customer: order.customer,
+            items: order.items.map(item => ({
+              ...item,
+              productId: item.product_id,
+              orderId: item.order_id,
+              product: item.product,
+            })),
+            missingItems: order.missing_items.map(item => ({
+              ...item,
+              productId: item.product_id,
+              orderId: item.order_id,
+              product: item.product,
+            })),
+            customerId: order.customer_id,
+            orderDate: order.order_date,
+            requiredDate: order.required_date,
+            deliveryMethod: order.delivery_method,
+            customerOrderNumber: order.customer_order_number,
+            pickingInProgress: order.picking_in_progress,
+            isPicked: order.is_picked,
+            pickedBy: order.picked_by,
+            pickedAt: order.picked_at,
+            completedBoxes: order.completed_boxes,
+            savedBoxes: order.saved_boxes,
+          };
+        });
+        setOrders(adaptedOrders);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch orders.",
+        variant: "destructive",
+      });
+    }
+  }, [setOrders, toast]);
+
+  // Fetch standing orders
+  const fetchStandingOrders = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('standing_orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:standing_order_items(
+            *,
+            product:products(*)
+          )
+        `)
+        .order('created', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching standing orders:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch standing orders.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        // Adapt the standing order items to camelCase
+        const adaptedStandingOrders = data.map(standingOrder => {
+          return {
+            ...standingOrder,
+            customerId: standingOrder.customer_id,
+            customerOrderNumber: standingOrder.customer_order_number,
+            schedule: {
+              frequency: standingOrder.frequency,
+              dayOfWeek: standingOrder.day_of_week,
+              dayOfMonth: standingOrder.day_of_month,
+              deliveryMethod: standingOrder.delivery_method,
+              nextDeliveryDate: standingOrder.next_delivery_date,
+              modifiedDeliveries: standingOrder.modified_deliveries
+            },
+            items: standingOrder.items.map(item => ({
+              ...item,
+              productId: item.product_id,
+              standingOrderId: item.standing_order_id,
+              product: item.product,
+            })),
+            nextProcessingDate: standingOrder.next_processing_date,
+            lastProcessedDate: standingOrder.last_processed_date
+          };
+        });
+        setStandingOrders(adaptedStandingOrders);
+      }
+    } catch (error) {
+      console.error('Error fetching standing orders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch standing orders.",
+        variant: "destructive",
+      });
+    }
+  }, [setStandingOrders, toast]);
+
+  // Fetch missing items
+  const fetchMissingItems = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('missing_items')
+        .select(`
+          *,
+          product:products(*)
+        `)
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching missing items:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch missing items.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setMissingItems(data);
+      }
+    } catch (error) {
+      console.error('Error fetching missing items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch missing items.",
+        variant: "destructive",
+      });
+    }
+  }, [setMissingItems, toast]);
+
+  // Fetch returns and complaints
+  const fetchReturnsComplaints = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('returns_complaints')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching returns and complaints:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch returns and complaints.",
+          variant: "destructive",
+        });
+      }
+
+      if (data) {
+        setReturnsComplaints(data);
+      }
+    } catch (error) {
+      console.error('Error fetching returns and complaints:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch returns and complaints.",
+        variant: "destructive",
+      });
+    }
+  }, [setReturnsComplaints, toast]);
+
+  // Refresh data function
+  const refreshData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        fetchCustomers(),
+        fetchProducts(),
+        fetchOrders(),
+        fetchStandingOrders(),
+        fetchMissingItems(),
+        fetchPickers(),
+        fetchReturnsComplaints()
+      ]);
+      processStandingOrders();
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    fetchCustomers,
     fetchProducts,
-    isLoading: supabaseData.isLoading,
-    returns: supabaseData.returns,
-    complaints: supabaseData.complaints,
-    updateStandingOrder, // Use the wrapped function
-    addStandingOrder, // Use the wrapped function
-    users: supabaseData.users,
-    pickers: supabaseData.pickers,
-    deleteCustomer: supabaseData.deleteCustomer,
-    deleteProduct: supabaseData.deleteProduct,
-    deleteOrder: supabaseData.deleteOrder,
-    completeOrder: supabaseData.completeOrder,
-    processStandingOrders: supabaseData.processStandingOrders,
-    addReturn: supabaseData.addReturn,
-    updateReturn: supabaseData.updateReturn,
-    addComplaint: supabaseData.addComplaint,
-    updateComplaint: supabaseData.updateComplaint,
-    removeMissingItem: supabaseData.removeMissingItem,
-    addUser: supabaseData.addUser,
-    updateUser: supabaseData.updateUser,
-    deleteUser: supabaseData.deleteUser,
-    addPicker: supabaseData.addPicker,
-    updatePicker: supabaseData.updatePicker,
-    deletePicker: supabaseData.deletePicker,
-    getBatchUsages: supabaseData.getBatchUsages,
-    getBatchUsageByBatchNumber: supabaseData.getBatchUsageByBatchNumber,
-    recordBatchUsage: supabaseData.recordBatchUsage,
-    recordAllBatchUsagesForOrder: supabaseData.recordAllBatchUsagesForOrder,
-    refreshData
+    fetchOrders,
+    fetchStandingOrders,
+    fetchMissingItems,
+    fetchPickers,
+    fetchReturnsComplaints,
+    processStandingOrders,
+    toast
+  ]);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  // Function to add an order
+  const addOrder = async (order: Order): Promise<Order | null> => {
+    try {
+      // Insert order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: order.customerId,
+          customer_order_number: order.customerOrderNumber,
+          order_date: order.orderDate,
+          required_date: order.requiredDate,
+          delivery_method: order.deliveryMethod,
+          notes: order.notes,
+          status: order.status,
+          created: new Date().toISOString(),
+          from_standing_order: order.fromStandingOrder,
+          picking_in_progress: false,
+          is_picked: false
+        })
+        .select();
+
+      if (orderError) throw orderError;
+
+      const newOrderId = orderData[0].id;
+
+      // Insert order items
+      const orderItemsToInsert = order.items.map(item => ({
+        order_id: newOrderId,
+        product_id: item.productId,
+        quantity: item.quantity
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      // If the order has box distributions, save them
+      if (order.boxDistributions && order.boxDistributions.length > 0) {
+        const boxDistributionsToInsert = order.boxDistributions.map(box => ({
+          order_id: newOrderId,
+          box_number: box.boxNumber,
+          items: box.items,
+          completed: box.completed,
+          printed: box.printed
+        }));
+
+        const { error: boxesError } = await supabase
+          .from('box_distributions')
+          .insert(boxDistributionsToInsert);
+
+        if (boxesError) throw boxesError;
+      }
+
+      // Fetch the newly created order with joined customer
+      const { data: newOrderData, error: fetchError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:order_items(
+            *,
+            product:products(*)
+          )
+        `)
+        .eq('id', newOrderId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Adapt the order items to camelCase
+      const adaptedOrder = {
+        ...newOrderData,
+        customerId: newOrderData.customer_id,
+        customerOrderNumber: newOrderData.customer_order_number,
+        orderDate: newOrderData.order_date,
+        requiredDate: newOrderData.required_date,
+        deliveryMethod: newOrderData.delivery_method,
+        items: newOrderData.items.map(item => ({
+          ...item,
+          productId: item.product_id,
+          orderId: item.order_id,
+          product: item.product,
+        })),
+        fromStandingOrder: newOrderData.from_standing_order,
+        pickingInProgress: newOrderData.picking_in_progress,
+        isPicked: newOrderData.is_picked,
+        pickedBy: newOrderData.picked_by,
+        pickedAt: newOrderData.picked_at,
+        completedBoxes: newOrderData.completed_boxes,
+        savedBoxes: newOrderData.saved_boxes,
+      };
+
+      setOrders([...orders, adaptedOrder]);
+      return adaptedOrder;
+    } catch (error) {
+      console.error('Error adding order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add order.",
+        variant: "destructive",
+      });
+      return null;
+    }
   };
 
-  console.log("DataContext: Providing context with isLoading:", value.isLoading);
+  // Function to update an order
+  const updateOrder = async (order: Order): Promise<boolean> => {
+    try {
+      // Update order
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          customer_id: order.customerId,
+          customer_order_number: order.customerOrderNumber,
+          order_date: order.orderDate,
+          required_date: order.requiredDate,
+          delivery_method: order.deliveryMethod,
+          notes: order.notes,
+          status: order.status,
+          updated: new Date().toISOString(),
+          picking_in_progress: order.pickingInProgress,
+          is_picked: order.isPicked,
+          picked_by: order.pickedBy,
+          picked_at: order.pickedAt,
+          completed_boxes: order.completedBoxes,
+          saved_boxes: order.savedBoxes
+        })
+        .eq('id', order.id);
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-};
+      if (orderError) throw orderError;
 
-export default DataProvider;
+      // Handle item updates
+      // First delete existing items
+      const { error: deleteItemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('order_id', order.id);
+
+      if (deleteItemsError) throw deleteItemsError;
+
+      // Then insert updated items
+      const orderItemsToInsert = order.items.map(item => ({
+        order_id: order.id,
+        product_id: item.productId,
+        quantity: item.quantity,
+        batch_number: item.batchNumber,
+        checked: item.checked,
+        picked_quantity: item.pickedQuantity,
+        picked_weight: item.pickedWeight,
+        box_number: item.boxNumber,
+        original_quantity: item.originalQuantity
+      }));
+
+      const { error: insertItemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsToInsert);
+
+      if (insertItemsError) throw insertItemsError;
+
+      // Update missing items
+      // First delete existing missing items
+      const { error: deleteMissingItemsError } = await supabase
+        .from('missing_items')
+        .delete()
+        .eq('order_id', order.id);
+
+      if (deleteMissingItemsError) throw deleteMissingItemsError;
+
+      // Then insert updated missing items
+      if (order.missingItems && order.missingItems.length > 0) {
+        const missingItemsToInsert = order.missingItems.map(item => ({
+          order_id: order.id,
+          product_id: item.productId,
+          quantity: item.quantity,
+          date: item.date,
+          status: item.status
+        }));
+
+        const { error: insertMissingItemsError } = await supabase
+          .from('missing_items')
+          .insert(missingItemsToInsert);
+
+        if (insertMissingItemsError) throw insertMissingItemsError;
+      }
+
+      // Update local state
+      setOrders(orders.map(o =>
+        o.id === order.id ? order : o
+      ));
+
+      return true;
+    } catch (error) {
+      console.error('Error updating order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update order.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Function to delete an order
+  const deleteOrder = async (id: string): Promise<boolean> => {
+    try {
+      // Delete order items first
+      const { error: deleteItemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('order_id', id);
+
+      if (deleteItemsError) throw deleteItemsError;
+
+      // Delete missing items
+       const { error: deleteMissingItemsError } = await supabase
+        .from('missing_items')
+        .delete()
+        .eq('order_id', id);
+
+      if (deleteMissingItemsError) throw deleteMissingItemsError;
+
+      // Delete order
+      const { error: orderError } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', id);
+
+      if (orderError) throw orderError;
+
+      // Update local state
+      setOrders(orders.filter(order => order.id !== id));
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete order.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Function to add a missing item
+  const addMissingItem = async (missingItem: MissingItem): Promise<MissingItem | null> => {
+    try {
+      // Insert missing item
+      const { data: missingItemData, error: missingItemError } = await supabase
+        .from('missing_items')
+        .insert({
+          order_id: missingItem.orderId,
+          product_id: missingItem.productId,
+          quantity: missingItem.quantity,
+          date: missingItem.date,
+          status: missingItem.status
+        })
+        .select();
+
+      if (missingItemError) throw missingItemError;
+
+      setMissingItems([...missingItems, missingItem]);
+      return missingItem;
+    } catch (error) {
+      console.error('Error adding missing item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add missing item.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  // Function to update a missing item
+  const updateMissingItem = async (missingItem: MissingItem): Promise<boolean> => {
+    try {
+      // Update missing item
+      const { error: missingItemError } = await supabase
+        .from('missing_items')
+        .update({
+          order_id: missingItem.orderId,
+          product_id: missingItem.productId,
+          quantity: missingItem.quantity,
+          date: missingItem.date,
+          status: missingItem.status
+        })
+        .eq('id', missingItem.id);
+
+      if (missingItemError) throw missingItemError;
+
+      // Update local state
+      setMissingItems(missingItems.map(mi =>
+        mi.id === missingItem.id ? missingItem : mi
+      ));
+
+      return true;
+    } catch (error) {
+      console.error('Error updating missing item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update missing item.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Function to delete a missing item
+  const deleteMissingItem = async (id: string): Promise<boolean> => {
+    try {
+      const { error: missingItemError } = await supabase
+        .from('missing_items')
+        .delete()
+        .eq('id', id);
+
+      if (missingItemError) throw missingItemError;
+
+      // Update local state
+      setMissingItems(missingItems.filter(missingItem => missingItem.id !== id));
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting missing item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete missing item.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Function to mark an order as complete
+  const completeOrder = async (order: Order): Promise<boolean> => {
+    try {
+      // Update order status to completed
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          status: "Completed",
+          picking_in_progress: false,
+          is_picked: true,
+          picked_at: new Date().toISOString()
+        })
+        .eq('id', order.id);
+
+      if (orderError) throw orderError;
+
+      // Update local state
+      setOrders(orders.map(o =>
+        o.id === order.id ? { ...o, status: "Completed", pickingInProgress: false, isPicked: true } : o
+      ));
+
+      return true;
+    } catch (error) {
+      console.error('Error completing order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete order.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Function to record batch usage
+  const recordBatchUsage = async (batchNumber: string, productId: string, quantity: number, orderId: string, weight: number = 0): Promise<boolean> => {
+    try {
+      // Check if the batch number already exists for the product
+      const { data: existingBatch, error: existingBatchError } = await supabase
+        .from('batches')
+        .select('*')
+        .eq('batch_number', batchNumber)
+        .eq('product_id', productId)
+        .single();
+
+      if (existingBatchError && existingBatchError.code !== 'PGRST116') {
+        throw existingBatchError;
+      }
+
+      if (existingBatch) {
+        // Update the existing batch
+        const { error: updateError } = await supabase
+          .from('batches')
+          .update({
+            quantity_used: existingBatch.quantity_used + quantity,
+            last_used: new Date().toISOString(),
+            last_order_id: orderId,
+            total_weight_picked: existingBatch.total_weight_picked + weight
+          })
+          .eq('id', existingBatch.id);
+
+        if (updateError) {
+          console.error('Error updating batch:', updateError);
+          throw updateError;
+        }
+      } else {
+        // Insert a new batch
+        const { error: insertError } = await supabase
+          .from('batches')
+          .insert({
+            batch_number: batchNumber,
+            product_id: productId,
+            quantity_used: quantity,
+            first_used: new Date().toISOString(),
+            last_used: new Date().toISOString(),
+            last_order_id: orderId,
+            total_weight_picked: weight
+          });
+
+        if (insertError) {
+          console.error('Error inserting batch:', insertError);
+          throw insertError;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error recording batch usage:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record batch usage.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const recordAllBatchUsagesForOrder = async (order: Order): Promise<void> => {
+    if (!order || !order.items) {
+      console.warn("No order or order items provided, skipping batch usage recording");
+      return;
+    }
+
+    for (const item of order.items) {
+      if (item.batchNumber && item.checked) {
+        try {
+          await recordBatchUsage(
+            item.batchNumber,
+            item.productId,
+            item.quantity,
+            order.id,
+            item.pickedWeight
+          );
+          console.log(`Successfully recorded batch usage for ${item.productId} with batch ${item.batchNumber}`);
+        } catch (batchError) {
+          console.error(`Failed to record batch usage for ${item.productId}:`, batchError);
+          // Continue with other items, don't fail the whole process
+        }
+      }
+    }
+  };
+
+  // Add to the context value object
+  return {
+    customers,
+    orders,
+    products,
+    standingOrders,
+    missingItems,
+    pickers,
+    setCustomers,
+    setOrders,
+    setProducts,
+    setStandingOrders,
+    setMissingItems,
+    setPickers,
+    addCustomer,
+    addProduct,
+    addOrder,
+    addStandingOrder,
+    addMissingItem,
+    updateCustomer,
+    updateProduct,
+    updateOrder,
+    updateStandingOrder,
+    updateMissingItem,
+    deleteCustomer,
+    deleteProduct,
+    deleteOrder,
+    deleteMissingItem,
+    completeOrder,
+    recordBatchUsage,
+    recordAllBatchUsagesForOrder,
+    refreshData,
+    refreshOrderData: async (orderId: string) => {
+      console.log("Explicitly refreshing order data for:", orderId);
+      try {
+        // Try to find the order in current state first
+        const existingOrder = orders.find(o => o.id === orderId);
+
+        if (!existingOrder) {
+          console.log("Order not found in context, cannot refresh");
+          return;
+        }
+
+        // Re-fetch the order with its related data
+        const refreshedOrder = await fetchOrderById(orderId);
+
+        if (refreshedOrder) {
+          console.log("Successfully refreshed order data");
+          // Update the orders state by replacing the existing order
+          setOrders(prevOrders =>
+            prevOrders.map(o => o.id === orderId ? refreshedOrder : o)
+          );
+        }
+      } catch (error) {
+        console.error("Error refreshing order data:", error);
+        throw error;
+      }
+    },
+    isLoading,
+    returnsComplaints,
+    setReturnsComplaints,
+    addReturnsComplaints,
+    updateReturnsComplaints,
+    deleteReturnsComplaints,
+  };
+
+  // Helper function to fetch a single order by ID (add this within the provider)
+  const fetchOrderById = async (orderId: string) => {
+    try {
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customer:customers(*),
+          items:order_items(
+            *,
+            product:products(*)
+          ),
+          missing_items:missing_items(
+            *,
+            product:products(*)
+          )
+        `)
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+      if (!orderData) throw new Error("Order not found");
+
+      // Transform the order data to the expected format
+      // (You'll need to copy the same transformation logic used elsewhere)
+      // This is just a placeholder
+      return {
+        id: orderData.id,
+        customerId: orderData.customer_id,
+        customer: orderData.customer,
+        customerOrderNumber: orderData.customer_order_number,
+        orderDate: orderData.order_date,
+        requiredDate: orderData.required_date,
+        deliveryMethod: orderData.delivery_method,
+        notes: orderData.notes,
+        status: orderData.status,
+        created: orderData.created,
+        fromStandingOrder: orderData.from_standing_order,
+        pickingInProgress: orderData.picking_in_progress,
+        isPicked: orderData.is_picked,
+        pickedBy: orderData.picked_by,
+        pickedAt: orderData.picked_at,
+        completedBoxes: orderData.completed_boxes,
+        savedBoxes: orderData.saved_boxes,
+        items: orderData.items.map(item => ({
+          id: item.id,
+          orderId: item.order_id,
+          productId: item.product_id,
+          product: item.product,
+          quantity: item.quantity,
+          batchNumber: item.batch_number,
+          checked: item.checked,
+          pickedQuantity: item.picked_quantity,
+          pickedWeight: item.picked_weight,
+          boxNumber: item.box_number,
+          originalQuantity: item.original_quantity
+        })),
+        missingItems: orderData.missing_items.map(item => ({
+          id: item.id,
+          orderId: item.order_id,
+          productId: item.product_id,
+          product: item.product,

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useData } from "@/context/DataContext";
 
 const PickingListPage: React.FC = () => {
   // Get the order ID from the URL parameters
@@ -14,7 +15,8 @@ const PickingListPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const { refreshOrderData } = useData();
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   // Check if we need to highlight a specific box (coming back from printing)
@@ -24,10 +26,30 @@ const PickingListPage: React.FC = () => {
 
   console.log("PickingListPage: Rendering with orderId:", id, "nextBox:", nextBox);
 
-  // Clear any previous errors when component loads or ID changes
+  // Force refresh order data when component mounts to ensure we have latest data
   useEffect(() => {
-    setError(null);
-  }, [id]);
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      if (id) {
+        try {
+          // Force refresh the order data to ensure we have the latest
+          await refreshOrderData(id);
+          setIsLoading(false);
+        } catch (error) {
+          console.error("Error refreshing order data:", error);
+          setError("Failed to load order data. Please try again.");
+          setIsLoading(false);
+        }
+      } else {
+        setError("No order ID provided");
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [id, refreshOrderData]);
 
   // Handle navigation errors gracefully
   const handleNavigationError = (errorMsg?: string) => {
@@ -99,7 +121,7 @@ const PickingListPage: React.FC = () => {
           <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-50">
             <div className="flex flex-col items-center bg-white p-6 rounded-lg shadow-lg">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-lg font-medium">Saving progress...</p>
+              <p className="text-lg font-medium">Loading order data...</p>
               <p className="text-sm text-gray-500">Please wait, don't navigate away.</p>
             </div>
           </div>

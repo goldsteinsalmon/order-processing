@@ -1,4 +1,3 @@
-
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -97,11 +96,12 @@ function App() {
                   }
                 />
                 
+                {/* Redirect legacy picking-list URL to the standardized route */}
                 <Route
                   path="/picking-list/:id"
                   element={
                     <SupabaseProtectedRoute>
-                      <PickingListPage />
+                      <Navigate to={location => `/orders/${location.pathname.split('/').pop()}/picking`} replace />
                     </SupabaseProtectedRoute>
                   }
                 />

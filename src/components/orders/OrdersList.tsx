@@ -163,7 +163,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
   // Handle navigation to picking list
   const handlePickingListClick = (orderId) => {
     // Ensure we navigate directly to the picking list with this order selected
-    navigate(`/picking-list/${orderId}`);
+    navigate(`/orders/${order.id}/picking`);
   };
   
   // Determine if an order should be highlighted for changes
