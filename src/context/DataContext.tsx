@@ -126,13 +126,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addCustomer,
     updateCustomer,
     deleteCustomer,
-  } = useCustomerData(toast);
+  } = useCustomerData();
 
   const {
     addProduct: addProductSingle,
     updateProduct,
     deleteProduct,
-  } = useProductData(toast);
+  } = useProductData();
 
   const {
     addReturnsComplaints,
@@ -760,7 +760,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addStandingOrder,
     updateStandingOrder,
     processStandingOrders
-  } = useStandingOrderData(toast, addOrder);
+  } = useStandingOrderData(addOrder);
 
   // Refresh data function
   const refreshData = useCallback(async () => {

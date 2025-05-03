@@ -5,8 +5,9 @@ import { Customer } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { adaptCustomerToSnakeCase, adaptCustomerToCamelCase } from "@/utils/typeAdapters";
 
-export const useCustomerData = (toastHandler: any) => {
+export const useCustomerData = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const { toast } = useToast();
 
   // Add customer
   const addCustomer = async (customer: Customer): Promise<Customer | null> => {
@@ -48,7 +49,7 @@ export const useCustomerData = (toastHandler: any) => {
       return newCustomer;
     } catch (error) {
       console.error('Error adding customer:', error);
-      toastHandler({
+      toast({
         title: "Error",
         description: "Failed to add customer.",
         variant: "destructive",
@@ -110,7 +111,7 @@ export const useCustomerData = (toastHandler: any) => {
       return true;
     } catch (error) {
       console.error('[useCustomerData] Error updating customer:', error);
-      toastHandler({
+      toast({
         title: "Error",
         description: "Failed to update customer.",
         variant: "destructive",
@@ -133,7 +134,7 @@ export const useCustomerData = (toastHandler: any) => {
       return true;
     } catch (error) {
       console.error('Error deleting customer:', error);
-      toastHandler({
+      toast({
         title: "Error",
         description: "Failed to delete customer.",
         variant: "destructive",

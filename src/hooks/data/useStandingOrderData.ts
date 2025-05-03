@@ -1,11 +1,12 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StandingOrder, Order, StandingOrderItem } from "@/types";
 import { format, addDays, addWeeks, parseISO } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
-export const useStandingOrderData = (toast: any, addOrder: (order: Order) => Promise<Order | null>) => {
+export const useStandingOrderData = (addOrder: (order: Order) => Promise<Order | null>) => {
   const [standingOrders, setStandingOrders] = useState<StandingOrder[]>([]);
+  const { toast } = useToast();
 
   // Add standing order
   const addStandingOrder = async (standingOrder: StandingOrder): Promise<StandingOrder | null> => {
