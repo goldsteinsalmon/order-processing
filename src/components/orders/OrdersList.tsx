@@ -1,245 +1,227 @@
 
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import { useData } from "@/context/DataContext";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Edit, ClipboardList } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Search, Trash2, Edit, ClipboardList, Calendar, Printer } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { format, isToday, isYesterday, parseISO, isThisWeek, isThisMonth } from "date-fns";
+import { useData } from "@/context/DataContext";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { formatOrderDate } from "@/utils/dateUtils";
+import EditableCell from "@/components/ui/editable-cell";
+import { type Customer } from "@/types";
+import OrderStatusBadge from "./OrderStatusBadge";
 
-// Helper function to safely format dates
-const safeFormatDate = (dateString?: string | null) => {
-  if (!dateString) return "Not specified";
-  try {
-    return format(new Date(dateString), "MMMM d, yyyy");
-  } catch (error) {
-    console.error("Error formatting date:", dateString, error);
-    return "Invalid date";
-  }
-};
+interface OrdersListProps {
+  searchTerm: string;
+}
 
-const OrdersList: React.FC = () => {
+const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
+  const { orders, deleteOrder, updateOrder } = useData();
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const navigate = useNavigate();
-  const { orders, customers } = useData();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [customerFilter, setCustomerFilter] = useState<string>("all");
 
-  // Filter orders based on search term, status, and customer
+  // Filter orders based on search term
   const filteredOrders = useMemo(() => {
-    return orders
-      .filter(
-        (order) =>
-          order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (order.customerOrderNumber?.toLowerCase() || "").includes(
-            searchTerm.toLowerCase()
-          )
-      )
-      .filter((order) =>
-        statusFilter === "all" ? true : order.status === statusFilter
-      )
-      .filter((order) =>
-        customerFilter === "all" ? true : order.customer.id === customerFilter
-      );
-  }, [orders, searchTerm, statusFilter, customerFilter]);
-
-  // Get unique customer list for the filter dropdown
-  const uniqueCustomers = useMemo(() => {
-    const customersMap = new Map();
-    orders.forEach((order) => {
-      if (order.customer && !customersMap.has(order.customer.id)) {
-        customersMap.set(order.customer.id, order.customer);
-      }
+    return orders.filter(order => {
+      const searchLower = searchTerm.toLowerCase();
+      
+      // Search in customer name
+      const customerNameMatch = order.customer?.name?.toLowerCase().includes(searchLower);
+      
+      // Search in order ID or number
+      const orderIdMatch = order.id?.toLowerCase().includes(searchLower) || 
+                          String(order.orderNumber)?.toLowerCase().includes(searchLower);
+      
+      // Search in customer order number
+      const customerOrderMatch = order.customerOrderNumber?.toLowerCase().includes(searchLower);
+      
+      // Search in status
+      const statusMatch = order.status?.toLowerCase().includes(searchLower);
+      
+      // Return true if any of the fields match
+      return customerNameMatch || orderIdMatch || customerOrderMatch || statusMatch;
     });
-    return Array.from(customersMap.values());
-  }, [orders]);
+  }, [orders, searchTerm]);
 
-  const handleViewOrder = (orderId: string) => {
-    navigate(`/orders/${orderId}`);
-  };
-
-  const handleEditOrder = (orderId: string) => {
-    navigate(`/orders/${orderId}/edit`);
-  };
-
-  const handleViewPickingList = (orderId: string) => {
-    navigate(`/orders/${orderId}/picking`);
-  };
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "In Progress":
-        return "bg-blue-100 text-blue-800";
-      case "Completed":
-        return "bg-green-100 text-green-800";
-      case "Cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    
+    const date = parseISO(dateString);
+    
+    if (isToday(date)) {
+      return "Today";
+    } else if (isYesterday(date)) {
+      return "Yesterday";
+    } else if (isThisWeek(date)) {
+      return format(date, "EEEE"); // Day name
+    } else if (isThisMonth(date)) {
+      return format(date, "d MMM"); // Day + Month abbreviated
+    } else {
+      return format(date, "d MMM yyyy"); // Full date for older dates
     }
   };
 
-  return (
-    <div>
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-center">
-            <CardTitle>Orders</CardTitle>
-            <Button onClick={() => navigate("/create-order")}>New Order</Button>
-          </div>
-          <CardDescription>
-            View and manage customer orders
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <Input
-                placeholder="Search by customer or order number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
-            <div className="w-full md:w-48">
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full md:w-64">
-              <Select
-                value={customerFilter}
-                onValueChange={(value) => setCustomerFilter(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Customers</SelectItem>
-                  {uniqueCustomers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+  // Handle order deletion
+  const handleDeleteClick = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setShowDeleteDialog(true);
+  };
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Order Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Delivery Method</TableHead>
-                  <TableHead>Customer Order #</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4">
-                      No orders found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredOrders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">
-                        {order.customer?.name || "Unknown Customer"}
-                      </TableCell>
-                      <TableCell>
-                        {safeFormatDate(order.orderDate)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={getStatusBadgeColor(order.status)}
-                          variant="outline"
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{order.deliveryMethod}</TableCell>
-                      <TableCell>
-                        {order.customerOrderNumber || "N/A"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewOrder(order.id)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditOrder(order.id)}
-                          >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewPickingList(order.id)}
-                          >
-                            <ClipboardList className="h-4 w-4 mr-1" />
-                            Picking List
-                          </Button>
+  // Confirm order deletion
+  const confirmDelete = async () => {
+    if (selectedOrderId) {
+      await deleteOrder(selectedOrderId);
+      setShowDeleteDialog(false);
+      setSelectedOrderId(null);
+    }
+  };
+
+  // Navigate to order details
+  const handleRowClick = (orderId: string) => {
+    navigate(`/orders/${orderId}`);
+  };
+
+  // Handle order status update
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const targetOrder = orders.find(o => o.id === orderId);
+    if (!targetOrder) return;
+
+    const updatedOrder = { ...targetOrder, status: newStatus as any };
+    await updateOrder(updatedOrder);
+  };
+
+  return (
+    <>
+      <Card className="border rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order Number</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Order Date</TableHead>
+                <TableHead>Required Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.map((order) => (
+                <TableRow 
+                  key={order.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                >
+                  <TableCell onClick={() => handleRowClick(order.id)}>
+                    {order.orderNumber || order.id.substring(0, 8)}
+                  </TableCell>
+                  <TableCell onClick={() => handleRowClick(order.id)}>
+                    {order.customer?.name || "Unknown Customer"}
+                  </TableCell>
+                  <TableCell onClick={() => handleRowClick(order.id)}>
+                    {formatDate(order.orderDate)}
+                  </TableCell>
+                  <TableCell onClick={() => handleRowClick(order.id)}>
+                    {formatDate(order.requiredDate)}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <div className="cursor-pointer">
+                          <OrderStatusBadge status={order.status} />
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Pending")}>
+                          Pending
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Processing")}>
+                          Processing
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Completed")}>
+                          Completed
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Missing Items")}>
+                          Missing Items
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Cancelled")}>
+                          Cancelled
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/orders/${order.id}/edit`)
+                        }}
+                        title="Edit"
+                      >
+                        <Edit size={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/orders/${order.id}/picking`)
+                        }}
+                        title="Picking List"
+                      >
+                        <ClipboardList size={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(order.id);
+                        }}
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
-    </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this order? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

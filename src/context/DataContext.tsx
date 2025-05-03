@@ -135,8 +135,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   } = useReturnsComplaintsData(toast);
 
   const {
-    pickers: pickersList,
-    setPickers: setPickersList,
     addPicker,
     updatePicker,
     deletePicker,
@@ -493,8 +491,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Combine both types of data
       const combinedData = [...returnItems, ...complaintItems].sort((a, b) => {
-        const dateA = a.created || a.created_at;
-        const dateB = b.created || b.created_at;
+        const dateA = a.created || a.updated;
+        const dateB = b.created || b.updated;
         return new Date(dateB).getTime() - new Date(dateA).getTime();
       });
 
@@ -980,54 +978,73 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (existingBatch) {
         // Update the existing batch
-        const updateData = tableName === 'batch_usages' ? {
-          used_weight: (existingBatch.used_weight || 0) + weight,
-          last_used: new Date().toISOString(),
-          orders_count: (existingBatch.orders_count || 1) + 1
-        } : {
-          quantity_used: existingBatch.quantity_used + quantity,
-          last_used: new Date().toISOString(),
-          last_order_id: orderId,
-          total_weight_picked: (existingBatch.total_weight_picked || 0) + weight
-        };
-
-        const { error: updateError } = await supabase
-          .from(tableName)
-          .update(updateData)
-          .eq('id', existingBatch.id);
-
-        if (updateError) {
-          console.error(`Error updating ${tableName}:`, updateError);
-          throw updateError;
+        if (tableName === 'batch_usages') {
+          const { error: updateError } = await supabase
+            .from(tableName)
+            .update({
+              used_weight: (existingBatch.used_weight || 0) + weight,
+              last_used: new Date().toISOString(),
+              orders_count: (existingBatch.orders_count || 1) + 1
+            })
+            .eq('id', existingBatch.id);
+  
+          if (updateError) {
+            console.error(`Error updating ${tableName}:`, updateError);
+            throw updateError;
+          }
+        } else {
+          const { error: updateError } = await supabase
+            .from(tableName)
+            .update({
+              quantity_used: existingBatch.quantity_used + quantity,
+              last_used: new Date().toISOString(),
+              last_order_id: orderId,
+              total_weight_picked: (existingBatch.total_weight_picked || 0) + weight
+            })
+            .eq('id', existingBatch.id);
+  
+          if (updateError) {
+            console.error(`Error updating ${tableName}:`, updateError);
+            throw updateError;
+          }
         }
       } else {
         // Insert a new batch record
-        const insertData = tableName === 'batch_usages' ? {
-          batch_number: batchNumber,
-          product_id: productId,
-          product_name: productName,
-          total_weight: quantity,
-          used_weight: weight,
-          first_used: new Date().toISOString(),
-          last_used: new Date().toISOString(),
-          orders_count: 1
-        } : {
-          batch_number: batchNumber,
-          product_id: productId,
-          quantity_used: quantity,
-          first_used: new Date().toISOString(),
-          last_used: new Date().toISOString(),
-          last_order_id: orderId,
-          total_weight_picked: weight
-        };
-
-        const { error: insertError } = await supabase
-          .from(tableName)
-          .insert(insertData);
-
-        if (insertError) {
-          console.error(`Error inserting into ${tableName}:`, insertError);
-          throw insertError;
+        if (tableName === 'batch_usages') {
+          const { error: insertError } = await supabase
+            .from(tableName)
+            .insert({
+              batch_number: batchNumber,
+              product_id: productId,
+              product_name: productName,
+              total_weight: quantity,
+              used_weight: weight,
+              first_used: new Date().toISOString(),
+              last_used: new Date().toISOString(),
+              orders_count: 1
+            });
+  
+          if (insertError) {
+            console.error(`Error inserting into ${tableName}:`, insertError);
+            throw insertError;
+          }
+        } else {
+          const { error: insertError } = await supabase
+            .from(tableName)
+            .insert({
+              batch_number: batchNumber,
+              product_id: productId,
+              quantity_used: quantity,
+              first_used: new Date().toISOString(),
+              last_used: new Date().toISOString(),
+              last_order_id: orderId,
+              total_weight_picked: weight
+            });
+  
+          if (insertError) {
+            console.error(`Error inserting into ${tableName}:`, insertError);
+            throw insertError;
+          }
         }
 
         // Also track which orders used this batch
@@ -1152,8 +1169,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Add to the context value object
-  const contextValue = {
+  // Return the context value object
+  const contextValue: DataContextType = {
     customers,
     orders,
     products,
@@ -1229,5 +1246,3 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 // Create a hook for easy context usage
 export const useData = () => useContext(DataContext);
-
-// Remove default export since we're using named exports
