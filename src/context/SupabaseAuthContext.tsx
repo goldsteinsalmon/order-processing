@@ -35,6 +35,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Function to handle redirects after authentication events
   const redirectAfterAuth = (event: string) => {
     if (event === 'SIGNED_IN') {
+      console.log("Auth event: SIGNED_IN, redirecting to orders");
       toast({
         title: "Signed in",
         description: "You have been signed in successfully.",
@@ -42,6 +43,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       // Use React Router navigate instead of window.location.href
       navigate('/orders');
     } else if (event === 'SIGNED_OUT') {
+      console.log("Auth event: SIGNED_OUT, redirecting to login");
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
@@ -66,8 +68,16 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setUser(newSession?.user || null);
       
       // Handle auth state changes after initial load
-      if (!isLoading && (event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
-        redirectAfterAuth(event);
+      if (!isLoading) {
+        console.log("Auth state change detected while app is running:", event);
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          // Allow a small delay for state to update before redirecting
+          setTimeout(() => {
+            redirectAfterAuth(event);
+          }, 100);
+        }
+      } else {
+        console.log("Auth state initialized with:", event);
       }
     });
     
@@ -75,12 +85,13 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const checkSession = async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        console.log("Initial session check:", data.session);
+        console.log("Initial session check:", data.session?.user?.id ? "User authenticated" : "No active session");
         setSession(data.session);
         setUser(data.session?.user || null);
       } catch (error) {
         console.error("Error checking session:", error);
       } finally {
+        console.log("Finished initial auth check, setting isLoading to false");
         setIsLoading(false);
       }
     };
@@ -90,14 +101,15 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     // Cleanup subscription
     return () => {
+      console.log("Cleaning up auth subscription");
       subscription.unsubscribe();
     };
-  }, [navigate, toast]); // Removing isLoading from dependencies to prevent refresh loops
+  }, []); // Remove isLoading from dependencies to prevent refresh loops
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
-      console.log("Signing in with email:", email);
+      console.log("Starting sign in process with email:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -108,7 +120,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: error.message };
       }
       
-      console.log("Sign in successful:", data.user?.id);
+      console.log("Sign in API call successful, user ID:", data.user?.id);
       return { success: true };
     } catch (error) {
       console.error('Unexpected error during sign in:', error);
@@ -119,7 +131,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Sign up with email and password
   const signUp = async (email: string, password: string, name: string, role: string = 'User') => {
     try {
-      console.log("Signing up with email:", email);
+      console.log("Starting sign up process with email:", email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -149,7 +161,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: userError.message };
       }
 
-      console.log("Sign up successful:", data.user?.id);
+      console.log("Sign up successful, user ID:", data.user?.id);
       return { success: true };
     } catch (error) {
       console.error('Unexpected error during sign up:', error);
@@ -160,13 +172,13 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Sign out
   const signOut = async () => {
     try {
-      console.log("Signing out...");
+      console.log("Starting sign out process...");
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("Error during signOut:", error);
         throw error;
       }
-      console.log("Sign out successful");
+      console.log("Sign out API call successful");
       // Don't need manual navigation here as the auth state listener will handle it
     } catch (error) {
       console.error("Exception during signOut:", error);

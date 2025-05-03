@@ -54,8 +54,12 @@ const LoginPage: React.FC = () => {
           description: "You have been signed in successfully.",
         });
         
-        // Navigate to the redirect path
-        navigate("/orders", { replace: true });
+        // Don't navigate here - let the auth context handle it
+        // The session will update which will trigger the useEffect above
+        console.log("Sign in successful, waiting for session update");
+        
+        // Reset loading state on success too
+        setIsLoading(false);
       } else {
         console.error("Authentication failed:", error);
         toast({
