@@ -6,7 +6,7 @@ import { useCustomerData } from "@/hooks/data/useCustomerData";
 import { useProductData } from "@/hooks/data/useProductData";
 import { useStandingOrderData } from "@/hooks/data/useStandingOrderData";
 import { useReturnsComplaintsData } from "@/hooks/data/useReturnsComplaintsData";
-import { usePickerData } from "@/hooks/data/usePickerData";
+import { usePickersData } from "@/hooks/data/usePickersData";
 
 interface DataContextType {
   customers: Customer[];
@@ -146,7 +146,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addPicker,
     updatePicker,
     deletePicker,
-  } = usePickerData(toast);
+  } = usePickersData(toast);
 
   // Fetch pickers
   const fetchPickers = useCallback(async () => {
@@ -294,7 +294,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isPicked: order.is_picked || false,
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
-            completedBoxes: Array.isArray(order.completed_boxes) ? order.completed_boxes : [], 
+            completedBoxes: Array.isArray(order.completed_boxes) ? order.completed_boxes : [],
             savedBoxes: Array.isArray(order.saved_boxes) ? order.saved_boxes : [],
           } as Order; // Type assertion to Order
         });
@@ -737,8 +737,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
-        completedBoxes: Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : [], 
-        savedBoxes: Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : [], 
+        completedBoxes: newOrderData.completed_boxes ? Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : [] : [],
+        savedBoxes: newOrderData.saved_boxes ? Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : [] : [],
       } as Order; // Type assertion to Order
 
       setOrders([...orders, adaptedOrder]);
@@ -1227,8 +1227,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: orderData.is_picked,
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
-        completedBoxes: Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : [], 
-        savedBoxes: Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : [], 
+        completedBoxes: orderData.completed_boxes ? Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : [] : [],
+        savedBoxes: orderData.saved_boxes ? Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : [] : [],
         items: orderData.items.map(item => ({
           id: item.id,
           orderId: item.order_id,
@@ -1278,7 +1278,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMissingItems,
     setPickers,
     addCustomer,
-    addProduct,
+    addProduct: (product: Product): Promise<Product | null> => {
+      // Since we're forced to use the useProductData hook which only handles single products,
+      // we'll have to implement array handling at the call site if needed
+      return addProduct(product);
+    },
     addOrder,
     addStandingOrder,
     addMissingItem,
