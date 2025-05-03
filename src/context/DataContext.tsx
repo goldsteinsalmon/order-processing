@@ -955,7 +955,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to add a product that can handle both single products and arrays
   const addProduct = async (product: Product): Promise<Product | null> => {
     // Simply call the useProductData hook's addProduct function which handles a single product
-    return await addProductSingle(product);
+    return await addProductSingle(product) as Product;
   };
 
   // Function to add a missing item
