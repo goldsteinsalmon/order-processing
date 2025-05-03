@@ -33,69 +33,59 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   console.log("[SupabaseAuthContext] Provider initializing");
   
   useEffect(() => {
-    console.log("[SupabaseAuthContext] Setting up auth listener");
-    
-    // First set up the listener for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      console.log(`[SupabaseAuthContext] Auth event: ${event}`, currentSession?.user?.email);
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setSession(currentSession);
-        setUser(currentSession?.user || null);
-        
-        if (event === 'SIGNED_IN' && window.location.pathname === '/login') {
-          console.log("[SupabaseAuthContext] User signed in, redirecting from login");
-          navigate('/orders', { replace: true });
-        }
-      } else if (event === 'SIGNED_OUT') {
-        console.log("[SupabaseAuthContext] User signed out");
-        setSession(null);
-        setUser(null);
-        navigate('/login', { replace: true });
-      }
-    });
-    
-    // Then check for an existing session
-    const checkSession = async () => {
+    // This function will be called once on mount to set up auth
+    const setupAuth = async () => {
       try {
-        console.log("[SupabaseAuthContext] Checking for existing session");
         setIsLoading(true);
+        console.log("[SupabaseAuthContext] Setting up auth");
         
-        const { data, error } = await supabase.auth.getSession();
+        // First, check for existing session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error("[SupabaseAuthContext] Session error:", error.message);
-          setIsLoading(false);
+        if (sessionError) {
+          console.error("[SupabaseAuthContext] Session error:", sessionError);
           return;
         }
         
-        if (data?.session) {
-          console.log("[SupabaseAuthContext] Found existing session:", data.session.user.email);
-          setSession(data.session);
-          setUser(data.session.user);
-          
-          if (window.location.pathname === '/login') {
-            console.log("[SupabaseAuthContext] User has session, redirecting from login");
-            navigate('/orders', { replace: true });
-          }
+        if (sessionData?.session) {
+          console.log("[SupabaseAuthContext] Found existing session:", sessionData.session.user.email);
+          setSession(sessionData.session);
+          setUser(sessionData.session.user);
         } else {
-          console.log("[SupabaseAuthContext] No session found");
-          setSession(null);
-          setUser(null);
-          
-          if (window.location.pathname !== '/login') {
-            console.log("[SupabaseAuthContext] No session, redirecting to login");
-            navigate('/login', { replace: true });
-          }
+          console.log("[SupabaseAuthContext] No existing session found");
         }
       } catch (error) {
-        console.error("[SupabaseAuthContext] Error checking session:", error);
+        console.error("[SupabaseAuthContext] Setup error:", error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    checkSession();
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log(`[SupabaseAuthContext] Auth state change event: ${event}`, currentSession?.user?.email);
+      
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        
+        if (event === 'SIGNED_IN' && window.location.pathname === '/login') {
+          console.log("[SupabaseAuthContext] User signed in, redirecting from login");
+          navigate('/orders');
+        }
+      } else {
+        setSession(null);
+        setUser(null);
+        
+        if (event === 'SIGNED_OUT') {
+          console.log("[SupabaseAuthContext] User signed out, redirecting to login");
+          navigate('/login');
+        }
+      }
+    });
+    
+    // Run setup
+    setupAuth();
     
     // Clean up listener on unmount
     return () => {
@@ -113,7 +103,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (result.error) {
         console.error("[SupabaseAuthContext] Sign in error:", result.error.message);
       } else if (result.data?.session) {
-        console.log("[SupabaseAuthContext] Sign in successful");
+        console.log("[SupabaseAuthContext] Sign in successful, session acquired");
+        setSession(result.data.session);
+        setUser(result.data.session.user);
       }
       
       return result;
@@ -142,7 +134,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           title: "Signed Out",
           description: "You have been signed out successfully.",
         });
-        // Auth listener will handle redirect
+        // Auth state change will handle redirect
       }
     } catch (error) {
       console.error("[SupabaseAuthContext] Unexpected sign out error:", error);

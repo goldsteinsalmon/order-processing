@@ -16,20 +16,24 @@ const LoginPage: React.FC = () => {
   const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn, user, isLoading: authLoading } = useSupabaseAuth();
+  const { signIn, user, isLoading: authLoading, session } = useSupabaseAuth();
 
-  // Check if already logged in
+  // Debug auth state
   useEffect(() => {
-    console.log("[LoginPage] Component mounted, user status:", { 
+    console.log("[LoginPage] Component mounted, auth state:", { 
       hasUser: !!user, 
+      hasSession: !!session,
       isAuthLoading: authLoading 
     });
-    
-    if (user && !authLoading) {
+  }, [user, session, authLoading]);
+  
+  // Check if already logged in
+  useEffect(() => {
+    if (user && session && !authLoading) {
       console.log("[LoginPage] User already logged in, redirecting");
       navigate("/orders", { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, session, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +52,7 @@ const LoginPage: React.FC = () => {
       console.log("[LoginPage] Attempting login with email:", email);
       
       const { data, error } = await signIn(email, password);
+      console.log("[LoginPage] Sign in result:", { hasData: !!data, hasError: !!error });
       
       // Handle authentication error
       if (error) {
@@ -69,7 +74,8 @@ const LoginPage: React.FC = () => {
           description: "Login successful!",
         });
         
-        // Navigation will be handled by the auth context
+        // Explicitly navigate even though auth context will also handle it
+        navigate("/orders", { replace: true });
       } else {
         console.error("[LoginPage] No session returned after login");
         setLoginError("Login failed. Please try again.");
@@ -98,8 +104,13 @@ const LoginPage: React.FC = () => {
   }
 
   // Don't render login form if already authenticated
-  if (user) {
-    return null;
+  if (user && session) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+        <p className="text-gray-500">Already logged in. Redirecting...</p>
+      </div>
+    );
   }
 
   return (
@@ -151,6 +162,11 @@ const LoginPage: React.FC = () => {
                 </div>
               </div>
               
+              {/* Debug info */}
+              <div className="text-xs text-gray-400 bg-gray-50 p-2 rounded mb-2">
+                Auth state: {authLoading ? "Loading" : user ? "Logged in" : "Not logged in"}
+              </div>
+              
               {/* Show any login errors */}
               {loginError && (
                 <div className="text-sm font-medium text-red-500">
@@ -161,7 +177,7 @@ const LoginPage: React.FC = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading}
+                disabled={isLoading || authLoading}
               >
                 {isLoading ? "Logging in..." : "Log In"}
               </Button>

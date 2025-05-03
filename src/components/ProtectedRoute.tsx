@@ -17,6 +17,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading, session } = useSupabaseAuth();
   const location = useLocation();
   
+  // Debug info
+  console.log("[ProtectedRoute] Current state:", { 
+    path: location.pathname,
+    isLoading, 
+    hasUser: !!user, 
+    hasSession: !!session,
+    userEmail: user?.email
+  });
+  
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">

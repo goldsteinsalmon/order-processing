@@ -16,13 +16,12 @@ export const supabase = createClient<Database>(
       detectSessionInUrl: false,
       storage: localStorage
     },
-    global: {
-      headers: {
-        'x-client-info': `lovable@1.0.0`,
-      },
-    },
   }
 );
 
 // Debug session status on client init
-console.log("[Supabase Client] Initialized");
+console.log("[Supabase Client] Initialized with auth config:", {
+  persistSession: true,
+  autoRefreshToken: true,
+  storage: "localStorage"
+});
