@@ -4,7 +4,7 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, CheckCircle, Printer, Save, ArrowLeft, Bug } from "lucide-react";
+import { Loader2, CheckCircle, Printer, Save, ArrowLeft, Bug, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
 import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
@@ -98,8 +98,9 @@ const PickingList: React.FC<PickingListProps> = ({
       // Initialize ordered items with checked status
       const items = order.items || [];
       
+      // Improved validation for items - check if array exists AND has elements
       if (!items || items.length === 0) {
-        setOrderError("This order has no items");
+        setOrderError("This order has no items. Please add items to the order before proceeding with picking.");
         return;
       }
       
@@ -622,10 +623,16 @@ const PickingList: React.FC<PickingListProps> = ({
         <AlertDescription>
           {orderError}
         </AlertDescription>
-        <div className="mt-4">
+        <div className="mt-6 flex space-x-4">
           <Button onClick={() => navigate("/orders")}>
-            Back to Orders
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders
           </Button>
+          
+          {orderError.includes("no items") && selectedOrder && (
+            <Button onClick={() => navigate(`/orders/${selectedOrder.id}/edit`)}>
+              <PlusCircle className="mr-2 h-4 w-4" /> Add Items
+            </Button>
+          )}
         </div>
       </Alert>
     );

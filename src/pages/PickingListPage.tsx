@@ -6,6 +6,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const PickingListPage: React.FC = () => {
   // Get the order ID from the URL parameters
@@ -57,6 +58,11 @@ const PickingListPage: React.FC = () => {
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>No order ID provided in the URL.</AlertDescription>
           </Alert>
+          <div className="mt-4">
+            <Button onClick={() => navigate("/orders")}>
+              Back to Orders
+            </Button>
+          </div>
         </div>
       </Layout>
     );
