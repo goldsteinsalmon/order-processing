@@ -3,7 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Picker } from "@/types";
 
-export const usePickerData = (toast: any) => {
+export const usePickerData = (toast?: any) => {
   const [pickers, setPickers] = useState<Picker[]>([]);
 
   // Add picker
@@ -24,11 +24,13 @@ export const usePickerData = (toast: any) => {
       return newPicker;
     } catch (error) {
       console.error('Error adding picker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add picker.",
-        variant: "destructive",
-      });
+      if (toast) {
+        toast({
+          title: "Error",
+          description: "Failed to add picker.",
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
@@ -50,11 +52,13 @@ export const usePickerData = (toast: any) => {
       return true;
     } catch (error) {
       console.error('Error updating picker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update picker.",
-        variant: "destructive",
-      });
+      if (toast) {
+        toast({
+          title: "Error",
+          description: "Failed to update picker.",
+          variant: "destructive",
+        });
+      }
       return false;
     }
   };
@@ -73,11 +77,13 @@ export const usePickerData = (toast: any) => {
       return true;
     } catch (error) {
       console.error('Error deleting picker:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete picker.",
-        variant: "destructive",
-      });
+      if (toast) {
+        toast({
+          title: "Error",
+          description: "Failed to delete picker.",
+          variant: "destructive",
+        });
+      }
       return false;
     }
   };
