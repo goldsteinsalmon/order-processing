@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
@@ -17,19 +16,22 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading, session } = useSupabaseAuth();
   const location = useLocation();
   
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500">Loading authentication...</p>
       </div>
     );
   }
   
-  // Simple, strict check for authentication
+  // Check authentication status
   if (!user || !session) {
     console.log("[SupabaseProtectedRoute] No authenticated user, redirecting to login");
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    
+    // Keep the current location so we can redirect back after login
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
   
   // Check for admin access if required

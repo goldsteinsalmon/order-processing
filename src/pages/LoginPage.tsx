@@ -19,9 +19,10 @@ const LoginPage: React.FC = () => {
 
   // Check for existing session on component mount
   useEffect(() => {
+    console.log("[LoginPage] Component mounted, checking for session");
+    
     const checkSession = async () => {
       try {
-        // Simpler session check
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -32,6 +33,8 @@ const LoginPage: React.FC = () => {
         if (data?.session) {
           console.log("[LoginPage] Existing session found, redirecting to /orders");
           navigate("/orders", { replace: true });
+        } else {
+          console.log("[LoginPage] No active session found, staying on login page");
         }
       } catch (err) {
         console.error("[LoginPage] Unexpected error checking session:", err);
@@ -44,9 +47,10 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Clear previous errors
+    // Reset errors
     setLoginError("");
     
+    // Validate inputs
     if (!email || !password) {
       setLoginError("Please enter both email and password");
       return;
@@ -56,11 +60,13 @@ const LoginPage: React.FC = () => {
       setIsLoading(true);
       console.log("[LoginPage] Attempting login with email:", email);
       
+      // Perform authentication
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
         password 
       });
       
+      // Handle authentication error
       if (error) {
         console.error("[LoginPage] Login error:", error.message);
         setLoginError(error.message || "Invalid email or password");
@@ -73,30 +79,30 @@ const LoginPage: React.FC = () => {
         return;
       }
       
+      // Handle successful authentication
       if (data.session) {
         console.log("[LoginPage] Login successful, user:", data.user?.email);
         toast({
           title: "Success",
-          description: "Login successful! Redirecting...",
+          description: "Login successful!",
         });
         
-        // Add a short delay before navigating to ensure state updates properly
-        setTimeout(() => {
-          navigate("/orders", { replace: true });
-        }, 100);
+        // Auth listener will handle the redirect
+        // But we'll navigate directly too as a fallback
+        navigate("/orders", { replace: true });
       } else {
         console.error("[LoginPage] No session returned after login");
         setLoginError("Login failed. Please try again.");
-        setIsLoading(false);
       }
     } catch (error: any) {
-      console.error("[LoginPage] Unexpected error:", error);
+      console.error("[LoginPage] Unexpected error during login:", error);
       setLoginError("An unexpected error occurred");
       toast({
         title: "Error",
         description: "An unexpected error occurred",
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
   };

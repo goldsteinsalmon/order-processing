@@ -11,9 +11,10 @@ export const supabase = createClient<Database>(
   SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false // Disable URL-based detection to prevent race conditions
+      persistSession: true, // Keep session alive
+      autoRefreshToken: true, // Auto-refresh tokens
+      detectSessionInUrl: false, // Disable URL detection to prevent race conditions
+      storage: localStorage // Explicitly use localStorage for session storage
     }
   }
 );
