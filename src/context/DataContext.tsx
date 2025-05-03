@@ -973,7 +973,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     deleteReturnsComplaints,
   };
 
-  // Helper function to fetch a single order by ID (add this within the provider)
+  // Helper function to fetch a single order by ID
   const fetchOrderById = async (orderId: string) => {
     try {
       const { data: orderData, error: orderError } = await supabase
@@ -997,8 +997,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!orderData) throw new Error("Order not found");
 
       // Transform the order data to the expected format
-      // (You'll need to copy the same transformation logic used elsewhere)
-      // This is just a placeholder
       return {
         id: orderData.id,
         customerId: orderData.customer_id,
@@ -1035,3 +1033,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           orderId: item.order_id,
           productId: item.product_id,
           product: item.product,
+          quantity: item.quantity,
+          date: item.date,
+          status: item.status
+        }))
+      };
+    } catch (error) {
+      console.error("Error fetching order by ID:", error);
+      throw error;
+    }
+  };
+};
