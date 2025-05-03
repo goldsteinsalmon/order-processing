@@ -97,6 +97,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
+      console.log("Signing in with email:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -106,7 +107,8 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.error('Error signing in:', error.message);
         return { success: false, error: error.message };
       }
-
+      
+      console.log("Sign in successful:", data.user?.id);
       return { success: true };
     } catch (error) {
       console.error('Unexpected error during sign in:', error);
@@ -117,8 +119,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Sign up with email and password
   const signUp = async (email: string, password: string, name: string, role: string = 'User') => {
     try {
-      // Instead of using the emailConfirm property (which doesn't exist),
-      // we'll configure the auth settings to skip email verification
+      console.log("Signing up with email:", email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -148,6 +149,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         return { success: false, error: userError.message };
       }
 
+      console.log("Sign up successful:", data.user?.id);
       return { success: true };
     } catch (error) {
       console.error('Unexpected error during sign up:', error);

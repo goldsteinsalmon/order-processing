@@ -24,6 +24,7 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     // Redirect if already logged in
     if (session) {
+      console.log("User already logged in, redirecting to:", from);
       navigate(from, { replace: true });
     }
   }, [session, navigate, from]);
@@ -43,6 +44,7 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting to sign in with email:", email);
       const { success, error } = await signIn(email, password);
       
       if (success) {
@@ -55,20 +57,22 @@ const LoginPage: React.FC = () => {
         // Navigate to the redirect path
         navigate("/orders", { replace: true });
       } else {
+        console.error("Authentication failed:", error);
         toast({
           title: "Error",
           description: error || "Invalid email or password",
           variant: "destructive",
         });
+        setIsLoading(false); // Reset loading state on error
       }
     } catch (error) {
+      console.error("Exception during authentication:", error);
       toast({
         title: "Error",
         description: "An error occurred during authentication",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Reset loading state on exception
     }
   };
 
@@ -98,6 +102,7 @@ const LoginPage: React.FC = () => {
                     placeholder="Enter your email"
                     className="pl-10"
                     autoComplete="email"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -115,6 +120,7 @@ const LoginPage: React.FC = () => {
                     placeholder="Enter your password"
                     className="pl-10"
                     autoComplete="current-password"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
