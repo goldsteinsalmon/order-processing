@@ -244,7 +244,7 @@ const StandingOrdersPage: React.FC = () => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => navigate(`/standing-order-details/${order.id}`)}
+                          onClick={() => navigate(`/standing-orders/${order.id}`)}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View
@@ -252,7 +252,7 @@ const StandingOrdersPage: React.FC = () => {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          onClick={() => navigate(`/edit-standing-order/${order.id}`)}
+                          onClick={() => navigate(`/standing-orders/${order.id}/edit`)}
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit

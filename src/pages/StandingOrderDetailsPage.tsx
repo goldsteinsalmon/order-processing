@@ -1,3 +1,4 @@
+
 import React from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -182,7 +183,7 @@ const StandingOrderDetailsPage: React.FC = () => {
           View Schedule
         </Button>
         <Button 
-          onClick={() => navigate(`/edit-standing-order/${order.id}`)}
+          onClick={() => navigate(`/standing-orders/${order.id}/edit`)}
         >
           Edit Order
         </Button>

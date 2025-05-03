@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -186,7 +185,8 @@ const EditStandingOrderPage: React.FC = () => {
         description: `Changes to standing order for ${order.customer?.name} have been saved.`
       });
       
-      navigate(`/standing-order-details/${order.id}`);
+      // Update navigation to use correct route
+      navigate(`/standing-orders/${order.id}`);
     } catch (error) {
       console.error("Error calculating processing date:", error);
       toast({
@@ -200,7 +200,7 @@ const EditStandingOrderPage: React.FC = () => {
   return (
     <Layout>
       <div className="flex items-center mb-6">
-        <Button variant="ghost" onClick={() => navigate(`/standing-order-details/${order.id}`)} className="mr-4">
+        <Button variant="ghost" onClick={() => navigate(`/standing-orders/${order.id}`)} className="mr-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <h2 className="text-2xl font-bold">Edit Standing Order</h2>
@@ -460,7 +460,7 @@ const EditStandingOrderPage: React.FC = () => {
               {hasChanges ? "You have unsaved changes" : "No changes made"}
             </p>
             <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => navigate(`/standing-order-details/${order.id}`)}>Cancel</Button>
+              <Button variant="outline" onClick={() => navigate(`/standing-orders/${order.id}`)}>Cancel</Button>
               <Button onClick={handleSave} disabled={!hasChanges}>Save Changes</Button>
             </div>
           </CardFooter>

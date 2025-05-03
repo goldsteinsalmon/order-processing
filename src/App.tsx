@@ -1,3 +1,4 @@
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -38,6 +39,7 @@ import EditCompletedOrderPage from "@/pages/EditCompletedOrderPage";
 import ReturnsPage from "@/pages/ReturnsPage";
 import AdminPage from "@/pages/AdminPage";
 import AdminMigrationPage from './pages/AdminMigrationPage';
+import StandingOrderSchedulePage from "./pages/StandingOrderSchedulePage";
 
 function App() {
   return (
@@ -217,6 +219,15 @@ function App() {
                   element={
                     <SupabaseProtectedRoute>
                       <EditStandingOrderPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/standing-order-schedule/:id"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <StandingOrderSchedulePage />
                     </SupabaseProtectedRoute>
                   }
                 />
