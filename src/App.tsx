@@ -1,3 +1,4 @@
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -39,6 +40,7 @@ import ReturnsPage from "@/pages/ReturnsPage";
 import AdminPage from "@/pages/AdminPage";
 import AdminMigrationPage from './pages/AdminMigrationPage';
 import StandingOrderSchedulePage from "./pages/StandingOrderSchedulePage";
+import MissingItemsPage from "./pages/MissingItemsPage";
 
 function App() {
   return (
@@ -282,6 +284,15 @@ function App() {
                   element={
                     <SupabaseProtectedRoute>
                       <ReturnsPage />
+                    </SupabaseProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/missing-items"
+                  element={
+                    <SupabaseProtectedRoute>
+                      <MissingItemsPage />
                     </SupabaseProtectedRoute>
                   }
                 />
