@@ -294,6 +294,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isPicked: order.is_picked || false,
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
+            // Safely handle potentially missing or non-array fields
             completedBoxes: Array.isArray(order.completed_boxes) ? order.completed_boxes : [],
             savedBoxes: Array.isArray(order.saved_boxes) ? order.saved_boxes : [],
           } as Order; // Type assertion to Order
@@ -737,6 +738,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: newOrderData.is_picked,
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
+        // Safely handle potentially missing or non-array fields
         completedBoxes: Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : [],
         savedBoxes: Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : [],
       } as Order; // Type assertion to Order
@@ -1233,6 +1235,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isPicked: orderData.is_picked,
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
+        // Safely handle potentially missing or non-array fields
         completedBoxes: Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : [],
         savedBoxes: Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : [],
         items: orderData.items.map(item => ({
