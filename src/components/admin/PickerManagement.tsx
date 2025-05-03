@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const PickerManagement: React.FC = () => {
   const { toast } = useToast();
-  const { pickers, setPickers, addPicker, updatePicker, deletePicker } = usePickerData(toast);
+  const { pickers, setPickers, addPicker, updatePicker, deletePicker } = usePickerData();
   const [isLoading, setIsLoading] = useState(true);
   
   // State for the new picker form

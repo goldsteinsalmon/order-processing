@@ -26,13 +26,11 @@ export const usePickerData = () => {
       return newPicker;
     } catch (error) {
       console.error('Error adding picker:', error);
-      if (toast) {
-        toast({
-          title: "Error",
-          description: "Failed to add picker.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to add picker.",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -54,13 +52,11 @@ export const usePickerData = () => {
       return true;
     } catch (error) {
       console.error('Error updating picker:', error);
-      if (toast) {
-        toast({
-          title: "Error",
-          description: "Failed to update picker.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to update picker.",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -79,13 +75,11 @@ export const usePickerData = () => {
       return true;
     } catch (error) {
       console.error('Error deleting picker:', error);
-      if (toast) {
-        toast({
-          title: "Error",
-          description: "Failed to delete picker.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to delete picker.",
+        variant: "destructive",
+      });
       return false;
     }
   };
