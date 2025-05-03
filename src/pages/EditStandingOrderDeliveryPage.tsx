@@ -18,14 +18,15 @@ import { CalendarIcon } from "lucide-react"
 import { Order, StandingOrder, StandingOrderItem } from "@/types";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import Layout from "@/components/Layout";
 
 const EditStandingOrderDeliveryPage: React.FC = () => {
-  const { id, deliveryDate } = useParams<{ id: string; deliveryDate: string }>();
+  const { id, date } = useParams<{ id: string; date: string }>();
   const navigate = useNavigate();
   const { standingOrders, updateStandingOrder, addOrder } = useData();
 
   const [standingOrder, setStandingOrder] = useState<StandingOrder | null>(null);
-  const [modifiedDelivery, setModifiedDelivery] = useState<{ date: string; notes?: string; items?: StandingOrderItem[] }>({ date: deliveryDate || "" });
+  const [modifiedDelivery, setModifiedDelivery] = useState<{ date: string; notes?: string; items?: StandingOrderItem[] }>({ date: date || "" });
   const [isModified, setIsModified] = useState(false);
   const [orderItems, setOrderItems] = useState<StandingOrderItem[]>([]);
 
@@ -40,13 +41,10 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   }, [id, standingOrders]);
 
   useEffect(() => {
-    if (standingOrder) {
-      const parsedDeliveryDate = deliveryDate ? new Date(deliveryDate) : null;
-      if (parsedDeliveryDate) {
-        setModifiedDelivery(prev => ({ ...prev, date: parsedDeliveryDate.toISOString() }));
-      }
+    if (standingOrder && date) {
+      setModifiedDelivery(prev => ({ ...prev, date: date }));
     }
-  }, [standingOrder, deliveryDate]);
+  }, [standingOrder, date]);
 
   const handleSave = async () => {
     if (!standingOrder) return;
@@ -102,12 +100,12 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
     // Save the updated standing order
     await updateStandingOrder(updatedStandingOrder);
 
-    // Navigate back to the standing order details page
-    navigate(`/standing-orders/${id}`);
+    // Navigate back to the standing order schedule page
+    navigate(`/standing-order-schedule/${id}`);
   };
 
   const handleCancel = () => {
-    navigate(`/standing-orders/${id}`);
+    navigate(`/standing-order-schedule/${id}`);
   };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -124,99 +122,110 @@ const EditStandingOrderDeliveryPage: React.FC = () => {
   };
 
   if (!standingOrder) {
-    return <div>Loading...</div>;
+    return (
+      <Layout>
+        <div className="p-8 text-center">
+          <h2 className="text-2xl font-bold mb-4">Standing order not found</h2>
+          <Button variant="outline" onClick={() => navigate("/standing-orders")}>
+            Back to Standing Orders
+          </Button>
+        </div>
+      </Layout>
+    );
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Edit Delivery for {format(new Date(modifiedDelivery.date), "PPP")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Label htmlFor="deliveryDate">Delivery Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[240px] justify-start text-left font-normal",
-                    !modifiedDelivery.date && "text-muted-foreground"
-                  )}
-                >
-                  {modifiedDelivery.date ? (
-                    format(new Date(modifiedDelivery.date), "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={modifiedDelivery.date ? new Date(modifiedDelivery.date) : undefined}
-                  onSelect={(date) => setModifiedDelivery(prev => ({ ...prev, date: date?.toISOString() || "" }))}
-                  disabled={(date) =>
-                    date < new Date()
-                  }
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+    <Layout>
+      <div className="container mx-auto p-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Edit Delivery for {date ? format(new Date(date), "PPP") : "Unknown Date"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <Label htmlFor="deliveryDate">Delivery Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !modifiedDelivery.date && "text-muted-foreground"
+                    )}
+                  >
+                    {modifiedDelivery.date ? (
+                      format(new Date(modifiedDelivery.date), "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={modifiedDelivery.date ? new Date(modifiedDelivery.date) : undefined}
+                    onSelect={(date) => setModifiedDelivery(prev => ({ ...prev, date: date?.toISOString() || "" }))}
+                    disabled={(date) =>
+                      date < new Date()
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
 
-          <div className="mb-4">
-            <Label htmlFor="notes">Delivery Notes</Label>
-            <Textarea
-              id="notes"
-              placeholder="Delivery Instructions"
-              value={modifiedDelivery.notes || standingOrder.notes || ''}
-              onChange={handleNotesChange}
-            />
-          </div>
+            <div className="mb-4">
+              <Label htmlFor="notes">Delivery Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Delivery Instructions"
+                value={modifiedDelivery.notes || standingOrder.notes || ''}
+                onChange={handleNotesChange}
+              />
+            </div>
 
-          <div className="mb-4">
-            <h3>Items</h3>
-            <ul>
-              {orderItems.map(item => (
-                <li key={item.id} className="flex items-center justify-between py-2 border-b">
-                  <span>{item.product?.name}</span>
-                  <div className="flex items-center">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleItemQuantityChange(item.id, Math.max(0, item.quantity - 1))}
-                    >
-                      -
-                    </Button>
-                    <Input
-                      type="number"
-                      className="w-20 mx-2 text-center"
-                      value={item.quantity}
-                      onChange={(e) => handleItemQuantityChange(item.id, parseInt(e.target.value) || 0)}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleItemQuantityChange(item.id, item.quantity + 1)}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div className="mb-4">
+              <h3>Items</h3>
+              <ul>
+                {orderItems.map(item => (
+                  <li key={item.id} className="flex items-center justify-between py-2 border-b">
+                    <span>{item.product?.name}</span>
+                    <div className="flex items-center">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleItemQuantityChange(item.id, Math.max(0, item.quantity - 1))}
+                      >
+                        -
+                      </Button>
+                      <Input
+                        type="number"
+                        className="w-20 mx-2 text-center"
+                        value={item.quantity}
+                        onChange={(e) => handleItemQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleItemQuantityChange(item.id, item.quantity + 1)}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div className="flex justify-between">
-            <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
-            <Button onClick={handleSave}>Save Delivery</Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            <div className="flex justify-between">
+              <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
+              <Button onClick={handleSave}>Save Delivery</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
   );
 };
 

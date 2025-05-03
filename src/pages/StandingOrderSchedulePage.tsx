@@ -15,6 +15,8 @@ const StandingOrderSchedulePage: React.FC = () => {
   const navigate = useNavigate();
   const { standingOrders, updateStandingOrder } = useData();
   const { toast } = useToast();
+  // Force a component re-render when operations complete
+  const [updateKey, setUpdateKey] = useState(0);
   
   const order = standingOrders.find(order => order.id === id);
   
@@ -143,7 +145,7 @@ const StandingOrderSchedulePage: React.FC = () => {
     return dates.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 10);
   };
 
-  const handleSkipDelivery = (date: Date) => {
+  const handleSkipDelivery = async (date: Date) => {
     // Create a copy of the current order
     const updatedOrder = { ...order };
     
@@ -156,16 +158,27 @@ const StandingOrderSchedulePage: React.FC = () => {
     updatedOrder.schedule.skippedDates.push(date.toISOString());
     
     // Save the updated order
-    updateStandingOrder(updatedOrder);
+    const success = await updateStandingOrder(updatedOrder);
     
-    // Show success toast
-    toast({
-      title: "Delivery skipped",
-      description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been skipped.`
-    });
+    if (success) {
+      // Show success toast
+      toast({
+        title: "Delivery skipped",
+        description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been skipped.`
+      });
+      
+      // Force a re-render to update the UI
+      setUpdateKey(prev => prev + 1);
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to skip delivery. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
-  const handleUnskipDelivery = (date: Date) => {
+  const handleUnskipDelivery = async (date: Date) => {
     // Create a copy of the current order
     const updatedOrder = { ...order };
     
@@ -177,18 +190,29 @@ const StandingOrderSchedulePage: React.FC = () => {
     }
     
     // Save the updated order
-    updateStandingOrder(updatedOrder);
+    const success = await updateStandingOrder(updatedOrder);
     
-    // Show success toast
-    toast({
-      title: "Delivery restored",
-      description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been restored.`
-    });
+    if (success) {
+      // Show success toast
+      toast({
+        title: "Delivery restored",
+        description: `Delivery for ${format(date, "EEEE, MMMM d, yyyy")} has been restored.`
+      });
+      
+      // Force a re-render to update the UI
+      setUpdateKey(prev => prev + 1);
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to restore delivery. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   const handleEditDelivery = (date: Date) => {
-    // Navigate to a special edit page for this specific delivery date with the date preserved as ISO string
-    navigate(`/edit-standing-order-delivery/${order.id}?date=${date.toISOString()}`);
+    // Fix the route to use the proper path structure matching the App.tsx route
+    navigate(`/standing-orders/${order.id}/delivery/${date.toISOString()}/edit`);
   };
   
   const upcomingDates = getUpcomingDates();
@@ -196,7 +220,7 @@ const StandingOrderSchedulePage: React.FC = () => {
   return (
     <Layout>
       <div className="flex items-center mb-6">
-        <Button variant="ghost" onClick={() => navigate(`/standing-order-details/${order.id}`)} className="mr-4">
+        <Button variant="ghost" onClick={() => navigate(`/standing-orders/${order.id}`)} className="mr-4">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
         <h2 className="text-2xl font-bold">Standing Order Schedule</h2>
@@ -252,7 +276,7 @@ const StandingOrderSchedulePage: React.FC = () => {
                   </tr>
                 ) : (
                   upcomingDates.map((delivery, index) => (
-                    <tr key={index} className="border-b">
+                    <tr key={`${index}-${updateKey}-${delivery.date.toISOString()}`} className="border-b">
                       <td className="py-3">
                         {format(delivery.date, "EEEE, MMMM d, yyyy")}
                       </td>
