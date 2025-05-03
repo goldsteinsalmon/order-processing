@@ -40,8 +40,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
       const customerNameMatch = order.customer?.name?.toLowerCase().includes(searchLower);
       
       // Search in order ID or number
-      const orderIdMatch = order.id?.toLowerCase().includes(searchLower) || 
-                          String(order.orderNumber)?.toLowerCase().includes(searchLower);
+      const orderIdMatch = order.id?.toLowerCase().includes(searchLower);
+      const orderNumberMatch = order.orderNumber ? String(order.orderNumber)?.toLowerCase().includes(searchLower) : false;
       
       // Search in customer order number
       const customerOrderMatch = order.customerOrderNumber?.toLowerCase().includes(searchLower);
@@ -50,7 +50,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
       const statusMatch = order.status?.toLowerCase().includes(searchLower);
       
       // Return true if any of the fields match
-      return customerNameMatch || orderIdMatch || customerOrderMatch || statusMatch;
+      return customerNameMatch || orderIdMatch || orderNumberMatch || customerOrderMatch || statusMatch;
     });
   }, [orders, searchTerm]);
 
@@ -124,7 +124,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
                   className="cursor-pointer hover:bg-muted/50"
                 >
                   <TableCell onClick={() => handleRowClick(order.id)}>
-                    {order.orderNumber || order.id.substring(0, 8)}
+                    {order.id.substring(0, 8)}
                   </TableCell>
                   <TableCell onClick={() => handleRowClick(order.id)}>
                     {order.customer?.name || "Unknown Customer"}

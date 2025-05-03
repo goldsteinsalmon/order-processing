@@ -1,4 +1,3 @@
-
 import { format, isWeekend, addDays, isEqual, isToday, isSameDay } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -172,5 +171,20 @@ export const dbToDisplayFrequency = (dbFreq: string): "Every Week" | "Every 2 We
     case "Bi-Weekly": return "Every 2 Weeks";
     case "Monthly": return "Every 4 Weeks"; // Using Every 4 Weeks for Monthly
     default: return "Every Week";
+  }
+};
+
+/**
+ * Format an order date for display
+ */
+export const formatOrderDate = (dateString: string): string => {
+  if (!dateString) return "";
+  
+  try {
+    const date = new Date(dateString);
+    return format(date, "dd MMM yyyy");
+  } catch (e) {
+    console.error("Error formatting order date:", e);
+    return dateString;
   }
 };

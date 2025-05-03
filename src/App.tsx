@@ -1,3 +1,4 @@
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -101,7 +102,7 @@ function App() {
                   path="/picking-list/:id"
                   element={
                     <SupabaseProtectedRoute>
-                      <Navigate to={(location) => {
+                      <Navigate to={location => {
                         const pathParts = location.pathname.split('/');
                         const id = pathParts[pathParts.length - 1];
                         return `/orders/${id}/picking`;
