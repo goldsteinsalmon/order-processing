@@ -4,19 +4,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Search, Trash2, Edit, ClipboardList, Calendar, Printer } from "lucide-react";
+import { Search, Trash2, Edit, ClipboardList, Eye } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { format, isToday, isYesterday, parseISO, isThisWeek, isThisMonth } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useData } from "@/context/DataContext";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { formatOrderDate } from "@/utils/dateUtils";
 import EditableCell from "@/components/ui/editable-cell";
 import { type Customer } from "@/types";
 import OrderStatusBadge from "./OrderStatusBadge";
@@ -53,25 +51,6 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
     });
   }, [orders, searchTerm]);
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    
-    const date = parseISO(dateString);
-    
-    if (isToday(date)) {
-      return "Today";
-    } else if (isYesterday(date)) {
-      return "Yesterday";
-    } else if (isThisWeek(date)) {
-      return format(date, "EEEE"); // Day name
-    } else if (isThisMonth(date)) {
-      return format(date, "d MMM"); // Day + Month abbreviated
-    } else {
-      return format(date, "d MMM yyyy"); // Full date for older dates
-    }
-  };
-
   // Handle order deletion
   const handleDeleteClick = (orderId: string) => {
     setSelectedOrderId(orderId);
@@ -85,11 +64,6 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
       setShowDeleteDialog(false);
       setSelectedOrderId(null);
     }
-  };
-
-  // Navigate to order details
-  const handleRowClick = (orderId: string) => {
-    navigate(`/orders/${orderId}`);
   };
 
   // Handle order status update
@@ -108,10 +82,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order Number</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Order Date</TableHead>
-                <TableHead>Required Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -120,19 +92,13 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
               {filteredOrders.map((order) => (
                 <TableRow 
                   key={order.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className="hover:bg-muted/50"
                 >
-                  <TableCell onClick={() => handleRowClick(order.id)}>
-                    {order.id.substring(0, 8)}
-                  </TableCell>
-                  <TableCell onClick={() => handleRowClick(order.id)}>
+                  <TableCell>
                     {order.customer?.name || "Unknown Customer"}
                   </TableCell>
-                  <TableCell onClick={() => handleRowClick(order.id)}>
-                    {formatDate(order.orderDate)}
-                  </TableCell>
-                  <TableCell onClick={() => handleRowClick(order.id)}>
-                    {formatDate(order.requiredDate)}
+                  <TableCell>
+                    {format(parseISO(order.orderDate), "dd/MM/yyyy")}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -163,12 +129,27 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/orders/${order.id}`)}
+                        className="flex items-center"
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Order
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/orders/${order.id}/picking`)}
+                        className="flex items-center"
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Picking List
+                      </Button>
+                      <Button
                         variant="ghost"
                         size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/orders/${order.id}/edit`)
-                        }}
+                        onClick={() => navigate(`/orders/${order.id}/edit`)}
                         title="Edit"
                       >
                         <Edit size={16} />
@@ -176,21 +157,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/orders/${order.id}/picking`)
-                        }}
-                        title="Picking List"
-                      >
-                        <ClipboardList size={16} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(order.id);
-                        }}
+                        onClick={() => handleDeleteClick(order.id)}
                         title="Delete"
                       >
                         <Trash2 size={16} />
