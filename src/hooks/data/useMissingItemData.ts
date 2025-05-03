@@ -80,6 +80,38 @@ export const useMissingItemData = () => {
     }
   };
 
+  // Add the missing updateMissingItem function
+  const updateMissingItem = async (missingItem: MissingItem): Promise<boolean> => {
+    try {
+      // Convert to snake_case for database
+      const dbMissingItem = adaptMissingItemToSnakeCase(missingItem);
+      
+      const { error } = await supabase
+        .from('missing_items')
+        .update(dbMissingItem)
+        .eq('id', missingItem.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update the local state
+      setMissingItems(prevItems =>
+        prevItems.map(item => item.id === missingItem.id ? missingItem : item)
+      );
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating missing item:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update missing item data.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const removeMissingItem = async (missingItemId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -107,11 +139,16 @@ export const useMissingItemData = () => {
     }
   };
   
+  // Alias removeMissingItem as deleteMissingItem for consistency
+  const deleteMissingItem = removeMissingItem;
+  
   return {
     missingItems,
     setMissingItems,
     fetchMissingItems,
     addMissingItem,
-    removeMissingItem
+    updateMissingItem,
+    removeMissingItem,
+    deleteMissingItem
   };
 };

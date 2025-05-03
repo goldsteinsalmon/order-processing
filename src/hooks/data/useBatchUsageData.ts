@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { BatchUsage, Product, Order, OrderItem } from "@/types";
@@ -117,25 +118,25 @@ export const useBatchUsageData = (products: Product[]) => {
     }
   };
 
-  // Record batch usage for a specific product and order
-  const recordBatchUsage = (
+  // Record batch usage for a specific product and order - updated to return Promise<boolean>
+  const recordBatchUsage = async (
     batchNumber: string,
     productId: string,
     quantity: number,
     orderId: string,
     manualWeight?: number
-  ) => {
+  ): Promise<boolean> => {
     // Check if this specific item has already been processed
     const itemKey = `${orderId}-${productId}-${batchNumber}`;
     if (processedBatchOrderItems.has(itemKey)) {
-      return;
+      return true; // Already processed, return success
     }
 
     // Find the product
     const product = products.find(p => p.id === productId);
     if (!product) {
       console.error(`Product not found: ${productId}`);
-      return;
+      return false;
     }
 
     try {
@@ -147,7 +148,7 @@ export const useBatchUsageData = (products: Product[]) => {
       
       if (!weight) {
         // If no weight provided or calculated, don't record usage
-        return;
+        return false;
       }
 
       // Look for existing batch usage record
@@ -168,7 +169,8 @@ export const useBatchUsageData = (products: Product[]) => {
             : [...(existingBatchUsage.usedBy || []), orderId]
         };
         
-        updateBatchUsage(updatedBatchUsage, orderId);
+        const result = await updateBatchUsage(updatedBatchUsage, orderId);
+        if (!result) return false;
       } else {
         // Create new batch usage record
         const newBatchUsage: BatchUsage = {
@@ -184,11 +186,13 @@ export const useBatchUsageData = (products: Product[]) => {
           usedBy: [orderId]
         };
         
-        updateBatchUsage(newBatchUsage, orderId);
+        const result = await updateBatchUsage(newBatchUsage, orderId);
+        if (!result) return false;
       }
       
       // Mark this item as processed
       setProcessedBatchOrderItems(prev => new Set(prev).add(itemKey));
+      return true;
     } catch (error) {
       console.error("Error recording batch usage:", error);
       toast({
@@ -196,18 +200,19 @@ export const useBatchUsageData = (products: Product[]) => {
         description: "Failed to record batch usage.",
         variant: "destructive",
       });
+      return false;
     }
   };
 
-  // Record batch usages for all items in an order (final processing)
-  const recordAllBatchUsagesForOrder = (order: Order) => {
+  // Record batch usages for all items in an order (final processing) - updated to return Promise<void>
+  const recordAllBatchUsagesForOrder = async (order: Order): Promise<void> => {
     if (!order.items || order.items.length === 0) {
       return;
     }
     
-    order.items.forEach(item => {
+    const promises = order.items.map(item => {
       if (item.batchNumber && item.pickedQuantity && item.pickedQuantity > 0) {
-        recordBatchUsage(
+        return recordBatchUsage(
           item.batchNumber,
           item.productId,
           item.pickedQuantity,
@@ -215,7 +220,10 @@ export const useBatchUsageData = (products: Product[]) => {
           item.pickedWeight || item.manualWeight
         );
       }
+      return Promise.resolve(true);
     });
+    
+    await Promise.all(promises);
   };
   
   return {

@@ -172,6 +172,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const {
     missingItems: missingItemsData,
     addMissingItem,
+    updateMissingItem,
+    deleteMissingItem,
     removeMissingItem,
   } = useMissingItemData();
 
