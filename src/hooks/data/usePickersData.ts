@@ -108,9 +108,9 @@ export const usePickerData = (toast?: any) => {
         toast({
           title: "Error",
           description: "Failed to delete picker.",
-          variant: "destructive",
-        });
-      }
+            variant: "destructive",
+          });
+        }
       return false;
     }
   };

@@ -295,8 +295,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             pickedBy: order.picked_by,
             pickedAt: order.picked_at,
             // Safely handle potentially missing or non-array fields
-            completedBoxes: order.completed_boxes ? (Array.isArray(order.completed_boxes) ? order.completed_boxes : []) : [],
-            savedBoxes: order.saved_boxes ? (Array.isArray(order.saved_boxes) ? order.saved_boxes : []) : [],
+            completedBoxes: [],  // Default to empty array
+            savedBoxes: [],      // Default to empty array
           } as Order; // Type assertion to Order
         });
         setOrders(adaptedOrders);
@@ -739,8 +739,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pickedBy: newOrderData.picked_by,
         pickedAt: newOrderData.picked_at,
         // Safely handle potentially missing or non-array fields
-        completedBoxes: newOrderData.completed_boxes ? (Array.isArray(newOrderData.completed_boxes) ? newOrderData.completed_boxes : []) : [],
-        savedBoxes: newOrderData.saved_boxes ? (Array.isArray(newOrderData.saved_boxes) ? newOrderData.saved_boxes : []) : [],
+        completedBoxes: [], // Default to empty array
+        savedBoxes: [],     // Default to empty array
       } as Order; // Type assertion to Order
 
       setOrders([...orders, adaptedOrder]);
@@ -955,7 +955,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Function to add a product that can handle both single products and arrays
   const addProduct = async (product: Product): Promise<Product | null> => {
     // Simply call the useProductData hook's addProduct function which handles a single product
-    return addProductSingle(product);
+    return await addProductSingle(product);
   };
 
   // Function to add a missing item
@@ -1236,8 +1236,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pickedBy: orderData.picked_by,
         pickedAt: orderData.picked_at,
         // Safely handle potentially missing or non-array fields
-        completedBoxes: orderData.completed_boxes ? (Array.isArray(orderData.completed_boxes) ? orderData.completed_boxes : []) : [],
-        savedBoxes: orderData.saved_boxes ? (Array.isArray(orderData.saved_boxes) ? orderData.saved_boxes : []) : [],
+        completedBoxes: [], // Default to empty array
+        savedBoxes: [],     // Default to empty array
         items: orderData.items.map(item => ({
           id: item.id,
           orderId: item.order_id,
