@@ -7,13 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Mail } from "lucide-react";
-import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, session, user } = useSupabaseAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -21,16 +20,18 @@ const LoginPage: React.FC = () => {
   // Get redirect path from location state or default to "/orders"
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/orders";
 
+  // Check for existing session on component mount
   useEffect(() => {
-    // Clear any lingering loading state when component mounts
-    setIsLoading(false);
-
-    // Explicit check for session and user to handle redirection
-    if (session && user) {
-      console.log("[LoginPage] User already logged in, redirecting to:", from);
-      navigate(from, { replace: true });
-    }
-  }, [session, user, navigate, from]);
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        console.log("[LoginPage] Existing session found, redirecting to:", from);
+        navigate(from, { replace: true });
+      }
+    };
+    
+    checkSession();
+  }, [navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,44 +47,41 @@ const LoginPage: React.FC = () => {
     
     try {
       setIsLoading(true);
-      console.log("[LoginPage] Attempting to sign in with email:", email);
+      console.log("[LoginPage] Attempting login with email:", email);
       
-      const { success, error } = await signIn(email, password);
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
       
-      if (!success) {
-        console.error("[LoginPage] Authentication failed:", error);
+      if (error) {
+        console.error("[LoginPage] Login error:", error.message);
         toast({
           title: "Login Failed",
-          description: error || "Invalid email or password",
+          description: error.message || "Invalid email or password",
           variant: "destructive",
         });
-        // Always reset loading state on failure
         setIsLoading(false);
-      } else {
-        console.log("[LoginPage] Authentication successful");
+        return;
+      }
+      
+      if (data.session) {
+        console.log("[LoginPage] Login successful, user:", data.user?.email);
         toast({
           title: "Success",
-          description: "Authentication successful",
+          description: "Login successful! Redirecting...",
         });
         
-        // Let auth context handle the redirection after successful login
-        // Add a safety timeout to reset loading state if navigation doesn't happen
-        setTimeout(() => {
-          if (document.location.pathname === '/login') {
-            console.log("[LoginPage] Safety timeout triggered, forcing navigation");
-            setIsLoading(false);
-            navigate(from, { replace: true });
-          }
-        }, 3000);
+        // Navigate after successful login
+        navigate(from, { replace: true });
       }
-    } catch (error) {
-      console.error("[LoginPage] Exception during authentication:", error);
+    } catch (error: any) {
+      console.error("[LoginPage] Unexpected error:", error);
       toast({
         title: "Error",
         description: "An unexpected error occurred",
         variant: "destructive",
       });
-      // Always reset loading state on exceptions
       setIsLoading(false);
     }
   };
@@ -141,12 +139,12 @@ const LoginPage: React.FC = () => {
                 className="w-full" 
                 disabled={isLoading}
               >
-                {isLoading ? "Processing..." : "Log In"}
+                {isLoading ? "Logging in..." : "Log In"}
               </Button>
               
               {isLoading && (
                 <div className="text-center text-sm text-gray-500 mt-2">
-                  Please wait while we log you in...
+                  Verifying your credentials...
                 </div>
               )}
             </form>

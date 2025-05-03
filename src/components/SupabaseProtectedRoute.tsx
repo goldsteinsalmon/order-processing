@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useSupabaseAuth } from '@/context/SupabaseAuthContext';
 
@@ -17,53 +17,32 @@ const SupabaseProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { user, isLoading, session } = useSupabaseAuth();
   const location = useLocation();
   
-  useEffect(() => {
-    // Enhanced debug logging
-    console.log("[SupabaseProtectedRoute] Rendering with:", { 
-      isLoading, 
-      hasUser: !!user, 
-      hasSession: !!session,
-      userRole: user?.user_metadata?.role,
-      requireAdmin,
-      allowUserAccess,
-      path: location.pathname
-    });
-    
-    // If we have a session but not a user, log the inconsistency
-    if (session && !user) {
-      console.warn("[SupabaseProtectedRoute] Detected session without user - possible auth state inconsistency");
-    }
-  }, [isLoading, user, session, requireAdmin, allowUserAccess, location]);
-  
-  // Show loading state, but not for too long
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
-        <p className="text-gray-500">Verifying your access...</p>
+        <p className="text-gray-500">Loading...</p>
       </div>
     );
   }
   
-  // More strict check: both user and session are required
+  // Simple, strict check for authentication
   if (!user || !session) {
-    console.log("[SupabaseProtectedRoute] Authentication required, redirecting to login", location);
-    // Remember the current location to redirect back after login
+    console.log("[SupabaseProtectedRoute] No authenticated user, redirecting to login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
-  // Get user role from user metadata
+  // Check for admin access if required
   const userRole = user.user_metadata?.role || 'User';
   
-  // Check if admin access is required but user is not an admin
   if (requireAdmin && userRole !== 'Admin') {
-    console.log('[SupabaseProtectedRoute] Access denied: Admin access required but user role is', userRole);
+    console.log('[SupabaseProtectedRoute] User is not admin, redirecting to orders');
     return <Navigate to="/orders" replace />;
   }
   
-  // Check if regular user is accessing a restricted route
+  // Check if user is accessing a restricted route
   if (!allowUserAccess && userRole === 'User') {
-    console.log('[SupabaseProtectedRoute] Access denied: Regular user accessing restricted route');
+    console.log('[SupabaseProtectedRoute] User accessing restricted route, redirecting to orders');
     return <Navigate to="/orders" replace />;
   }
   

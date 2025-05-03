@@ -17,26 +17,22 @@ export const supabase = createClient<Database>(
       storage: localStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true, // Enable URL-based session detection as a fallback
-      flowType: 'pkce' // Use PKCE flow for more reliable token handling
+      detectSessionInUrl: false, // Disable URL-based detection to avoid race conditions
+      flowType: 'implicit' // Use implicit flow for more predictable behavior
     }
   }
 );
 
-// Log session for debugging
+// Simple session status check for debugging
 if (process.env.NODE_ENV !== 'production') {
   // Check session on startup
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) {
-      console.error('[Supabase Client] Session check error:', error);
-    } else {
-      console.log('[Supabase Client] Initial session check:', 
-        data.session?.user ? `User logged in: ${data.session.user.email}` : 'No session found');
-    }
+  supabase.auth.getSession().then(({ data }) => {
+    console.log('[Supabase Client] Initial session check:', 
+      data.session ? `User logged in: ${data.session.user.email}` : 'No session found');
   });
 
   // Log auth events for debugging
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log(`[Supabase Client] Auth state changed: ${event}`, session ? 'Session exists' : 'No session');
+  supabase.auth.onAuthStateChange((event) => {
+    console.log(`[Supabase Client] Auth state changed: ${event}`);
   });
 }

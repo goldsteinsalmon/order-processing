@@ -1,24 +1,34 @@
 
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
 import React from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
-  allowUserAccess?: boolean; // New prop to explicitly allow user access
+  allowUserAccess?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   requireAdmin = false,
-  allowUserAccess = true // By default, allow users
+  allowUserAccess = true
 }) => {
-  const { user } = useSupabaseAuth();
+  const { user, isLoading } = useSupabaseAuth();
+  const location = useLocation();
+  
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     // User is not authenticated, redirect to login
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   // Get user role from Supabase metadata
