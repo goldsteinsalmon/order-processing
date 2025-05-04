@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { 
   Customer, 
   Product, 
@@ -28,7 +28,24 @@ import {
 } from "../data/mockData";
 import { format, addDays, addWeeks, addMonths, parseISO, isAfter } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
+import { dbService } from "@/services/IndexedDBService";
+import { wsService, SyncMessageType } from "@/services/WebSocketService";
+import { useSyncContext } from "@/context/SyncContext";
 
+// Define entity types for sync operations
+export type EntityType = 
+  | 'customers' 
+  | 'products' 
+  | 'orders' 
+  | 'completedOrders' 
+  | 'standingOrders' 
+  | 'returns' 
+  | 'complaints' 
+  | 'missingItems' 
+  | 'users'
+  | 'pickers'
+  | 'batchUsages';
+  
 interface DataContextType {
   customers: Customer[];
   products: Product[];
@@ -92,69 +109,439 @@ export const useData = () => {
 };
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const [completedOrders, setCompletedOrders] = useState<Order[]>(initialCompletedOrders);
-  const [standingOrders, setStandingOrders] = useState<StandingOrder[]>(initialStandingOrders);
-  const [returns, setReturns] = useState<Return[]>(initialReturns);
-  const [complaints, setComplaints] = useState<Complaint[]>(initialComplaints);
-  const [missingItems, setMissingItems] = useState<MissingItem[]>(initialMissingItems);
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [pickers, setPickers] = useState<Picker[]>(initialPickers);
-  const [batchUsages, setBatchUsages] = useState<BatchUsage[]>(initialBatchUsages);
+  // Initialize state with empty arrays, we'll load from DB
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
+  const [standingOrders, setStandingOrders] = useState<StandingOrder[]>([]);
+  const [returns, setReturns] = useState<Return[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [missingItems, setMissingItems] = useState<MissingItem[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [pickers, setPickers] = useState<Picker[]>([]);
+  const [batchUsages, setBatchUsages] = useState<BatchUsage[]>([]);
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // This will be undefined when DataContext is used outside SyncProvider
+  // (due to component tree hierarchy), but we'll handle that gracefully
+  const syncContext = useContext(SyncContext);
 
   // Create a tracking structure for processed batches to prevent double counting
   const [processedBatchOrderItems, setProcessedBatchOrderItems] = useState<Set<string>>(new Set());
 
-  const addCustomer = (customer: Customer) => {
-    setCustomers(prevCustomers => [...prevCustomers, customer]);
+  // Load data from IndexedDB
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Try to load data from IndexedDB
+        const loadedCustomers = await dbService.getAll<Customer>('customers');
+        const loadedProducts = await dbService.getAll<Product>('products');
+        const loadedOrders = await dbService.getAll<Order>('orders');
+        const loadedCompletedOrders = await dbService.getAll<Order>('completedOrders');
+        const loadedStandingOrders = await dbService.getAll<StandingOrder>('standingOrders');
+        const loadedReturns = await dbService.getAll<Return>('returns');
+        const loadedComplaints = await dbService.getAll<Complaint>('complaints');
+        const loadedMissingItems = await dbService.getAll<MissingItem>('missingItems');
+        const loadedUsers = await dbService.getAll<User>('users');
+        const loadedPickers = await dbService.getAll<Picker>('pickers');
+        const loadedBatchUsages = await dbService.getAll<BatchUsage>('batchUsages');
+
+        // If no data in IndexedDB yet, use mock data and save it
+        if (loadedCustomers.length === 0) {
+          await dbService.saveAll('customers', initialCustomers);
+          setCustomers(initialCustomers);
+        } else {
+          setCustomers(loadedCustomers);
+        }
+
+        if (loadedProducts.length === 0) {
+          await dbService.saveAll('products', initialProducts);
+          setProducts(initialProducts);
+        } else {
+          setProducts(loadedProducts);
+        }
+
+        if (loadedOrders.length === 0) {
+          await dbService.saveAll('orders', initialOrders);
+          setOrders(initialOrders);
+        } else {
+          setOrders(loadedOrders);
+        }
+
+        if (loadedCompletedOrders.length === 0) {
+          await dbService.saveAll('completedOrders', initialCompletedOrders);
+          setCompletedOrders(initialCompletedOrders);
+        } else {
+          setCompletedOrders(loadedCompletedOrders);
+        }
+
+        if (loadedStandingOrders.length === 0) {
+          await dbService.saveAll('standingOrders', initialStandingOrders);
+          setStandingOrders(initialStandingOrders);
+        } else {
+          setStandingOrders(loadedStandingOrders);
+        }
+
+        if (loadedReturns.length === 0) {
+          await dbService.saveAll('returns', initialReturns);
+          setReturns(initialReturns);
+        } else {
+          setReturns(loadedReturns);
+        }
+
+        if (loadedComplaints.length === 0) {
+          await dbService.saveAll('complaints', initialComplaints);
+          setComplaints(initialComplaints);
+        } else {
+          setComplaints(loadedComplaints);
+        }
+
+        if (loadedMissingItems.length === 0) {
+          await dbService.saveAll('missingItems', initialMissingItems);
+          setMissingItems(initialMissingItems);
+        } else {
+          setMissingItems(loadedMissingItems);
+        }
+
+        if (loadedUsers.length === 0) {
+          await dbService.saveAll('users', initialUsers);
+          setUsers(initialUsers);
+        } else {
+          setUsers(loadedUsers);
+        }
+
+        if (loadedPickers.length === 0) {
+          await dbService.saveAll('pickers', initialPickers);
+          setPickers(initialPickers);
+        } else {
+          setPickers(loadedPickers);
+        }
+
+        if (loadedBatchUsages.length === 0) {
+          await dbService.saveAll('batchUsages', initialBatchUsages);
+          setBatchUsages(initialBatchUsages);
+        } else {
+          setBatchUsages(loadedBatchUsages);
+        }
+
+      } catch (error) {
+        console.error("Error loading data from IndexedDB:", error);
+        
+        // Fallback to mock data
+        setCustomers(initialCustomers);
+        setProducts(initialProducts);
+        setOrders(initialOrders);
+        setCompletedOrders(initialCompletedOrders);
+        setStandingOrders(initialStandingOrders);
+        setReturns(initialReturns);
+        setComplaints(initialComplaints);
+        setMissingItems(initialMissingItems);
+        setUsers(initialUsers);
+        setPickers(initialPickers);
+        setBatchUsages(initialBatchUsages);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Set up WebSocket listeners for data changes
+  useEffect(() => {
+    if (!syncContext?.syncEnabled) return;
+    
+    const handleDataReceived = async (message: any) => {
+      if (!message.entity || !message.type) return;
+      
+      try {
+        switch (message.type) {
+          case SyncMessageType.SYNC_DATA:
+          case SyncMessageType.UPDATE:
+            if (message.data) {
+              // Handle data update based on entity type
+              switch (message.entity) {
+                case 'customers':
+                  handleExternalUpdate('customers', message.data, setCustomers);
+                  break;
+                case 'products':
+                  handleExternalUpdate('products', message.data, setProducts);
+                  break;
+                case 'orders':
+                  handleExternalUpdate('orders', message.data, setOrders);
+                  break;
+                case 'completedOrders':
+                  handleExternalUpdate('completedOrders', message.data, setCompletedOrders);
+                  break;
+                case 'standingOrders':
+                  handleExternalUpdate('standingOrders', message.data, setStandingOrders);
+                  break;
+                case 'returns':
+                  handleExternalUpdate('returns', message.data, setReturns);
+                  break;
+                case 'complaints':
+                  handleExternalUpdate('complaints', message.data, setComplaints);
+                  break;
+                case 'missingItems':
+                  handleExternalUpdate('missingItems', message.data, setMissingItems);
+                  break;
+                case 'users':
+                  handleExternalUpdate('users', message.data, setUsers);
+                  break;
+                case 'pickers':
+                  handleExternalUpdate('pickers', message.data, setPickers);
+                  break;
+                case 'batchUsages':
+                  handleExternalUpdate('batchUsages', message.data, setBatchUsages);
+                  break;
+              }
+            }
+            break;
+            
+          case SyncMessageType.DELETE:
+            if (message.id) {
+              // Handle deletion based on entity type
+              switch (message.entity) {
+                case 'customers':
+                  handleExternalDelete('customers', message.id, setCustomers);
+                  break;
+                case 'products':
+                  handleExternalDelete('products', message.id, setProducts);
+                  break;
+                case 'orders':
+                  handleExternalDelete('orders', message.id, setOrders);
+                  break;
+                case 'completedOrders':
+                  handleExternalDelete('completedOrders', message.id, setCompletedOrders);
+                  break;
+                case 'standingOrders':
+                  handleExternalDelete('standingOrders', message.id, setStandingOrders);
+                  break;
+                case 'returns':
+                  handleExternalDelete('returns', message.id, setReturns);
+                  break;
+                case 'complaints':
+                  handleExternalDelete('complaints', message.id, setComplaints);
+                  break;
+                case 'missingItems':
+                  handleExternalDelete('missingItems', message.id, setMissingItems);
+                  break;
+                case 'users':
+                  handleExternalDelete('users', message.id, setUsers);
+                  break;
+                case 'pickers':
+                  handleExternalDelete('pickers', message.id, setPickers);
+                  break;
+                case 'batchUsages':
+                  handleExternalDelete('batchUsages', message.id, setBatchUsages);
+                  break;
+              }
+            }
+            break;
+            
+          case SyncMessageType.SYNC_REQUEST:
+            // Send all our data when requested
+            await sendAllData();
+            break;
+        }
+      } catch (error) {
+        console.error('Error handling sync message:', error);
+      }
+    };
+    
+    wsService.on('dataReceived', handleDataReceived);
+    
+    return () => {
+      wsService.off('dataReceived', handleDataReceived);
+    };
+  }, [syncContext?.syncEnabled, customers, products, orders, completedOrders, 
+      standingOrders, returns, complaints, missingItems, users, pickers, batchUsages]);
+
+  // Handle external update (from another client)
+  const handleExternalUpdate = async <T extends { id: string }>(
+    entity: string, 
+    data: T, 
+    setState: React.Dispatch<React.SetStateAction<T[]>>
+  ) => {
+    // Update IndexedDB
+    await dbService.save(entity, data);
+    
+    // Update state
+    setState(current => {
+      const index = current.findIndex(item => item.id === data.id);
+      if (index >= 0) {
+        // Replace existing item
+        const newArray = [...current];
+        newArray[index] = data;
+        return newArray;
+      } else {
+        // Add new item
+        return [...current, data];
+      }
+    });
   };
 
-  const updateCustomer = (updatedCustomer: Customer) => {
+  // Handle external delete (from another client)
+  const handleExternalDelete = async (
+    entity: string, 
+    id: string, 
+    setState: React.Dispatch<React.SetStateAction<any[]>>
+  ) => {
+    // Delete from IndexedDB
+    await dbService.delete(entity, id);
+    
+    // Update state
+    setState(current => current.filter(item => item.id !== id));
+  };
+
+  // Send all data to other clients
+  const sendAllData = async () => {
+    if (!syncContext?.syncEnabled) return;
+    
+    // Send each data collection
+    for (const customer of customers) {
+      sendEntityUpdate('customers', customer);
+    }
+    
+    for (const product of products) {
+      sendEntityUpdate('products', product);
+    }
+    
+    for (const order of orders) {
+      sendEntityUpdate('orders', order);
+    }
+    
+    for (const order of completedOrders) {
+      sendEntityUpdate('completedOrders', order);
+    }
+    
+    for (const standingOrder of standingOrders) {
+      sendEntityUpdate('standingOrders', standingOrder);
+    }
+    
+    for (const returnItem of returns) {
+      sendEntityUpdate('returns', returnItem);
+    }
+    
+    for (const complaint of complaints) {
+      sendEntityUpdate('complaints', complaint);
+    }
+    
+    for (const missingItem of missingItems) {
+      sendEntityUpdate('missingItems', missingItem);
+    }
+    
+    for (const user of users) {
+      sendEntityUpdate('users', user);
+    }
+    
+    for (const picker of pickers) {
+      sendEntityUpdate('pickers', picker);
+    }
+    
+    for (const batchUsage of batchUsages) {
+      sendEntityUpdate('batchUsages', batchUsage);
+    }
+  };
+
+  // Send entity update to other clients
+  const sendEntityUpdate = (entity: string, data: any) => {
+    if (!syncContext?.syncEnabled) return;
+    
+    wsService.sendMessage({
+      type: SyncMessageType.UPDATE,
+      clientId: dbService.getClientId(),
+      timestamp: new Date().toISOString(),
+      entity,
+      data
+    });
+  };
+
+  // Send entity delete to other clients
+  const sendEntityDelete = (entity: string, id: string) => {
+    if (!syncContext?.syncEnabled) return;
+    
+    wsService.sendMessage({
+      type: SyncMessageType.DELETE,
+      clientId: dbService.getClientId(),
+      timestamp: new Date().toISOString(),
+      entity,
+      id
+    });
+  };
+
+  // **** CRUD OPERATIONS ****
+  // Wrap all data mutations with persistence and sync
+
+  const addCustomer = async (customer: Customer) => {
+    const savedCustomer = await dbService.save('customers', customer);
+    setCustomers(prev => [...prev, savedCustomer]);
+    sendEntityUpdate('customers', savedCustomer);
+  };
+
+  const updateCustomer = async (updatedCustomer: Customer) => {
+    await dbService.save('customers', updatedCustomer);
     setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+    sendEntityUpdate('customers', updatedCustomer);
   };
 
-  const addProduct = (productData: Product | Product[]) => {
-    // Handle both single product and array of products
+  const addProduct = async (productData: Product | Product[]) => {
     if (Array.isArray(productData)) {
       // Add multiple products at once
-      setProducts(prevProducts => [...prevProducts, ...productData]);
+      const savedProducts = await dbService.saveAll('products', productData);
+      setProducts(prevProducts => [...prevProducts, ...savedProducts]);
+      
+      // Send sync updates for each product
+      for (const product of savedProducts) {
+        sendEntityUpdate('products', product);
+      }
+      
       console.log(`Added ${productData.length} products to the system`);
     } else {
       // Add a single product
-      setProducts(prevProducts => [...prevProducts, productData]);
+      const savedProduct = await dbService.save('products', productData);
+      setProducts(prevProducts => [...prevProducts, savedProduct]);
+      sendEntityUpdate('products', savedProduct);
     }
   };
 
-  const updateProduct = (updatedProduct: Product) => {
+  const updateProduct = async (updatedProduct: Product) => {
+    await dbService.save('products', updatedProduct);
     setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    sendEntityUpdate('products', updatedProduct);
   };
 
-  const addOrder = (order: Order) => {
-    setOrders([...orders, order]);
+  const addOrder = async (order: Order) => {
+    const savedOrder = await dbService.save('orders', order);
+    setOrders([...orders, savedOrder]);
+    sendEntityUpdate('orders', savedOrder);
   };
 
-  const updateOrder = (updatedOrder: Order) => {
-    // Check if the order is in orders list or completedOrders
+  const updateOrder = async (updatedOrder: Order) => {
     const isCompletedOrder = completedOrders.some(o => o.id === updatedOrder.id);
     
     if (isCompletedOrder) {
-      // If it's a completed order, keep it in completedOrders
-      // This is the key change - we're no longer moving orders back to orders list
-      // especially if they're just being marked as invoiced
+      await dbService.save('completedOrders', updatedOrder);
       setCompletedOrders(completedOrders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      sendEntityUpdate('completedOrders', updatedOrder);
     } else {
-      // Normal update in orders list
+      await dbService.save('orders', updatedOrder);
       setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      sendEntityUpdate('orders', updatedOrder);
     }
   };
 
-  const deleteOrder = (orderId: string) => {
+  const deleteOrder = async (orderId: string) => {
+    await dbService.delete('orders', orderId);
     setOrders(orders.filter(order => order.id !== orderId));
+    sendEntityDelete('orders', orderId);
   };
 
-  const completeOrder = (order: Order) => {
+  const completeOrder = async (order: Order) => {
     // When completing an order, add support for multiple batch numbers
     let updatedOrder: Order = { 
       ...order, 
@@ -191,9 +578,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Record batch usages based on the consolidated summary
     recordBatchUsagesFromSummary(batchSummary, updatedOrder.id);
+
+    // Delete from orders DB
+    await dbService.delete('orders', order.id);
     
+    // Save to completedOrders DB
+    await dbService.save('completedOrders', updatedOrder);
+    
+    // Update state
     setOrders(orders.filter(o => o.id !== order.id));
     setCompletedOrders([...completedOrders, updatedOrder]);
+    
+    // Send sync events
+    sendEntityDelete('orders', order.id);
+    sendEntityUpdate('completedOrders', updatedOrder);
   };
 
   // Updated function to create a consolidated batch summary from an order
@@ -534,17 +932,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const addStandingOrder = (standingOrder: StandingOrder) => {
-    setStandingOrders([...standingOrders, standingOrder]);
+  const addStandingOrder = async (standingOrder: StandingOrder) => {
+    const savedStandingOrder = await dbService.save('standingOrders', standingOrder);
+    setStandingOrders([...standingOrders, savedStandingOrder]);
+    sendEntityUpdate('standingOrders', savedStandingOrder);
   };
 
-  const updateStandingOrder = (updatedStandingOrder: StandingOrder) => {
+  const updateStandingOrder = async (updatedStandingOrder: StandingOrder) => {
+    await dbService.save('standingOrders', updatedStandingOrder);
     setStandingOrders(standingOrders.map(so => 
       so.id === updatedStandingOrder.id ? updatedStandingOrder : so
     ));
+    sendEntityUpdate('standingOrders', updatedStandingOrder);
   };
   
-  const processStandingOrders = () => {
+  const processStandingOrders = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Midnight
     
@@ -644,10 +1046,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     
     // Update standing orders
+    for (const standingOrder of updatedStandingOrders) {
+      await dbService.save('standingOrders', standingOrder);
+      sendEntityUpdate('standingOrders', standingOrder);
+    }
     setStandingOrders(updatedStandingOrders);
     
     // Add new orders
     if (newOrders.length > 0) {
+      for (const order of newOrders) {
+        await dbService.save('orders', order);
+        sendEntityUpdate('orders', order);
+      }
       setOrders([...orders, ...newOrders]);
       
       // Could add notifications or other processing logic here
@@ -655,23 +1065,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const addReturn = (returnItem: Return) => {
-    setReturns([...returns, returnItem]);
+  const addReturn = async (returnItem: Return) => {
+    const savedReturn = await dbService.save('returns', returnItem);
+    setReturns([...returns, savedReturn]);
+    sendEntityUpdate('returns', savedReturn);
   };
 
-  const updateReturn = (updatedReturn: Return) => {
+  const updateReturn = async (updatedReturn: Return) => {
+    await dbService.save('returns', updatedReturn);
     setReturns(returns.map(r => r.id === updatedReturn.id ? updatedReturn : r));
+    sendEntityUpdate('returns', updatedReturn);
   };
 
-  const addComplaint = (complaint: Complaint) => {
-    setComplaints([...complaints, complaint]);
+  const addComplaint = async (complaint: Complaint) => {
+    const savedComplaint = await dbService.save('complaints', complaint);
+    setComplaints([...complaints, savedComplaint]);
+    sendEntityUpdate('complaints', savedComplaint);
   };
 
-  const updateComplaint = (updatedComplaint: Complaint) => {
+  const updateComplaint = async (updatedComplaint: Complaint) => {
+    await dbService.save('complaints', updatedComplaint);
     setComplaints(complaints.map(c => c.id === updatedComplaint.id ? updatedComplaint : c));
+    sendEntityUpdate('complaints', updatedComplaint);
   };
 
-  const addMissingItem = (missingItem: MissingItem) => {
+  const addMissingItem = async (missingItem: MissingItem) => {
     // Check if the missing item already exists to prevent duplicates
     const existingItem = missingItems.find(
       item => 
@@ -686,7 +1104,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // If we can't find the order, still add the missing item as provided
       if (!orderForMissingItem) {
-        setMissingItems(prev => [...prev, missingItem]);
+        const savedItem = await dbService.save('missingItems', missingItem);
+        setMissingItems(prev => [...prev, savedItem]);
+        sendEntityUpdate('missingItems', savedItem);
         return;
       }
       
@@ -699,36 +1119,52 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       };
       
-      setMissingItems(prev => [...prev, completeItem]);
+      const savedItem = await dbService.save('missingItems', completeItem);
+      setMissingItems(prev => [...prev, savedItem]);
+      sendEntityUpdate('missingItems', savedItem);
     }
   };
 
-  const removeMissingItem = (missingItemId: string) => {
+  const removeMissingItem = async (missingItemId: string) => {
+    await dbService.delete('missingItems', missingItemId);
     setMissingItems(prev => prev.filter(item => item.id !== missingItemId));
+    sendEntityDelete('missingItems', missingItemId);
   };
 
-  const addUser = (user: User) => {
-    setUsers([...users, user]);
+  const addUser = async (user: User) => {
+    const savedUser = await dbService.save('users', user);
+    setUsers([...users, savedUser]);
+    sendEntityUpdate('users', savedUser);
   };
 
-  const updateUser = (updatedUser: User) => {
+  const updateUser = async (updatedUser: User) => {
+    await dbService.save('users', updatedUser);
     setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    sendEntityUpdate('users', updatedUser);
   };
 
-  const deleteUser = (userId: string) => {
+  const deleteUser = async (userId: string) => {
+    await dbService.delete('users', userId);
     setUsers(users.filter(user => user.id !== userId));
+    sendEntityDelete('users', userId);
   };
 
-  const addPicker = (picker: Picker) => {
-    setPickers([...pickers, picker]);
+  const addPicker = async (picker: Picker) => {
+    const savedPicker = await dbService.save('pickers', picker);
+    setPickers([...pickers, savedPicker]);
+    sendEntityUpdate('pickers', savedPicker);
   };
 
-  const updatePicker = (updatedPicker: Picker) => {
+  const updatePicker = async (updatedPicker: Picker) => {
+    await dbService.save('pickers', updatedPicker);
     setPickers(pickers.map(p => p.id === updatedPicker.id ? updatedPicker : p));
+    sendEntityUpdate('pickers', updatedPicker);
   };
 
-  const deletePicker = (pickerId: string) => {
+  const deletePicker = async (pickerId: string) => {
+    await dbService.delete('pickers', pickerId);
     setPickers(pickers.filter(picker => picker.id !== pickerId));
+    sendEntityDelete('pickers', pickerId);
   };
 
   const getBatchUsages = () => {
@@ -779,6 +1215,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     recordBatchUsage,
     recordAllBatchUsagesForOrder
   };
+  
+  // Show loading state when initializing data from DB
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-lg">Loading data...</p>
+        </div>
+      </div>
+    );
+  }
   
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
