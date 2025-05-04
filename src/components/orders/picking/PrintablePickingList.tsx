@@ -1,164 +1,172 @@
-import React, { ForwardRefRenderFunction, forwardRef } from "react";
+import React, { forwardRef } from "react";
 import { format } from "date-fns";
-import { ExtendedOrderItem } from "./ItemsTable"; // Import the type from our new file
-import { OrderBase } from "@/types/orderBaseTypes";
-import { getOrderDate, getCustomerOrderNumber, getDeliveryMethod } from "@/utils/propertyHelpers";
-import { getAccountNumber } from "@/utils/customerPropertyHelpers";
+import { OrderItem, Order, Box, BoxItem } from "@/types";
+import { Package, Weight } from "lucide-react";
 
-interface PrintablePickingListProps {
-  selectedOrder: OrderBase;
-  items: ExtendedOrderItem[];
-  groupByBox?: boolean;
+interface ExtendedOrderItem extends OrderItem {
+  checked: boolean;
+  batchNumber: string;
 }
 
-const PrintablePickingList: ForwardRefRenderFunction<HTMLDivElement, PrintablePickingListProps> = (
-  { selectedOrder, items, groupByBox = false },
-  ref
-) => {
-  // Group items by box if needed
-  const groupedItems = React.useMemo(() => {
-    if (!groupByBox) return { noBox: items };
+interface PrintablePickingListProps {
+  selectedOrder: Order;
+  items: ExtendedOrderItem[];
+  groupByBox?: boolean;
+  specificBoxNumber?: number; // Added to allow printing a specific box only
+}
+
+const PrintablePickingList = forwardRef<HTMLDivElement, PrintablePickingListProps>(
+  ({ selectedOrder, items, groupByBox = false, specificBoxNumber }, ref) => {
+    // Check if we have any items requiring weight input
+    const hasWeightInputItems = items.some(item => item.product.requiresWeightInput);
     
-    return items.reduce((acc, item) => {
-      const boxNumber = item.boxNumber || 0;
-      if (!acc[boxNumber]) {
-        acc[boxNumber] = [];
+    // Group items by box if needed
+    const groupedItems = React.useMemo(() => {
+      // If a specific box number is given, only include those items
+      if (specificBoxNumber !== undefined) {
+        const boxItems = items.filter(item => item.boxNumber === specificBoxNumber);
+        return { [specificBoxNumber]: boxItems };
       }
-      acc[boxNumber].push(item);
-      return acc;
-    }, {} as Record<number, ExtendedOrderItem[]>);
-  }, [items, groupByBox]);
-
-  // Format today's date
-  const today = format(new Date(), "MMMM d, yyyy");
-  
-  // Calculate total weight for products that have weight info
-  const getTotalWeight = (boxItems: ExtendedOrderItem[]) => {
-    return boxItems
-      .filter(item => item.product?.requiresWeightInput)
-      .reduce((total, item) => {
-        const weight = item.pickedWeight || 0;
-        return total + weight;
-      }, 0);
-  };
-  
-  // Safe getter for order date with fallback
-  const orderDate = getOrderDate(selectedOrder);
-  const customerOrderNumber = getCustomerOrderNumber(selectedOrder);
-  const deliveryMethod = getDeliveryMethod(selectedOrder);
-  const customerAccountNumber = selectedOrder.customer ? getAccountNumber(selectedOrder.customer) : undefined;
-
-  return (
-    <div ref={ref} className="p-8 bg-white print:text-black">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold">Picking List</h1>
-        <p className="text-sm">Generated on {today}</p>
-      </div>
       
-      <div className="mb-6">
-        <h2 className="text-xl font-bold border-b pb-1 mb-2">Customer Details</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="font-bold">Customer:</p>
-            <p>{selectedOrder.customer?.name}</p>
-            {customerAccountNumber && (
-              <p className="text-sm">Account: {customerAccountNumber}</p>
-            )}
-          </div>
-          <div>
-            <p><span className="font-bold">Order Date:</span> {orderDate ? format(new Date(orderDate), "MMMM d, yyyy") : 'N/A'}</p>
-            <p><span className="font-bold">Delivery Method:</span> {deliveryMethod}</p>
-            {customerOrderNumber && (
-              <p><span className="font-bold">Customer Order Number:</span> {customerOrderNumber}</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {groupByBox ? (
-        // Render by box
-        Object.entries(groupedItems).map(([boxNumberStr, boxItems]) => {
-          const boxNumber = parseInt(boxNumberStr, 10);
-          const totalWeight = getTotalWeight(boxItems);
-          
-          return (
-            <div key={`print-box-${boxNumber}`} className="mb-6 break-inside-avoid">
-              <h2 className="text-xl font-bold border-b pb-1 mb-2">Box {boxNumber}</h2>
-              
-              <table className="w-full mb-2">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left pb-1">Product</th>
-                    <th className="text-right pb-1">Quantity</th>
-                    <th className="text-right pb-1">Batch #</th>
-                    <th className="text-right pb-1">Weight</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {boxItems.map(item => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-1">{item.product?.name}</td>
-                      <td className="py-1 text-right">{item.quantity}</td>
-                      <td className="py-1 text-right">{item.batchNumber || ''}</td>
-                      <td className="py-1 text-right">
-                        {item.product?.requiresWeightInput
-                          ? `${item.pickedWeight || '-'} ${item.product?.unit || 'g'}`
-                          : '-'
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {totalWeight > 0 && (
-                <div className="text-right font-bold mt-2">
-                  Total Weight: {totalWeight} g
-                </div>
-              )}
+      // Otherwise group all items
+      if (!groupByBox && !selectedOrder.customer.needsDetailedBoxLabels) return { 0: items };
+      
+      return items.reduce((acc, item) => {
+        const boxNumber = item.boxNumber || 0;
+        if (!acc[boxNumber]) {
+          acc[boxNumber] = [];
+        }
+        acc[boxNumber].push(item);
+        return acc;
+      }, {} as Record<number, ExtendedOrderItem[]>);
+    }, [items, groupByBox, selectedOrder.customer.needsDetailedBoxLabels, specificBoxNumber]);
+    
+    return (
+      <div ref={ref} className="p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold">Picking List</h2>
+          <p>{format(new Date(), "MMMM d, yyyy")}</p>
+          {specificBoxNumber !== undefined && (
+            <div className="mt-2 text-xl font-bold">
+              Box #{specificBoxNumber}
             </div>
-          );
-        })
-      ) : (
-        // Render simple list
-        <div>
-          <h2 className="text-xl font-bold border-b pb-1 mb-2">Items</h2>
-          <table className="w-full">
+          )}
+        </div>
+        
+        <div className="mb-6">
+          <h3 className="font-bold">Customer: {selectedOrder.customer.name}</h3>
+          <p>Order Date: {format(new Date(selectedOrder.orderDate), "MMMM d, yyyy")}</p>
+          <p>Delivery Method: {selectedOrder.deliveryMethod}</p>
+          {selectedOrder.notes && (
+            <div className="mt-2">
+              <p className="font-bold">Notes:</p>
+              <p>{selectedOrder.notes}</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Render items either grouped by box or all together */}
+        {(groupByBox || selectedOrder.customer.needsDetailedBoxLabels) ? (
+          // Grouped by box
+          Object.entries(groupedItems).map(([boxNumberStr, boxItems]) => {
+            const boxNumber = parseInt(boxNumberStr);
+            const boxTitle = boxNumber === 0 ? "Unassigned Items" : `Box ${boxNumber}`;
+            
+            return (
+              <div key={boxNumberStr} className="mb-8">
+                <h3 className="text-lg font-bold flex items-center mb-2 border-b pb-1">
+                  <Package className="mr-2 h-4 w-4" />
+                  {boxTitle}
+                </h3>
+                
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-black">
+                      <th className="text-left py-2">Product</th>
+                      <th className="text-left py-2">SKU</th>
+                      <th className="text-right py-2">Quantity</th>
+                      <th className="text-left py-2">Batch #</th>
+                      {hasWeightInputItems && <th className="text-right py-2">Weight (kg)</th>}
+                      <th className="text-center py-2">Picked</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {boxItems.map(item => (
+                      <tr key={item.id} className="border-b">
+                        <td className="py-2">
+                          {item.product.name}
+                          {item.product.requiresWeightInput && (
+                            <div className="text-xs italic flex items-center">
+                              <Weight className="h-3 w-3 mr-1" />
+                              Requires weight input
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2">{item.product.sku}</td>
+                        <td className="py-2 text-right">{item.quantity}</td>
+                        <td className="py-2">_________________</td>
+                        {hasWeightInputItems && (
+                          <td className="py-2 text-right">
+                            {item.product.requiresWeightInput ? "_________________" : "N/A"}
+                          </td>
+                        )}
+                        <td className="py-2 text-center">□</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })
+        ) : (
+          // All items together (original format)
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b">
-                <th className="text-left pb-1">Product</th>
-                <th className="text-right pb-1">Quantity</th>
-                <th className="text-right pb-1">Batch #</th>
-                <th className="text-right pb-1">Weight</th>
+              <tr className="border-b-2 border-black">
+                <th className="text-left py-2">Product</th>
+                <th className="text-left py-2">SKU</th>
+                <th className="text-right py-2">Quantity</th>
+                <th className="text-left py-2">Batch #</th>
+                {hasWeightInputItems && <th className="text-right py-2">Weight (kg)</th>}
+                <th className="text-center py-2">Picked</th>
               </tr>
             </thead>
             <tbody>
               {items.map(item => (
                 <tr key={item.id} className="border-b">
-                  <td className="py-1">{item.product?.name}</td>
-                  <td className="py-1 text-right">{item.quantity}</td>
-                  <td className="py-1 text-right">{item.batchNumber || ''}</td>
-                  <td className="py-1 text-right">
-                    {item.product?.requiresWeightInput
-                      ? `${item.pickedWeight || '-'} ${item.product?.unit || 'g'}`
-                      : '-'
-                    }
+                  <td className="py-2">
+                    {item.product.name}
+                    {item.product.requiresWeightInput && (
+                      <div className="text-xs italic flex items-center">
+                        <Weight className="h-3 w-3 mr-1" />
+                        Requires weight input
+                      </div>
+                    )}
                   </td>
+                  <td className="py-2">{item.product.sku}</td>
+                  <td className="py-2 text-right">{item.quantity}</td>
+                  <td className="py-2">_________________</td>
+                  {hasWeightInputItems && (
+                    <td className="py-2 text-right">
+                      {item.product.requiresWeightInput ? "_________________" : "N/A"}
+                    </td>
+                  )}
+                  <td className="py-2 text-center">□</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+        
+        <div className="mt-8">
+          <p>Picked by: ________________________</p>
+          <p className="mt-4">Signature: ________________________</p>
         </div>
-      )}
-      
-      {selectedOrder.notes && (
-        <div className="mt-6">
-          <h2 className="text-xl font-bold border-b pb-1 mb-2">Notes</h2>
-          <p>{selectedOrder.notes}</p>
-        </div>
-      )}
-    </div>
-  );
-};
+      </div>
+    );
+  }
+);
 
-export default forwardRef(PrintablePickingList);
+PrintablePickingList.displayName = "PrintablePickingList";
+
+export default PrintablePickingList;

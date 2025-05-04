@@ -1,621 +1,657 @@
-
-import React, { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addWeeks } from "date-fns";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { v4 as uuidv4 } from "uuid";
+import { useData } from "@/context/DataContext";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { useData } from "@/context/DataContext";
-import { StandingOrder, Product, OrderItem } from "@/types";
-import { Plus, Trash2, Search } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { useNavigate } from "react-router-dom";
-import { z } from "zod";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
+  CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, Trash2, CalendarIcon, Search } from "lucide-react";
+import { shouldProcessImmediately, getOrderProcessingDate } from "@/utils/dateUtils";
+import { Order, Customer } from "@/types";
+import { cn } from "@/lib/utils";
 
-const standingOrderSchema = z.object({
-  customerId: z.string().min(1, { message: "Customer ID is required." }),
-  customerOrderNumber: z.string().optional(),
-  frequency: z.enum(["Every Week", "Every 2 Weeks", "Every 4 Weeks"], {
-    required_error: "Please select an order frequency.",
-  }),
-  deliveryMethod: z.enum(["Delivery", "Collection"], {
-    required_error: "Please select a delivery method.",
-  }),
-  nextDeliveryDate: z.date({
-    required_error: "Please select the next delivery date.",
-  }),
-  notes: z.string().optional(),
-});
-
-type StandingOrderFormValues = z.infer<typeof standingOrderSchema>;
-
-const CreateStandingOrderForm = () => {
-  const { customers, products, addStandingOrder } = useData();
-  const { toast } = useToast();
+const CreateStandingOrderForm: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { customers, products, addStandingOrder, addOrder } = useData();
   
-  const [standingOrderItems, setStandingOrderItems] = useState<{ 
-    productId: string; 
-    quantity: number;
-    id: string;
-  }[]>([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
-  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
-  const [productSearchOpen, setProductSearchOpen] = useState({});
-  const [productSearchQuery, setProductSearchQuery] = useState({});
+  // Form state
+  const [customerId, setCustomerId] = useState("");
+  const [customerOrderNumber, setCustomerOrderNumber] = useState("");
+  const [frequency, setFrequency] = useState<"Weekly" | "Bi-Weekly" | "Monthly">("Weekly");
+  const [dayOfMonth, setDayOfMonth] = useState<number>(1);
+  const [deliveryMethod, setDeliveryMethod] = useState<"Delivery" | "Collection">("Delivery");
+  const [notes, setNotes] = useState("");
+  const [orderItems, setOrderItems] = useState<{id: string; productId: string; quantity: number}[]>([]);
+  
+  // Search state
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showOnHoldWarning, setShowOnHoldWarning] = useState(false);
+  
+  // Product selection
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedProductQuantity, setSelectedProductQuantity] = useState<number | null>(null);
+  
+  // First delivery date
+  const [firstDeliveryDate, setFirstDeliveryDate] = useState<Date>(new Date());
 
-  const form = useForm<StandingOrderFormValues>({
-    resolver: zodResolver(standingOrderSchema),
-    defaultValues: {
-      customerId: "",
-      customerOrderNumber: "",
-      frequency: "Every Week",
-      deliveryMethod: "Delivery",
-      nextDeliveryDate: new Date(),
-      notes: "",
-    },
-  });
+  // Update default delivery date when frequency settings change
+  React.useEffect(() => {
+    // Ensure the selected date is in the future
+    if (firstDeliveryDate < new Date()) {
+      setFirstDeliveryDate(new Date());
+    }
+  }, [frequency]);
 
-  const { watch, setValue, getValues, formState } = form;
-  const frequency = watch("frequency");
-  const nextDeliveryDate = watch("nextDeliveryDate");
+  // Sort products by SKU
+  const sortedProducts = useMemo(() => 
+    [...products].sort((a, b) => a.sku.localeCompare(b.sku)),
+    [products]
+  );
+  
+  // Filtered products based on search
+  const filteredProducts = useMemo(() => {
+    if (productSearch.trim() === "") return sortedProducts;
+    
+    const searchLower = productSearch.toLowerCase();
+    return sortedProducts.filter(product => 
+      product.name.toLowerCase().includes(searchLower) ||
+      product.sku.toLowerCase().includes(searchLower)
+    );
+  }, [productSearch, sortedProducts]);
+  
+  // Filter customers
+  const filteredCustomers = useMemo(() => {
+    let filtered = [...customers];
+    
+    if (customerSearch.trim()) {
+      const lowerSearch = customerSearch.toLowerCase();
+      filtered = customers.filter(customer => {
+        const nameMatch = customer.name.toLowerCase().includes(lowerSearch);
+        const emailMatch = customer.email ? customer.email.toLowerCase().includes(lowerSearch) : false;
+        const phoneMatch = customer.phone ? customer.phone.includes(customerSearch) : false;
+        const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(lowerSearch) : false;
+        
+        return nameMatch || emailMatch || phoneMatch || accountMatch;
+      });
+    }
+    
+    // Sort by account number alphabetically
+    return filtered.sort((a, b) => {
+      const accountA = a.accountNumber || '';
+      const accountB = b.accountNumber || '';
+      return accountA.localeCompare(accountB);
+    });
+  }, [customers, customerSearch]);
 
-  const handleAddItem = () => {
-    setStandingOrderItems([...standingOrderItems, { 
-      productId: "", 
-      quantity: 1, 
-      id: crypto.randomUUID() 
-    }]);
-    setProductSearchOpen(prev => ({...prev, [standingOrderItems.length]: false}));
-    setProductSearchQuery(prev => ({...prev, [standingOrderItems.length]: ""}));
-  };
-
-  const handleRemoveItem = (id: string) => {
-    if (standingOrderItems.length > 1) {
-      setStandingOrderItems(standingOrderItems.filter(item => item.id !== id));
+  const handleSelectCustomer = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    
+    // If customer is on hold, show warning dialog
+    if (customer && customer.onHold) {
+      setSelectedCustomer(customer);
+      setShowOnHoldWarning(true);
+    } else {
+      // If not on hold, proceed normally
+      setCustomerId(customerId);
+      setShowCustomerSearch(false);
     }
   };
-
-  const handleItemChange = (id: string, field: "productId" | "quantity", value: string | number) => {
-    setStandingOrderItems(
-      standingOrderItems.map(item => {
-        if (item.id === id) {
-          return { ...item, [field]: value };
-        }
-        return item;
-      })
-    );
+  
+  const confirmOnHoldCustomer = () => {
+    if (selectedCustomer) {
+      setCustomerId(selectedCustomer.id);
+      setShowOnHoldWarning(false);
+      setShowCustomerSearch(false);
+    }
+  };
+  
+  const cancelOnHoldCustomer = () => {
+    setSelectedCustomer(null);
+    setShowOnHoldWarning(false);
   };
 
-  // Filter customers based on search
-  const filteredCustomers = React.useMemo(() => {
-    return customers.filter(customer => {
-      if (!customerSearchQuery) return true;
-      
-      const searchLower = customerSearchQuery.toLowerCase();
-      return (
-        customer.name.toLowerCase().includes(searchLower) ||
-        (customer.accountNumber && customer.accountNumber.toLowerCase().includes(searchLower)) ||
-        (customer.email && customer.email.toLowerCase().includes(searchLower))
-      );
-    });
-  }, [customers, customerSearchQuery]);
-
-  // Filter products based on search
-  const getFilteredProducts = (query: string) => {
-    return products.filter(product => {
-      if (!query) return true;
-      
-      const searchLower = query.toLowerCase();
-      return (
-        product.name.toLowerCase().includes(searchLower) ||
-        product.sku.toLowerCase().includes(searchLower)
-      );
-    });
-  };
-
-  const handleSubmit = async (data: StandingOrderFormValues) => {
-    // Validate items
-    const hasInvalidItems = standingOrderItems.some(
-      item => item.productId === "" || item.quantity <= 0
-    );
-
-    if (hasInvalidItems) {
+  const addProductToOrder = () => {
+    if (!selectedProductId) {
       toast({
-        title: "Invalid items",
-        description: "Please ensure all items have a product and a positive quantity.",
+        title: "No product selected",
+        description: "Please select a product to add to the order.",
         variant: "destructive",
       });
       return;
     }
 
-    // Determine frequency in database format
-    let dbFrequency: "Weekly" | "Bi-Weekly" | "Monthly";
-    switch (data.frequency) {
-      case "Every Week": dbFrequency = "Weekly"; break;
-      case "Every 2 Weeks": dbFrequency = "Bi-Weekly"; break;
-      case "Every 4 Weeks": dbFrequency = "Monthly"; break; // Using Monthly for 4 weeks
-      default: dbFrequency = "Weekly";
-    }
-
-    const newStandingOrder = {
-      id: crypto.randomUUID(),
-      customerId: data.customerId,
-      customerOrderNumber: data.customerOrderNumber,
-      schedule: {
-        frequency: dbFrequency,
-        dayOfWeek: undefined,
-        dayOfMonth: undefined,
-        deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
-        nextDeliveryDate: format(nextDeliveryDate, "yyyy-MM-dd"),
-        processedDates: [],
-        skippedDates: [],
-        modifiedDeliveries: []
-      },
-      notes: data.notes,
-      items: standingOrderItems.filter(item => item.productId && item.quantity > 0).map(item => ({
-        id: item.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        standingOrderId: crypto.randomUUID() // This will be replaced anyway
-      })),
-      active: true,
-      created: new Date().toISOString(),
-      nextProcessingDate: format(nextDeliveryDate, "yyyy-MM-dd")
-    };
-
-    const result = await addStandingOrder(newStandingOrder);
-
-    if (result) {
+    if (selectedProductQuantity === null || selectedProductQuantity <= 0) {
       toast({
-        title: "Standing order created",
-        description: "The standing order has been created successfully.",
-      });
-      navigate("/standing-orders");
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to create standing order. Please try again.",
+        title: "Invalid quantity",
+        description: "Please enter a valid quantity greater than zero.",
         variant: "destructive",
       });
+      return;
     }
+
+    const newItem = {
+      id: uuidv4(),
+      productId: selectedProductId,
+      quantity: selectedProductQuantity,
+    };
+
+    setOrderItems([...orderItems, newItem]);
+    setSelectedProductId("");
+    setSelectedProductQuantity(null);
   };
 
-  const handlePreview = () => {
-    form.trigger().then(isValid => {
-      if (!isValid) {
-        toast({
-          title: "Validation error",
-          description: "Please fill in all required fields.",
-          variant: "destructive",
-        });
-        return;
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setShowProductSearch(false);
+    // Focus on quantity input after selecting a product
+    setTimeout(() => {
+      const quantityInput = document.getElementById("quantity") as HTMLInputElement;
+      if (quantityInput) {
+        quantityInput.focus();
       }
+    }, 100);
+  };
 
-      const hasInvalidItems = standingOrderItems.some(
-        item => item.productId === "" || item.quantity <= 0
-      );
+  const removeProductFromOrder = (itemId: string) => {
+    setOrderItems(orderItems.filter(item => item.id !== itemId));
+  };
 
-      if (hasInvalidItems) {
-        toast({
-          title: "Invalid items",
-          description: "Please ensure all items have a product and a positive quantity.",
-          variant: "destructive",
-        });
-        return;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!customerId) {
+      toast({
+        title: "No customer selected",
+        description: "Please select a customer for this standing order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (orderItems.length === 0) {
+      toast({
+        title: "No products added",
+        description: "Please add at least one product to the standing order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find customer
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) {
+      toast({
+        title: "Invalid customer",
+        description: "The selected customer could not be found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create full order items with product data
+    const fullOrderItems = orderItems.map(item => {
+      const product = products.find(p => p.id === item.productId);
+      if (!product) {
+        throw new Error(`Product with ID ${item.productId} not found`);
       }
-
-      // Create order items for preview
-      const orderItems = standingOrderItems
-        .filter(item => item.productId && item.quantity > 0)
-        .map(item => ({
-          id: crypto.randomUUID(),
-          orderId: "preview",
-          productId: item.productId,
-          product: products.find(p => p.id === item.productId)!,
-          quantity: item.quantity
-        }));
-
-      // Calculate next delivery date based on frequency
-      let nextDelivery: Date = nextDeliveryDate;
-      if (frequency === "Every Week") {
-        nextDelivery = addWeeks(nextDeliveryDate, 1);
-      } else if (frequency === "Every 2 Weeks") {
-        nextDelivery = addWeeks(nextDeliveryDate, 2);
-      } else if (frequency === "Every 4 Weeks") {
-        nextDelivery = addWeeks(nextDeliveryDate, 4);
-      }
-
-      // Format the next delivery date
-      const formattedNextDeliveryDate = format(nextDelivery, "yyyy-MM-dd");
-
-      // Display preview
-      setPreviewError(null);
-      setShowPreview(true);
+      return {
+        id: item.id,
+        productId: item.productId,
+        product: product,
+        quantity: item.quantity,
+      };
     });
-  };
 
-  const handleCancel = () => {
-    setShowCancelDialog(true);
-  };
+    // Use the selected first delivery date
+    const firstDeliveryDateString = firstDeliveryDate.toISOString();
+    
+    // Calculate day of week from the selected delivery date (0-6, Sunday to Saturday)
+    const dayOfWeek = firstDeliveryDate.getDay();
 
-  const confirmCancel = () => {
+    // Create the standing order object
+    const standingOrder = {
+      id: uuidv4(),
+      customerId,
+      customer,
+      customerOrderNumber: customerOrderNumber || undefined,
+      schedule: {
+        frequency,
+        ...(frequency === "Weekly" || frequency === "Bi-Weekly" ? { dayOfWeek } : {}),
+        ...(frequency === "Monthly" ? { dayOfMonth: firstDeliveryDate.getDate() } : {}),
+        deliveryMethod,
+        nextDeliveryDate: firstDeliveryDateString,
+      },
+      items: fullOrderItems,
+      notes: notes || undefined,
+      active: true,
+      created: new Date().toISOString(),
+      nextProcessingDate: getOrderProcessingDate(firstDeliveryDate).toISOString(),
+    };
+
+    // Add to standing orders
+    addStandingOrder(standingOrder);
+
+    // Create an immediate order if this first delivery qualifies for immediate processing
+    if (shouldProcessImmediately(firstDeliveryDate)) {
+      // Create a normal order from the standing order for immediate processing
+      const immediateOrder: Order = {
+        id: uuidv4(),
+        customerId,
+        customer,
+        customerOrderNumber: customerOrderNumber || undefined,
+        orderDate: firstDeliveryDateString,
+        deliveryMethod,
+        items: fullOrderItems,
+        notes: notes ? `${notes} (Generated from Standing Order #${standingOrder.id.substring(0, 8)})` : `Generated from Standing Order #${standingOrder.id.substring(0, 8)}`,
+        status: "Pending",
+        created: new Date().toISOString(),
+        fromStandingOrder: standingOrder.id,
+      };
+      
+      // Add the immediate order to the orders list
+      addOrder(immediateOrder);
+      
+      toast({
+        title: "Standing Order Created",
+        description: `Standing order for ${customer.name} has been created with first delivery processed immediately.`,
+      });
+    } else {
+      toast({
+        title: "Standing Order Created",
+        description: `Standing order for ${customer.name} has been created with first delivery scheduled.`,
+      });
+    }
+
     navigate("/standing-orders");
   };
-
-  // Set up dropdown state for each product item
-  useEffect(() => {
-    const initialProductSearchState = {};
-    const initialProductQueryState = {};
-    standingOrderItems.forEach((item, idx) => {
-      initialProductSearchState[idx] = false;
-      initialProductQueryState[idx] = "";
-    });
-    setProductSearchOpen(initialProductSearchState);
-    setProductSearchQuery(initialProductQueryState);
-  }, []);
-
-  const toggleProductSearch = (idx: number) => {
-    setProductSearchOpen(prev => ({...prev, [idx]: !prev[idx]}));
+  
+  const getSelectedCustomerName = () => {
+    if (!customerId) return "Select a customer...";
+    
+    const customer = customers.find(c => c.id === customerId);
+    return customer ? customer.name : "Select a customer...";
   };
-
-  const handleProductSearchChange = (idx: number, value: string) => {
-    setProductSearchQuery(prev => ({...prev, [idx]: value}));
+  
+  const isCustomerOnHold = (customerId: string) => {
+    if (!customerId) return false;
+    const customer = customers.find(c => c.id === customerId);
+    return customer?.onHold || false;
+  };
+  
+  const getSelectedProductName = (productId: string) => {
+    if (!productId) return "Select a product...";
+    
+    const product = products.find(p => p.id === productId);
+    return product ? `${product.name} (${product.sku})` : "Select a product...";
   };
 
   return (
-    <>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer & Schedule</CardTitle>
-              <CardDescription>
-                Select the customer and schedule for this standing order.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={customerSearchOpen}
-                            className="justify-between w-full"
-                          >
-                            {field.value
-                              ? customers.find((customer) => customer.id === field.value)?.name
-                              : "Select customer"}
-                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-full p-0">
-                        <Command>
-                          <CommandInput 
-                            placeholder="Search customers..." 
-                            value={customerSearchQuery}
-                            onValueChange={setCustomerSearchQuery}
-                          />
-                          <CommandList>
-                            <CommandEmpty>No customers found.</CommandEmpty>
-                            <CommandGroup>
-                              {filteredCustomers.map((customer) => (
-                                <CommandItem
-                                  key={customer.id}
-                                  onSelect={() => {
-                                    setValue("customerId", customer.id);
-                                    setCustomerSearchOpen(false);
-                                  }}
-                                >
-                                  <span>{customer.name}</span>
-                                  {customer.accountNumber && (
-                                    <span className="ml-2 text-xs text-muted-foreground">
-                                      ({customer.accountNumber})
-                                    </span>
-                                  )}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Customer Information */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="customer">Customer *</Label>
+              <Button 
+                type="button" 
+                variant="outline"
+                className={cn(
+                  "w-full justify-between",
+                  isCustomerOnHold(customerId) && "text-red-500 font-medium"
                 )}
+                onClick={() => setShowCustomerSearch(true)}
+              >
+                {getSelectedCustomerName()}
+                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </div>
+            
+            <div>
+              <Label htmlFor="customerOrderNumber">Customer Order Number (Optional)</Label>
+              <Input
+                id="customerOrderNumber"
+                value={customerOrderNumber}
+                onChange={e => setCustomerOrderNumber(e.target.value)}
+                placeholder="Enter customer's order reference"
               />
-
-              <FormField
-                control={form.control}
-                name="customerOrderNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Order Number (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Customer order number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="frequency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Frequency</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a frequency" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Every Week">Every Week</SelectItem>
-                        <SelectItem value="Every 2 Weeks">Every 2 Weeks</SelectItem>
-                        <SelectItem value="Every 4 Weeks">Every 4 Weeks</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="deliveryMethod"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Delivery Method</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a delivery method" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Delivery">Delivery</SelectItem>
-                        <SelectItem value="Collection">Collection</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="nextDeliveryDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Next Delivery Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-[240px] pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "yyyy-MM-dd")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date()
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormDescription>
-                      Choose the date for the first delivery.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Additional notes for this order" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Items</CardTitle>
-              <CardDescription>
-                Add the items for this standing order.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {standingOrderItems.map((item, index) => (
-                  <div key={item.id} className="flex items-center space-x-4">
-                    <div className="grid gap-2 flex-1">
-                      <Label htmlFor={`productId-${item.id}`}>Product</Label>
-                      <Popover 
-                        open={productSearchOpen[index]} 
-                        onOpenChange={() => toggleProductSearch(index)}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={productSearchOpen[index]}
-                            className="justify-between w-full text-left"
-                          >
-                            {item.productId ? (
-                              <span>
-                                {products.find(p => p.id === item.productId)?.name}
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  ({products.find(p => p.id === item.productId)?.sku})
-                                </span>
-                              </span>
-                            ) : (
-                              "Select a product"
-                            )}
-                            <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full p-0">
-                          <Command>
-                            <CommandInput 
-                              placeholder="Search products..." 
-                              value={productSearchQuery[index] || ""}
-                              onValueChange={(value) => handleProductSearchChange(index, value)}
-                            />
-                            <CommandList>
-                              <CommandEmpty>No products found.</CommandEmpty>
-                              <CommandGroup>
-                                {getFilteredProducts(productSearchQuery[index] || "").map((product) => (
-                                  <CommandItem
-                                    key={product.id}
-                                    onSelect={() => {
-                                      handleItemChange(item.id, "productId", product.id);
-                                      toggleProductSearch(index);
-                                    }}
-                                  >
-                                    <span>{product.name}</span>
-                                    <span className="ml-2 text-xs text-muted-foreground">
-                                      ({product.sku})
-                                    </span>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="grid gap-2 w-24">
-                      <Label htmlFor={`quantity-${item.id}`}>Quantity</Label>
-                      <Input
-                        type="number"
-                        id={`quantity-${item.id}`}
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(item.id, "quantity", parseInt(e.target.value) || 0)}
-                        min={1}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="pt-6">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => handleRemoveItem(item.id)}
-                        disabled={standingOrderItems.length <= 1}
-                        className="px-2"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <Button type="button" variant="outline" onClick={handleAddItem}>
-                  <Plus className="mr-2 h-4 w-4" /> Add Item
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button type="button" variant="secondary" onClick={handlePreview}>
-              Preview
-            </Button>
-            <Button type="submit">Create Standing Order</Button>
+            </div>
           </div>
-        </form>
-      </Form>
+        </CardContent>
+      </Card>
+      
+      {/* Schedule Information */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div>
+              <Label>Frequency *</Label>
+              <RadioGroup value={frequency} onValueChange={(value: "Weekly" | "Bi-Weekly" | "Monthly") => setFrequency(value)} className="flex space-x-4">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Weekly" id="weekly" />
+                  <Label htmlFor="weekly">Weekly</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Bi-Weekly" id="biweekly" />
+                  <Label htmlFor="biweekly">Bi-Weekly</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Monthly" id="monthly" />
+                  <Label htmlFor="monthly">Monthly</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            {frequency === "Monthly" && (
+              <div>
+                <Label>Day of Month *</Label>
+                <Select 
+                  value={dayOfMonth.toString()} 
+                  onValueChange={(value) => setDayOfMonth(parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select day of month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <div>
+              <Label>Delivery Method *</Label>
+              <RadioGroup 
+                value={deliveryMethod} 
+                onValueChange={(value: "Delivery" | "Collection") => setDeliveryMethod(value)} 
+                className="flex space-x-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Delivery" id="delivery" />
+                  <Label htmlFor="delivery">Delivery</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Collection" id="collection" />
+                  <Label htmlFor="collection">Collection</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            <div>
+              <Label>First Delivery Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !firstDeliveryDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {firstDeliveryDate ? format(firstDeliveryDate, "EEEE, MMMM d, yyyy") : <span>Pick a date</span>}
+                    {shouldProcessImmediately(firstDeliveryDate) && (
+                      <Badge variant="secondary" className="ml-2">Will be processed immediately</Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={firstDeliveryDate}
+                    onSelect={(date) => date && setFirstDeliveryDate(date)}
+                    initialFocus
+                    disabled={(date) => date < new Date()}
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-sm text-muted-foreground mt-1">
+                This date will determine the day of week for weekly/bi-weekly orders or the day of month for monthly orders.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Products */}
+      <Card>
+        <CardContent className="pt-6">
+          <h3 className="text-lg font-medium mb-4">Products</h3>
+          
+          <div className="flex space-x-4 mb-4">
+            <div className="flex-1">
+              <Label htmlFor="product">Select Product</Label>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between text-left"
+                onClick={() => {
+                  setProductSearch(""); // Reset search when opening
+                  setShowProductSearch(true);
+                }}
+              >
+                <span className="truncate">
+                  {getSelectedProductName(selectedProductId)}
+                </span>
+                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </div>
+            
+            <div className="w-24">
+              <Label htmlFor="quantity">Quantity</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                value={selectedProductQuantity === null ? "" : selectedProductQuantity}
+                onChange={e => setSelectedProductQuantity(e.target.value ? parseInt(e.target.value) : null)}
+                className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-gray-500"
+                placeholder="Qty"
+              />
+            </div>
+            
+            <div className="flex items-end">
+              <Button type="button" onClick={addProductToOrder}>
+                <Plus className="h-4 w-4 mr-2" /> Add
+              </Button>
+            </div>
+          </div>
+          
+          {/* Product list */}
+          <div className="border rounded-md">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-4 py-2 text-left">Product</th>
+                  <th className="px-4 py-2 text-left">SKU</th>
+                  <th className="px-4 py-2 text-right">Quantity</th>
+                  <th className="px-4 py-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-4 text-center text-gray-500">
+                      No products added yet
+                    </td>
+                  </tr>
+                ) : (
+                  orderItems.map(item => {
+                    const product = products.find(p => p.id === item.productId);
+                    if (!product) return null;
+                    
+                    return (
+                      <tr key={item.id} className="border-b">
+                        <td className="px-4 py-2">{product.name}</td>
+                        <td className="px-4 py-2">{product.sku}</td>
+                        <td className="px-4 py-2 text-right">{item.quantity}</td>
+                        <td className="px-4 py-2 text-right">
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => removeProductFromOrder(item.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Additional Information */}
+      <Card>
+        <CardContent className="pt-6">
+          <div>
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Add any additional notes or instructions"
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Submit Buttons */}
+      <div className="flex justify-end space-x-4">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={() => navigate("/standing-orders")}
+        >
+          Cancel
+        </Button>
+        <Button type="submit">Create Standing Order</Button>
+      </div>
 
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+      {/* Customer Search Dialog */}
+      <CommandDialog open={showCustomerSearch} onOpenChange={setShowCustomerSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search customers by name, email, phone or account..."
+            value={customerSearch}
+            onValueChange={setCustomerSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No customers found.</CommandEmpty>
+          <CommandGroup heading="Customers">
+            {filteredCustomers.map(customer => (
+              <CommandItem 
+                key={customer.id} 
+                value={customer.name} // Use name as the value for matching
+                onSelect={() => handleSelectCustomer(customer.id)}
+                className={customer.onHold ? "text-red-500 font-medium" : ""}
+              >
+                {customer.name}
+                {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+                {customer.onHold && " (On Hold)"}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+
+      {/* Product Search Dialog */}
+      <CommandDialog open={showProductSearch} onOpenChange={setShowProductSearch}>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search products by name or SKU..."
+            value={productSearch}
+            onValueChange={setProductSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No products found.</CommandEmpty>
+          <CommandGroup heading="Products">
+            {filteredProducts.map(product => (
+              <CommandItem 
+                key={product.id} 
+                value={`${product.name} ${product.sku}`} // Combined value for better matching
+                onSelect={() => handleSelectProduct(product.id)}
+              >
+                <span>{product.name}</span>
+                <span className="ml-2 text-muted-foreground">({product.sku})</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+
+      {/* On Hold Customer Warning Dialog */}
+      <AlertDialog open={showOnHoldWarning} onOpenChange={setShowOnHoldWarning}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Customer On Hold Warning</AlertDialogTitle>
             <AlertDialogDescription>
-              This will discard all the information you've entered.
+              {selectedCustomer && (
+                <>
+                  <p className="font-medium text-red-500 mb-2">
+                    {selectedCustomer.name} is currently on hold.
+                  </p>
+                  <p className="mb-4">
+                    Reason: {selectedCustomer.holdReason || "No reason provided"}
+                  </p>
+                  <p>Are you sure you want to proceed with this customer?</p>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowCancelDialog(false)}>
+            <AlertDialogCancel onClick={cancelOnHoldCustomer}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCancel}>Discard</AlertDialogAction>
+            <AlertDialogAction onClick={confirmOnHoldCustomer}>
+              Yes, Proceed Anyway
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </form>
   );
 };
 

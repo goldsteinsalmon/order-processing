@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ArrowLeft, Save, Plus } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getOrderDate } from "@/utils/propertyHelpers";
 
 const EditCompletedOrder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,7 +59,7 @@ const EditCompletedOrder: React.FC = () => {
       })));
       
       // Set the order date
-      setOrderDate(getOrderDate(originalOrder));
+      setOrderDate(originalOrder.orderDate);
     }
   }, [originalOrder]);
 
@@ -94,7 +93,7 @@ const EditCompletedOrder: React.FC = () => {
 
   const checkForChanges = (items: any[], date: string) => {
     const itemsChanged = items.some(item => item.hasChanged);
-    const dateChanged = date !== getOrderDate(originalOrder);
+    const dateChanged = date !== originalOrder.orderDate;
     setHasChanges(itemsChanged || dateChanged);
   };
 

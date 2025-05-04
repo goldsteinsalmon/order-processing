@@ -1,305 +1,356 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, PlusCircle, Eye, Copy, Plus } from "lucide-react";
+import { Eye, PackagePlus, Save, Search, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { DebugLoader } from "@/components/ui/debug-loader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { format, addDays, startOfDay, isSameDay, parseISO } from "date-fns";
+import { 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell 
+} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
-const ProductsPage = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const { products, isLoading, refreshData, updateProduct } = useData();
+const ProductsPage: React.FC = () => {
+  const { products, orders, addProduct, updateProduct } = useData();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [stockInputs, setStockInputs] = useState<Record<string, string>>({});
+  const [stockAdjustments, setStockAdjustments] = useState<Record<string, number>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  console.log("ProductsPage render: isLoading=" + isLoading + ", products.length=" + products.length);
-
-  const handleRetryFetch = async () => {
-    try {
-      console.log("ProductsPage: Manual refresh requested");
-      await refreshData();
-    } catch (error) {
-      console.error("ProductsPage: Error during manual refresh:", error);
-    }
-  };
-
-  const handleStockInputChange = (productId: string, value: string) => {
-    setStockInputs({
-      ...stockInputs,
-      [productId]: value
+  // Sort products by SKU
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      return (a.sku || '').localeCompare(b.sku || '');
     });
-  };
+  }, [products]);
 
-  const handleAddStock = async (product: any) => {
-    const inputValue = stockInputs[product.id];
+  // Filter products based on search
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm.trim()) return sortedProducts;
     
-    if (!inputValue || isNaN(parseInt(inputValue))) {
-      toast({
-        title: "Invalid input",
-        description: "Please enter a valid number",
-        variant: "destructive"
-      });
-      return;
-    }
+    const lowerSearch = searchTerm.toLowerCase();
+    return sortedProducts.filter((product) => 
+      product.name.toLowerCase().includes(lowerSearch) ||
+      (product.sku && product.sku.toLowerCase().includes(lowerSearch))
+    );
+  }, [sortedProducts, searchTerm]);
+
+  // Initialize stock adjustments
+  useEffect(() => {
+    const initialAdjustments: Record<string, number> = {};
+    products.forEach((product) => {
+      initialAdjustments[product.id] = 0;
+    });
+    setStockAdjustments(initialAdjustments);
+  }, [products]);
+
+  // Calculate next 7 working days (excluding weekends)
+  const next7WorkingDays = useMemo(() => {
+    const workingDays = [];
+    let currentDate = startOfDay(new Date());
+    let daysAdded = 0;
     
-    const additionalStock = parseInt(inputValue);
-    const updatedProduct = {
-      ...product,
-      stock_level: (product.stock_level || 0) + additionalStock
-    };
-    
-    try {
-      await updateProduct(updatedProduct);
-      toast({
-        title: "Stock updated",
-        description: `Added ${additionalStock} to ${product.name}`
-      });
+    while (workingDays.length < 7) {
+      daysAdded++;
+      currentDate = addDays(startOfDay(new Date()), daysAdded);
       
-      // Clear the input
-      setStockInputs({
-        ...stockInputs,
-        [product.id]: ''
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update stock",
-        variant: "destructive"
-      });
+      // Skip weekends (0 is Sunday, 6 is Saturday)
+      const dayOfWeek = currentDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays.push(currentDate);
+      }
     }
-  };
+    
+    return workingDays;
+  }, []);
 
-  const handleDuplicateProduct = (product: any) => {
-    // Navigate to create product page with the product to duplicate
-    navigate("/create-product", { 
-      state: { 
-        duplicateFrom: product,
-        isDuplicating: true
+  // Calculate forecast for each product
+  const productForecasts = useMemo(() => {
+    const forecasts: Record<string, Record<string, number>> = {};
+    
+    // Initialize forecasts for all products and dates
+    products.forEach((product) => {
+      forecasts[product.id] = {};
+      next7WorkingDays.forEach((day) => {
+        forecasts[product.id][format(day, "yyyy-MM-dd")] = 0;
+      });
+    });
+    
+    // Count products needed for each day from pending orders
+    orders.forEach((order) => {
+      if (order.status === "Pending" || order.status === "Picking") {
+        const orderDate = parseISO(order.requiredDate || order.orderDate);
+        
+        // Only consider orders going out in the next 7 working days
+        const matchingDay = next7WorkingDays.find((day) => isSameDay(day, orderDate));
+        if (matchingDay) {
+          const dateKey = format(matchingDay, "yyyy-MM-dd");
+          
+          order.items.forEach((item) => {
+            if (forecasts[item.productId] && forecasts[item.productId][dateKey] !== undefined) {
+              forecasts[item.productId][dateKey] += item.quantity;
+            }
+          });
+        }
       }
     });
+    
+    return forecasts;
+  }, [next7WorkingDays, products, orders]);
+
+  // Handle stock adjustment
+  const handleStockAdjustment = (productId: string, value: string) => {
+    const adjustment = parseInt(value) || 0;
+    setStockAdjustments({
+      ...stockAdjustments,
+      [productId]: adjustment
+    });
+    setHasChanges(true);
   };
 
-  const filteredProducts = products.filter((product) => {
-    const searchTermLower = searchTerm.toLowerCase();
-    return (
-      product.name.toLowerCase().includes(searchTermLower) ||
-      product.description?.toLowerCase().includes(searchTermLower) ||
-      product.sku?.toLowerCase().includes(searchTermLower) ||
-      (product.barcode && product.barcode.toLowerCase().includes(searchTermLower))
-    );
-  });
+  const handleSaveStockAdjustments = () => {
+    const updatedProducts = products.map((product) => {
+      const adjustment = stockAdjustments[product.id] || 0;
+      if (adjustment !== 0) {
+        return {
+          ...product,
+          stockLevel: product.stockLevel + adjustment
+        };
+      }
+      return product;
+    });
+    
+    // Update only products that have changes
+    updatedProducts.forEach((product) => {
+      const originalProduct = products.find((p) => p.id === product.id);
+      if (originalProduct && originalProduct.stockLevel !== product.stockLevel) {
+        updateProduct(product);
+      }
+    });
+    
+    // Reset adjustments
+    const resetAdjustments: Record<string, number> = {};
+    products.forEach((product) => {
+      resetAdjustments[product.id] = 0;
+    });
+    
+    setStockAdjustments(resetAdjustments);
+    setHasChanges(false);
+    
+    // Show success toast
+    toast({
+      title: "Stock Updated",
+      description: "Stock levels have been successfully updated."
+    });
+  };
 
-  const sortedProducts = [...filteredProducts].sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
+  // Handle duplicate product
+  const handleDuplicateProduct = (productId: string) => {
+    const productToDuplicate = products.find(p => p.id === productId);
+    if (!productToDuplicate) return;
+    
+    // Navigate to create product page with state containing the product to duplicate
+    navigate("/create-product", { 
+      state: { 
+        duplicateFrom: productToDuplicate,
+        isDuplicating: true
+      } 
+    });
+  };
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Products</h1>
+      <div className="flex justify-between mb-6">
+        <h2 className="text-2xl font-bold">Products</h2>
         <Button onClick={() => navigate("/create-product")}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Product
+          <PackagePlus className="mr-2 h-4 w-4" /> Add Product
         </Button>
       </div>
       
-      <div className="relative w-full max-w-md mb-6">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="search"
-          placeholder="Search products by name or SKU..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-8"
-        />
-      </div>
-
-      <DebugLoader 
-        isLoading={isLoading}
-        productsCount={products.length} 
-        context="Products Page" 
-        onRetry={handleRetryFetch}
-      />
-
-      {isLoading ? (
-        <div className="space-y-2">
-          <div className="border rounded-md overflow-hidden">
-            <div className="bg-muted p-3">
-              <Skeleton className="h-5 w-full" />
-            </div>
-            <div className="p-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="py-3 space-y-1">
-                  <Skeleton className="h-4 w-[60%] mb-1" />
-                  <Skeleton className="h-4 w-[80%]" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : sortedProducts.length === 0 ? (
-        <Card className="w-full">
-          <CardContent className="flex flex-col items-center justify-center p-6">
-            <div className="text-center p-6">
-              <h3 className="font-semibold text-lg mb-2">No products yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Add your first product to get started
-              </p>
-              <Button onClick={() => navigate("/create-product")}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Create Product
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-8">
-          {/* Main Products Table */}
-          <div className="border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Weight (g)</TableHead>
-                  <TableHead>Requires Weight</TableHead>
-                  <TableHead>Stock Level</TableHead>
-                  <TableHead>Add Stock</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedProducts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No products found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>{product.sku || "N/A"}</TableCell>
-                      <TableCell>{product.name}</TableCell>
-                      <TableCell>{product.weight || "N/A"}</TableCell>
-                      <TableCell>{product.requiresWeightInput ? "Yes" : "No"}</TableCell>
-                      <TableCell>{product.stock_level || 0}</TableCell>
-                      <TableCell>
-                        <div className="flex w-32 space-x-1">
-                          <Input 
-                            type="number" 
-                            className="w-20" 
-                            placeholder="0"
-                            value={stockInputs[product.id] || ''}
-                            onChange={(e) => handleStockInputChange(product.id, e.target.value)}
-                            min="0"
-                          />
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleAddStock(product)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <TooltipProvider>
-                          <div className="flex space-x-2">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => navigate(`/products/${product.id}`)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  <span className="ml-1">View Details</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>View product details</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDuplicateProduct(product)}
-                                >
-                                  <Copy className="h-4 w-4" />
-                                  <span className="ml-1">Duplicate</span>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Duplicate product</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TooltipProvider>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Stock Forecast Section */}
-          <div>
-            <h2 className="text-xl font-semibold mb-1">Stock Forecast (Next 7 Working Days)</h2>
-            <p className="text-sm text-gray-500 mb-4">Shows products needed for pending orders by date</p>
-            
-            <div className="border rounded-md overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Current Stock</TableHead>
-                    <TableHead>05/05<br/>Mon</TableHead>
-                    <TableHead>06/05<br/>Tue</TableHead>
-                    <TableHead>07/05<br/>Wed</TableHead>
-                    <TableHead>08/05<br/>Thu</TableHead>
-                    <TableHead>09/05<br/>Fri</TableHead>
-                    <TableHead>12/05<br/>Mon</TableHead>
-                    <TableHead>13/05<br/>Tue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedProducts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={10} className="text-center py-8">
-                        No products found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sortedProducts.map((product) => (
-                      <TableRow key={`forecast-${product.id}`}>
-                        <TableCell>{product.sku || "N/A"}</TableCell>
-                        <TableCell>{product.name}</TableCell>
-                        <TableCell>{product.stock_level || 0}</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>0</TableCell>
-                        <TableCell>0</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
+      {hasChanges && (
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md flex justify-between items-center">
+          <p className="text-yellow-800">You have unsaved stock adjustments.</p>
+          <Button onClick={handleSaveStockAdjustments} className="bg-green-600 hover:bg-green-700">
+            <Save className="mr-2 h-4 w-4" /> Save Adjustments
+          </Button>
         </div>
       )}
+
+      <div className="space-y-6">
+        <div className="flex items-center mb-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search products by name or SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>SKU</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Weight (g)</TableHead>
+                <TableHead>Requires Weight</TableHead>
+                <TableHead>Stock Level</TableHead>
+                <TableHead>Add Stock</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    {searchTerm ? "No matching products found" : "No products found"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>{product.sku}</TableCell>
+                    <TableCell>{product.name}</TableCell>
+                    <TableCell>{product.requiresWeightInput ? "N/A" : (product.weight || "N/A")}</TableCell>
+                    <TableCell>
+                      {product.requiresWeightInput ? (
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
+                          No
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>{product.stockLevel}</TableCell>
+                    <TableCell className="w-40">
+                      <div className="flex items-center">
+                        <Input
+                          type="number"
+                          value={stockAdjustments[product.id] || ""}
+                          onChange={(e) => handleStockAdjustment(product.id, e.target.value)}
+                          className="w-24 text-right"
+                          placeholder="Qty"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => navigate(`/product-details/${product.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" /> View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateProduct(product.id)}
+                        >
+                          <Copy className="h-4 w-4 mr-1" /> Duplicate
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="rounded-md border">
+          <div className="p-4 bg-gray-50 border-b">
+            <h3 className="font-semibold">Stock Forecast (Next 7 Working Days)</h3>
+            <p className="text-sm text-gray-600">Shows products needed for pending orders by date</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="px-4 py-3 text-left font-medium">SKU</th>
+                  <th className="px-4 py-3 text-left font-medium">Product</th>
+                  <th className="px-4 py-3 text-left font-medium">Current Stock</th>
+                  {next7WorkingDays.map((day) => (
+                    <th key={format(day, "yyyy-MM-dd")} className="px-4 py-3 text-center font-medium">
+                      {format(day, "dd/MM")}
+                      <div className="text-xs font-normal text-gray-500">
+                        {format(day, "EEE")}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={3 + next7WorkingDays.length} className="px-4 py-8 text-center text-gray-500">
+                      {searchTerm ? "No matching products found" : "No products found"}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredProducts.map((product) => {
+                    // Calculate running stock level
+                    let runningStock = product.stockLevel;
+                    const dailyStocks: Record<string, number> = {};
+                    
+                    next7WorkingDays.forEach((day) => {
+                      const dateKey = format(day, "yyyy-MM-dd");
+                      const dailyUsage = productForecasts[product.id]?.[dateKey] || 0;
+                      runningStock -= dailyUsage;
+                      dailyStocks[dateKey] = runningStock;
+                    });
+                    
+                    return (
+                      <tr key={product.id} className="border-b">
+                        <td className="px-4 py-3">{product.sku}</td>
+                        <td className="px-4 py-3">{product.name}</td>
+                        <td className="px-4 py-3">{product.stockLevel}</td>
+                        {next7WorkingDays.map((day) => {
+                          const dateKey = format(day, "yyyy-MM-dd");
+                          const dailyUsage = productForecasts[product.id]?.[dateKey] || 0;
+                          const remainingStock = dailyStocks[dateKey];
+                          
+                          // Determine cell color based on stock level - modified to not highlight zero values
+                          let cellClass = "px-4 py-3 text-center";
+                          if (remainingStock < 0) {
+                            cellClass += " bg-red-100 text-red-800";
+                          } else if (remainingStock > 0 && remainingStock < 10) {
+                            cellClass += " bg-yellow-100 text-yellow-800";
+                          }
+                          
+                          return (
+                            <td key={dateKey} className={cellClass}>
+                              {dailyUsage > 0 && (
+                                <span className="block text-xs">(-{dailyUsage})</span>
+                              )}
+                              <span className={remainingStock < 0 ? "font-bold" : ""}>
+                                {remainingStock}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </Layout>
   );
 };

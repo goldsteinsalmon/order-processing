@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { useParams, useNavigate } from "react-router-dom";
@@ -7,102 +7,44 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Save, AlertTriangle, Package, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, AlertTriangle, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Customer } from "@/types";
-import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
-import { getAccountNumber, getOnHold } from "@/utils/customerPropertyHelpers";
 
 const CustomerDetailsPage: React.FC = () => {
-  const { customers, updateCustomer, deleteCustomer, orders, completedOrders, refreshData } = useData();
+  const { customers, updateCustomer, orders, completedOrders } = useData();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Find customer and ensure it has all camelCase properties
-  const customer = customers.find(c => c.id === id);
-  
-  // Local customer state to ensure UI updates immediately
-  const [localCustomer, setLocalCustomer] = useState<Customer | null>(null);
-  
-  // State for editing
+  const customer = customers.find(customer => customer.id === id);
   const [isEditing, setIsEditing] = useState(false);
   // Hold reason dialog state
   const [showHoldDialog, setShowHoldDialog] = useState(false);
   const [holdReason, setHoldReason] = useState("");
-  // Delete customer dialog state
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  
-  // Debug log to check customer data and update local state when customer changes
-  useEffect(() => {
-    if (customer) {
-      console.log("CustomerDetailsPage - Customer from context:", customer);
-      console.log("CustomerDetailsPage - Account number:", customer.accountNumber || "EMPTY");
-      console.log("CustomerDetailsPage - Needs detailed box labels:", customer.needsDetailedBoxLabels);
-      console.log("CustomerDetailsPage - On hold status:", customer.onHold);
-      console.log("CustomerDetailsPage - Hold reason:", customer.holdReason || "EMPTY");
-      
-      // Always update local customer state when context customer changes
-      setLocalCustomer(customer);
-    }
-  }, [customer]);
   
   const [formData, setFormData] = useState({
-    name: "",
-    accountNumber: "",
-    email: "",
-    phone: "",
-    type: "Private" as "Private" | "Trade",
-    onHold: false,
-    holdReason: "",
-    needsDetailedBoxLabels: false
+    name: customer?.name || "",
+    accountNumber: customer?.accountNumber || "",
+    email: customer?.email || "",
+    phone: customer?.phone || "",
+    type: customer?.type || "Private" as "Private" | "Trade",
+    onHold: customer?.onHold || false,
+    holdReason: customer?.holdReason || "",
+    needsDetailedBoxLabels: customer?.needsDetailedBoxLabels || false
   });
-
-  // Update form data when customer changes
-  useEffect(() => {
-    if (localCustomer) {
-      setFormData({
-        name: localCustomer.name || "",
-        accountNumber: localCustomer.accountNumber || "",
-        email: localCustomer.email || "",
-        phone: localCustomer.phone || "",
-        type: localCustomer.type || "Private",
-        onHold: localCustomer.onHold || false,
-        holdReason: localCustomer.holdReason || "",
-        needsDetailedBoxLabels: localCustomer.needsDetailedBoxLabels || false
-      });
-
-      console.log("CustomerDetailsPage - Form data updated from localCustomer:", {
-        name: localCustomer.name,
-        accountNumber: localCustomer.accountNumber || "EMPTY",
-        onHold: localCustomer.onHold,
-        holdReason: localCustomer.holdReason || "EMPTY"
-      });
-    }
-  }, [localCustomer]);
 
   // Get all orders for this customer
   const customerOrders = useMemo(() => {
-    if (!localCustomer) return [];
+    if (!customer) return [];
     
     // Combine active and completed orders
     const allOrders = [...orders, ...completedOrders]
-      .filter(order => order.customerId === localCustomer.id)
+      .filter(order => order.customerId === customer.id)
       .sort((a, b) => {
         const dateA = a.orderDate ? new Date(a.orderDate).getTime() : new Date(a.created).getTime();
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : new Date(b.created).getTime();
@@ -110,7 +52,7 @@ const CustomerDetailsPage: React.FC = () => {
       });
     
     return allOrders;
-  }, [localCustomer, orders, completedOrders]);
+  }, [customer, orders, completedOrders]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -127,104 +69,58 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const handleSave = () => {
-    if (!localCustomer) return;
+    if (!customer) return;
     
-    if (!formData.name) {
+    if (!formData.name || !formData.accountNumber) {
       toast({
         title: "Error",
-        description: "Name is required.",
+        description: "Account number and name are required.",
         variant: "destructive"
       });
       return;
     }
     
-    const updatedCustomer: Customer = {
-      ...localCustomer,
+    const updatedCustomer = {
+      ...customer,
       name: formData.name,
       accountNumber: formData.accountNumber,
       email: formData.email,
       phone: formData.phone,
       type: formData.type as "Private" | "Trade",
       onHold: formData.onHold,
-      holdReason: formData.onHold ? formData.holdReason : "",
-      needsDetailedBoxLabels: formData.needsDetailedBoxLabels
+      holdReason: formData.onHold ? formData.holdReason : undefined,
+      needsDetailedBoxLabels: formData.needsDetailedBoxLabels,
+      updated: new Date().toISOString()
     };
     
-    console.log("CustomerDetailsPage - Updating customer:", updatedCustomer);
-    console.log("CustomerDetailsPage - With accountNumber:", updatedCustomer.accountNumber);
-    console.log("CustomerDetailsPage - With onHold:", updatedCustomer.onHold);
-    console.log("CustomerDetailsPage - With holdReason:", updatedCustomer.holdReason);
+    updateCustomer(updatedCustomer);
     
-    // First update local state for immediate UI feedback
-    setLocalCustomer(updatedCustomer);
+    toast({
+      title: "Success",
+      description: "Customer updated successfully."
+    });
     
-    // Then update in backend through context
-    updateCustomer(updatedCustomer)
-      .then(success => {
-        if (success) {
-          toast({
-            title: "Success",
-            description: "Customer updated successfully."
-          });
-          setIsEditing(false);
-          
-          // Refresh data to ensure everything is in sync
-          refreshData();
-        } else {
-          // Revert local changes if backend update failed
-          setLocalCustomer(customer);
-          
-          toast({
-            title: "Error",
-            description: "Failed to update customer data.",
-            variant: "destructive"
-          });
-        }
-      });
+    setIsEditing(false);
   };
   
   const toggleHoldStatus = () => {
-    if (!localCustomer) return;
+    if (!customer) return;
     
-    console.log("toggleHoldStatus - Current customer state:", localCustomer);
-    console.log("toggleHoldStatus - Current account number:", localCustomer.accountNumber || "EMPTY");
-    console.log("toggleHoldStatus - Current onHold status:", localCustomer.onHold);
-    
-    if (localCustomer.onHold) {
-      // Remove hold - make a deep copy to avoid reference issues
-      const updatedCustomer: Customer = {
-        ...localCustomer,
+    if (customer.onHold) {
+      // Remove hold
+      const updatedCustomer = {
+        ...customer,
         onHold: false,
-        holdReason: ""
+        holdReason: undefined,
+        updated: new Date().toISOString()
       };
       
-      console.log("toggleHoldStatus - Removing hold, updated customer:", updatedCustomer);
-      console.log("toggleHoldStatus - With account number:", updatedCustomer.accountNumber);
+      updateCustomer(updatedCustomer);
       
-      // First update local state for immediate UI feedback
-      setLocalCustomer(updatedCustomer);
-      
-      updateCustomer(updatedCustomer)
-        .then(success => {
-          if (success) {
-            toast({
-              title: "Hold removed",
-              description: `${localCustomer.name}'s account is now active.`
-            });
-            
-            // Refresh data to ensure everything is in sync
-            refreshData();
-          } else {
-            // Revert local changes if backend update failed
-            setLocalCustomer(localCustomer);
-            
-            toast({
-              title: "Error",
-              description: "Failed to remove hold status.",
-              variant: "destructive"
-            });
-          }
-        });
+      toast({
+        title: "Hold removed",
+        description: `${customer.name}'s account is now active.`
+      });
     } else {
       // Show dialog to get hold reason
       setHoldReason("");
@@ -233,75 +129,25 @@ const CustomerDetailsPage: React.FC = () => {
   };
   
   const applyHold = () => {
-    if (!localCustomer) return;
+    if (!customer) return;
     
-    console.log("applyHold - Current customer state:", localCustomer);
-    console.log("applyHold - Current account number:", localCustomer.accountNumber || "EMPTY");
-    
-    // Make a deep copy of the customer to avoid reference issues
-    const updatedCustomer: Customer = {
-      ...localCustomer,
+    const updatedCustomer = {
+      ...customer,
       onHold: true,
-      holdReason: holdReason
+      holdReason: holdReason,
+      updated: new Date().toISOString()
     };
     
-    console.log("applyHold - Adding hold, updated customer:", updatedCustomer);
-    console.log("applyHold - With account number:", updatedCustomer.accountNumber);
+    updateCustomer(updatedCustomer);
+    setShowHoldDialog(false);
     
-    // First update local state for immediate UI feedback
-    setLocalCustomer(updatedCustomer);
-    
-    updateCustomer(updatedCustomer)
-      .then(success => {
-        if (success) {
-          setShowHoldDialog(false);
-          toast({
-            title: "Account on hold",
-            description: `${localCustomer.name}'s account has been placed on hold.`
-          });
-          
-          // Refresh data to ensure everything is in sync
-          refreshData();
-        } else {
-          // Revert local changes if backend update failed
-          setLocalCustomer(localCustomer);
-          
-          toast({
-            title: "Error",
-            description: "Failed to place account on hold.",
-            variant: "destructive"
-          });
-        }
-      });
+    toast({
+      title: "Account on hold",
+      description: `${customer.name}'s account has been placed on hold.`
+    });
   };
 
-  const handleDeleteCustomer = async () => {
-    if (!localCustomer) return;
-    
-    // Check if customer has any orders
-    const customerOrders = [...orders, ...completedOrders].filter(order => order.customerId === localCustomer.id);
-    
-    if (customerOrders.length > 0) {
-      toast({
-        title: "Cannot Delete",
-        description: "This customer has existing orders. Please delete those orders first.",
-        variant: "destructive"
-      });
-      setShowDeleteDialog(false);
-      return;
-    }
-    
-    const success = await deleteCustomer(localCustomer.id);
-    if (success) {
-      toast({
-        title: "Success",
-        description: "Customer deleted successfully."
-      });
-      navigate("/customers");
-    }
-  };
-
-  if (!localCustomer) {
+  if (!customer) {
     return (
       <Layout>
         <div className="flex items-center mb-6">
@@ -324,8 +170,8 @@ const CustomerDetailsPage: React.FC = () => {
           <Button variant="ghost" onClick={() => navigate("/customers")} className="mr-4">
             <ArrowLeft className="mr-2" /> Back
           </Button>
-          <h2 className="text-2xl font-bold">{localCustomer.name}</h2>
-          {localCustomer.onHold && (
+          <h2 className="text-2xl font-bold">{customer.name}</h2>
+          {customer.onHold && (
             <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
               On Hold
             </span>
@@ -333,10 +179,10 @@ const CustomerDetailsPage: React.FC = () => {
         </div>
         <div className="flex space-x-2">
           <Button 
-            variant={localCustomer.onHold ? "outline" : "destructive"}
+            variant={customer.onHold ? "outline" : "destructive"}
             onClick={toggleHoldStatus}
           >
-            {localCustomer.onHold ? "Remove Hold" : (
+            {customer.onHold ? "Remove Hold" : (
               <>
                 <AlertTriangle className="mr-2 h-4 w-4" />
                 Place on Hold
@@ -344,14 +190,9 @@ const CustomerDetailsPage: React.FC = () => {
             )}
           </Button>
           {!isEditing && (
-            <>
-              <Button onClick={() => setIsEditing(true)}>
-                Edit Customer
-              </Button>
-              <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </Button>
-            </>
+            <Button onClick={() => setIsEditing(true)}>
+              Edit Customer
+            </Button>
           )}
         </div>
       </div>
@@ -371,12 +212,13 @@ const CustomerDetailsPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="accountNumber">Account Number</Label>
+                    <Label htmlFor="accountNumber">Account Number *</Label>
                     <Input 
                       id="accountNumber" 
                       name="accountNumber"
                       value={formData.accountNumber} 
                       onChange={handleInputChange} 
+                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -445,7 +287,7 @@ const CustomerDetailsPage: React.FC = () => {
                     </RadioGroup>
                   </div>
                   
-                  {/* Detailed Box Labels setting */}
+                  {/* New - Detailed Box Labels setting */}
                   <div className="col-span-1 md:col-span-2 flex items-center justify-between py-2 border-t">
                     <div className="space-y-0.5">
                       <Label htmlFor="detailed-labels">Detailed Box Labels</Label>
@@ -456,10 +298,7 @@ const CustomerDetailsPage: React.FC = () => {
                     <Switch
                       id="detailed-labels"
                       checked={formData.needsDetailedBoxLabels}
-                      onCheckedChange={(checked) => {
-                        console.log("Switch toggled to:", checked);
-                        setFormData(prev => ({ ...prev, needsDetailedBoxLabels: checked }));
-                      }}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, needsDetailedBoxLabels: checked }))}
                     />
                   </div>
                   
@@ -496,34 +335,28 @@ const CustomerDetailsPage: React.FC = () => {
                   <div className="space-y-3">
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Account Number:</span>
-                      <span className="col-span-2 font-medium">{localCustomer.accountNumber || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{customer.accountNumber || 'N/A'}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Name:</span>
-                      <span className="col-span-2 font-medium">{localCustomer.name}</span>
+                      <span className="col-span-2 font-medium">{customer.name}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Type:</span>
-                      <span className="col-span-2 font-medium">{localCustomer.type}</span>
+                      <span className="col-span-2 font-medium">{customer.type}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Email:</span>
-                      <span className="col-span-2 font-medium">{localCustomer.email || 'N/A'}</span>
+                      <span className="col-span-2 font-medium">{customer.email}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Phone:</span>
-                      <span className="col-span-2 font-medium">{localCustomer.phone || 'N/A'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b pb-2">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`col-span-2 font-medium ${localCustomer.onHold ? 'text-red-600' : 'text-green-600'}`}>
-                        {localCustomer.onHold ? 'On Hold' : 'Active'}
-                      </span>
+                      <span className="col-span-2 font-medium">{customer.phone}</span>
                     </div>
                     <div className="grid grid-cols-3 border-b pb-2">
                       <span className="text-gray-600">Detailed Box Labels:</span>
                       <span className="col-span-2 font-medium flex items-center">
-                        {localCustomer.needsDetailedBoxLabels ? (
+                        {customer.needsDetailedBoxLabels ? (
                           <>
                             <Package className="h-4 w-4 mr-1 text-green-600" />
                             <span className="text-green-600">Enabled</span>
@@ -534,11 +367,11 @@ const CustomerDetailsPage: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  {localCustomer.onHold && (
+                  {customer.onHold && (
                     <div className="mt-6">
                       <h3 className="text-lg font-semibold text-red-700 mb-2">Account on Hold</h3>
-                      {localCustomer.holdReason && (
-                        <p className="text-gray-700">{localCustomer.holdReason}</p>
+                      {customer.holdReason && (
+                        <p className="text-gray-700">{customer.holdReason}</p>
                       )}
                     </div>
                   )}
@@ -636,31 +469,6 @@ const CustomerDetailsPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the customer 
-              "{localCustomer?.name}" and remove it from our database.
-              
-              {localCustomer && (
-                <p className="mt-2 font-semibold">
-                  Note: Customers with existing orders cannot be deleted.
-                </p>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteCustomer} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Layout>
   );
 };

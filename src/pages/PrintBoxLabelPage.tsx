@@ -1,29 +1,28 @@
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import PrintBoxLabel from "@/components/orders/PrintBoxLabel";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useToast } from "@/hooks/use-toast";
-import { getBoxDistributions, getCompletedBoxes, getSavedBoxes } from "@/utils/boxPropertyHelpers";
-import { getPickedBy } from "@/utils/pickerPropertyHelpers";
-import { getPickedAt } from "@/utils/propertyHelpers";
 
 const PrintBoxLabelPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams<{ id: string }>();
   const { orders, updateOrder } = useData();
   const { toast } = useToast();
-  const printRef = useRef<HTMLDivElement>(null);
 
+  // Extract the orderId from the URL - /print-box-label/:id
+  const pathParts = location.pathname.split('/');
+  const orderId = pathParts[2];
+  
   // Extract box number from query parameter if present
   const searchParams = new URLSearchParams(location.search);
   const boxNumber = searchParams.get('box');
   
   // Check if this box is allowed to be printed (order exists and if box number is specified, it's a valid box)
-  const order = orders.find(order => order.id === id);
+  const order = orders.find(order => order.id === orderId);
 
   // Handle saving data and marking box as completed
   const saveBoxData = () => {
@@ -33,8 +32,8 @@ const PrintBoxLabelPage: React.FC = () => {
       // Mark this box as completed
       if (boxNum > 0) {
         // Create copies to avoid directly mutating state
-        const updatedCompletedBoxes = [...(getCompletedBoxes(order) || [])];
-        const updatedSavedBoxes = [...(getSavedBoxes(order) || [])];
+        const updatedCompletedBoxes = [...(order.completedBoxes || [])];
+        const updatedSavedBoxes = [...(order.savedBoxes || [])];
         
         // Mark the box as completed if not already
         if (!updatedCompletedBoxes.includes(boxNum)) {
@@ -51,8 +50,8 @@ const PrintBoxLabelPage: React.FC = () => {
           ...order,
           completedBoxes: updatedCompletedBoxes,
           savedBoxes: updatedSavedBoxes,
-          pickedBy: getPickedBy(order),
-          pickedAt: getPickedAt(order) || undefined,
+          pickedBy: order.pickedBy,
+          pickedAt: order.pickedAt || undefined,
           pickingProgress: order.pickingProgress,
           batchNumbers: order.batchNumbers,
           pickingInProgress: true
@@ -96,13 +95,13 @@ const PrintBoxLabelPage: React.FC = () => {
     saveBoxData();
     
     // Navigate back to picking list for this order
-    if (id) {
+    if (orderId) {
       // If we're printing a specific box, determine the next box to process
       if (boxNumber && order) {
         const currentBoxNum = parseInt(boxNumber);
         
         // Find all possible box numbers from the order's box distributions
-        const boxNumbers = getBoxDistributions(order)
+        const boxNumbers = order.boxDistributions
           ?.map(box => box.boxNumber)
           .filter(num => num > 0)
           .sort((a, b) => a - b) || [];
@@ -114,13 +113,13 @@ const PrintBoxLabelPage: React.FC = () => {
         // If there's a next box, redirect to the picking list with that box highlighted
         if (nextBoxIndex < boxNumbers.length) {
           const nextBoxNum = boxNumbers[nextBoxIndex];
-          navigate(`/picking-list/${id}?nextBox=${nextBoxNum}`);
+          navigate(`/picking-list/${orderId}?nextBox=${nextBoxNum}`);
           return;
         }
       }
       
       // If no specific next box or we're done with all boxes, just go back to the picking list
-      navigate(`/picking-list/${id}`);
+      navigate(`/picking-list/${orderId}`);
     } else {
       navigate("/orders");
     }
@@ -140,10 +139,7 @@ const PrintBoxLabelPage: React.FC = () => {
           </Button>
         </div>
       </div>
-      <div ref={printRef}>
-        {/* Pass the orderId and boxNumber as props */}
-        <PrintBoxLabel orderId={id} specificBoxNumber={boxNumber ? parseInt(boxNumber) : undefined} />
-      </div>
+      <PrintBoxLabel />
     </div>
   );
 };

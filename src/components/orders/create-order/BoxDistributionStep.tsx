@@ -24,17 +24,6 @@ interface BoxDistributionStepProps {
   onSubmit: () => void;
 }
 
-// Define a client-side BoxItem that includes the full id and boxId
-interface ClientBoxItem {
-  id: string;
-  boxId: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  weight: number;
-  batchNumber?: string;
-}
-
 const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   boxDistributions,
   setBoxDistributions,
@@ -74,22 +63,19 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
   }, [unassignedItems]);
 
   const handleAddBox = () => {
-    // Find the highest box number
     const newBoxNumber = boxDistributions.length > 0 
       ? Math.max(...boxDistributions.map(box => box.boxNumber)) + 1 
       : 1;
       
-    // Create a new box with required properties
-    const newBox: Box = { 
-      id: crypto.randomUUID(),
-      orderId: '', // Will be filled in when the order is created
-      boxNumber: newBoxNumber, 
-      items: [], 
-      completed: false,
-      printed: false
-    };
-    
-    setBoxDistributions([...boxDistributions, newBox]);
+    setBoxDistributions([
+      ...boxDistributions, 
+      { 
+        boxNumber: newBoxNumber, 
+        items: [], 
+        completed: false,
+        printed: false
+      }
+    ]);
   };
   
   const handleRemoveBox = (boxNumber: number) => {
@@ -138,19 +124,19 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
             )
           };
         } else {
-          // Add new item to box with required properties
-          const newItem = {
-            id: crypto.randomUUID(),
-            boxId: box.id,
-            productId: item.productId,
-            productName: item.productName,
-            quantity,
-            weight: 0
-          };
-          
+          // Add new item to box
+          const product = products.find(p => p.id === item.productId);
           return {
             ...box,
-            items: [...box.items, newItem]
+            items: [
+              ...box.items, 
+              { 
+                productId: item.productId, 
+                productName: product ? product.name : "Unknown Product",
+                quantity,
+                weight: 0
+              }
+            ]
           };
         }
       }
@@ -196,8 +182,6 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
       for (let i = existingBoxCount; i < boxCount; i++) {
         highestBoxNumber++;
         newBoxes.push({
-          id: crypto.randomUUID(),
-          orderId: '', // Will be filled in when the order is created
           boxNumber: highestBoxNumber,
           items: [],
           completed: false,
@@ -251,17 +235,16 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
           return item;
         });
       } else {
-        // Add as new item with required properties
-        const newItem = {
-          id: crypto.randomUUID(),
-          boxId: box.id,
-          productId: currentItem.productId,
-          productName: currentItem.productName,
-          quantity: adjustedQuantity,
-          weight: 0
-        };
-        
-        updatedItems = [...box.items, newItem];
+        // Add as new item
+        updatedItems = [
+          ...box.items,
+          {
+            productId: currentItem.productId,
+            productName: currentItem.productName,
+            quantity: adjustedQuantity,
+            weight: 0
+          }
+        ];
       }
       
       return {
@@ -480,16 +463,16 @@ const BoxDistributionStep: React.FC<BoxDistributionStepProps> = ({
                 ) : (
                   <div className="space-y-2">
                     {box.items.map(item => (
-                      <div key={item.product_id} className="flex justify-between items-center text-sm border-b pb-1">
+                      <div key={item.productId} className="flex justify-between items-center text-sm border-b pb-1">
                         <div className="flex-1">
-                          <div>{item.product_name}</div>
+                          <div>{item.productName}</div>
                           <div className="text-gray-500">Qty: {item.quantity}</div>
                         </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleRemoveItemFromBox(box.boxNumber, item.product_id)}
+                          onClick={() => handleRemoveItemFromBox(box.boxNumber, item.productId)}
                         >
                           <X className="h-3 w-3" />
                         </Button>

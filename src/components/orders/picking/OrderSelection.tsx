@@ -21,17 +21,17 @@ const OrderSelection: React.FC<OrderSelectionProps> = ({
       return <span className="text-blue-600">Modified</span>;
     }
     
-    if (order.missing_items && order.missing_items.length > 0) {
+    if (order.missingItems && order.missingItems.length > 0) {
       return <span className="text-amber-600">Missing Items</span>;
     }
     
-    if (order.box_distributions && order.completed_boxes && 
-        order.completed_boxes.length > 0 && 
-        order.completed_boxes.length < order.box_distributions.length) {
+    if (order.boxDistributions && order.completedBoxes && 
+        order.completedBoxes.length > 0 && 
+        order.completedBoxes.length < order.boxDistributions.length) {
       return <span className="text-purple-600">Partially Picked</span>;
     }
     
-    if (order.picking_in_progress) {
+    if (order.pickingInProgress) {
       return <span className="text-indigo-600">Picking In Progress</span>;
     }
     
@@ -61,7 +61,7 @@ const OrderSelection: React.FC<OrderSelectionProps> = ({
                 <CardContent className="p-4">
                   <div className="font-medium">{order.customer.name}</div>
                   <div className="text-sm text-gray-500">
-                    {format(new Date(order.order_date), "MMMM d, yyyy")}
+                    {format(new Date(order.orderDate), "MMMM d, yyyy")}
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <div className="text-sm">

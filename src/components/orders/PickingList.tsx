@@ -1,813 +1,762 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
 import { useData } from "@/context/DataContext";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, CheckCircle, Printer, Save, ArrowLeft, Bug, PlusCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card";
+import { Check, Save, ArrowLeft, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
-import ItemsTable, { ExtendedOrderItem } from "./picking/ItemsTable";
-import PrintablePickingList from "./picking/PrintablePickingList";
-import { Order, OrderItem, MissingItem } from "@/types";
-import { getOrderDate, getDeliveryMethod, getPickingInProgress, getBoxDistributions, getCustomerOrderNumber, getCustomerId } from "@/utils/propertyHelpers";
-import { DebugLoader } from "@/components/ui/debug-loader";
+import { useNavigate, useParams } from "react-router-dom";
+import { OrderItem, Order, Box, BatchSummary } from "@/types";
+import OrderSelection from "./picking/OrderSelection";
 import OrderDetailsCard from "./picking/OrderDetailsCard";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import ItemsTable from "./picking/ItemsTable";
+import CompletionDialog from "./picking/CompletionDialog";
+import PrintablePickingList from "./picking/PrintablePickingList";
 
-interface PickingListProps {
-  orderId: string;
-  nextBoxToFocus?: number;
-  onSaveStart?: () => void;
-  onSaveComplete?: (success: boolean, errorMessage?: string) => void;
-  onNavigationError?: (errorMessage?: string) => void;
+// Extended OrderItem type to include UI state properties
+interface ExtendedOrderItem extends OrderItem {
+  checked: boolean;
+  batchNumber: string;
+  originalQuantity?: number; // Added for tracking changes
 }
 
-const PickingList: React.FC<PickingListProps> = ({ 
-  orderId, 
-  nextBoxToFocus,
-  onSaveStart,
-  onSaveComplete,
-  onNavigationError
-}) => {
-  const { orders, isLoading, updateOrder, addMissingItem, removeMissingItem, missingItems, completeOrder, recordBatchUsage, recordAllBatchUsagesForOrder, pickers } = useData();
+interface PickingListProps {
+  orderId?: string;
+  nextBoxToFocus?: number;
+}
+
+const PickingList: React.FC<PickingListProps> = ({ orderId, nextBoxToFocus }) => {
+  const { orders, completeOrder, pickers, recordBatchUsage, updateOrder, addMissingItem, removeMissingItem } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  
+  // Use either passed orderId prop or the URL param
+  const effectiveOrderId = orderId || id || null;
+  
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedPickerId, setSelectedPickerId] = useState<string>("");
+  const [allItems, setAllItems] = useState<ExtendedOrderItem[]>([]);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [missingItems, setMissingItems] = useState<{id: string, quantity: number}[]>([]);
+  const [resolvedMissingItems, setResolvedMissingItems] = useState<{id: string, quantity: number}[]>([]);
+  const [completedBoxes, setCompletedBoxes] = useState<number[]>([]);
+  const [printBoxNumber, setPrintBoxNumber] = useState<number | null>(null);
+  const [savedBoxes, setSavedBoxes] = useState<number[]>([]);
+  
   const printRef = useRef<HTMLDivElement>(null);
   
-  // State for order and UI
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [orderItems, setOrderItems] = useState<ExtendedOrderItem[]>([]);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [orderMissingItems, setOrderMissingItems] = useState<MissingItem[]>([]);
-  const [completedBoxes, setCompletedBoxes] = useState<number[]>([]);
-  const [savedBoxes, setSavedBoxes] = useState<number[]>([]);
-  const [selectedBoxToPrint, setSelectedBoxToPrint] = useState<number | null>(null);
-  const [showBoxPrintDialog, setShowBoxPrintDialog] = useState<boolean>(false);
-  const [groupByBox, setGroupByBox] = useState<boolean>(false);
-  const [orderError, setOrderError] = useState<string | null>(null);
-  const [selectedPickerId, setSelectedPickerId] = useState<string>("");
-  const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
-  const [pickingStartAttempted, setPickingStartAttempted] = useState<boolean>(false);
-  const [lastSavedItems, setLastSavedItems] = useState<ExtendedOrderItem[]>([]);
-  const [debugMode, setDebugMode] = useState<boolean>(false);
+  // Filter orders that are in "Pending" status
+  const pendingOrders = orders.filter(order => order.status === "Pending" || order.status === "Partially Picked" || order.status === "Modified");
   
-  // Load order data
+  // Get the selected order
+  const selectedOrder = selectedOrderId 
+    ? orders.find(order => order.id === selectedOrderId) 
+    : null;
+
+  // If id param exists, set it as selected order when component mounts
   useEffect(() => {
-    if (isLoading) {
-      console.log("PickingList: Loading data...");
-      return;
-    }
-    
-    console.log("PickingList: Looking for order with ID:", orderId);
-    console.log("PickingList: Total orders available:", orders.length);
-    
-    if (orders.length > 0) {
-      console.log("PickingList: First few order IDs:", orders.slice(0, 3).map(o => o.id));
-    }
-    
-    const order = orders.find(o => o.id === orderId);
-    
-    if (!order) {
-      console.error("PickingList: Order not found with ID:", orderId);
-      setOrderError("Order not found. It may have been deleted or you don't have permission to view it.");
-      if (onNavigationError) {
-        onNavigationError("Order not found. It may have been deleted or you don't have permission to view it.");
+    if (effectiveOrderId) {
+      const orderExists = orders.find(order => order.id === effectiveOrderId);
+      if (orderExists && (orderExists.status === "Pending" || orderExists.status === "Partially Picked" || orderExists.status === "Modified")) {
+        setSelectedOrderId(effectiveOrderId);
       }
-      return;
     }
-    
-    try {
-      console.log("PickingList: Found order:", order);
-      console.log("PickingList: Order items:", order.items);
-      
-      // Set the order
-      setSelectedOrder(order);
-      
-      // Set picker if exists
-      if (order.picked_by) {
-        console.log("PickingList: Setting picker to:", order.picked_by);
-        setSelectedPickerId(order.picked_by);
-      }
-      
-      // Check if order has box distributions and use that to determine grouping
-      const hasBoxDistributions = getBoxDistributions(order) && getBoxDistributions(order).length > 0;
-      setGroupByBox(hasBoxDistributions);
-      
-      // Initialize ordered items with checked status
-      const items = order.items || [];
-      
-      // Improved validation for items - check if array exists AND has elements
-      if (!items || items.length === 0) {
-        setOrderError("This order has no items. Please add items to the order before proceeding with picking.");
-        return;
-      }
-      
-      console.log("PickingList: Raw order items from DB:", items.map(item => ({
-        id: item.id,
-        name: item.product?.name,
-        checked: item.checked,
-        boxNumber: item.boxNumber || item.box_number,
-        batchNumber: item.batchNumber || item.batch_number
-      })));
-      
-      // IMPORTANT: Force originalQuantity to undefined for all items in new orders
-      // This ensures no items show as changed when they weren't
-      const initialItems: ExtendedOrderItem[] = items.map(item => {
-        // Explicitly check if there's been an actual change tracked in the system
-        const hasRecordedChange = 
-          item.originalQuantity !== undefined && 
-          item.originalQuantity !== null && 
-          item.originalQuantity !== item.quantity;
+  }, [effectiveOrderId, orders]);
+  
+  // Update allItems when selectedOrderId changes
+  useEffect(() => {
+    if (selectedOrder) {
+      // Create a flat list of all items from the order
+      const items = selectedOrder.items.map(item => {
+        // Check if this item has changes by looking at the order's changes array
+        let originalQty = item.originalQuantity;
+        
+        // If no originalQuantity exists but the order has changes, try to find it in the changes array
+        if (originalQty === undefined && selectedOrder.changes && selectedOrder.changes.length > 0) {
+          const itemChange = selectedOrder.changes.find(change => change.productId === item.productId);
+          if (itemChange) {
+            originalQty = itemChange.originalQuantity;
+          }
+        }
+        
+        // Determine if the item has quantity changes
+        const hasQuantityChanged = originalQty !== undefined && originalQty !== item.quantity;
         
         return {
           ...item,
-          checked: !!item.checked,
-          boxNumber: item.boxNumber || item.box_number || 0,
-          batchNumber: item.batchNumber || item.batch_number || "",
-          // Only set originalQuantity if there's an actual recorded change
-          originalQuantity: hasRecordedChange ? item.originalQuantity : undefined
+          // If quantity has changed, ensure item is not checked
+          checked: hasQuantityChanged ? false : (item.checked || false),
+          batchNumber: item.batchNumber || "",
+          pickedWeight: item.pickedWeight || 0,
+          originalQuantity: originalQty,
         };
       });
       
-      console.log("PickingList: Initialized items with checked status:", 
-        initialItems.map(item => ({
-          name: item.product?.name,
-          quantity: item.quantity,
-          checked: item.checked,
-          batchNumber: item.batchNumber,
-          originalQuantity: item.originalQuantity,
-          hasOriginalQuantity: item.originalQuantity !== undefined
-        }))
-      );
+      setAllItems(items);
       
-      setOrderItems(initialItems);
-      setLastSavedItems(JSON.parse(JSON.stringify(initialItems))); // Deep copy to prevent reference issues
-      
-      // Load existing completed boxes if any
-      if (order.completedBoxes && order.completedBoxes.length > 0) {
-        console.log("PickingList: Loading completed boxes:", order.completedBoxes);
-        setCompletedBoxes(order.completedBoxes);
+      // If the order has previously recorded missing items, set them
+      if (selectedOrder.missingItems) {
+        setMissingItems(selectedOrder.missingItems);
+      } else {
+        setMissingItems([]);
+      }
+
+      // If the order has a picker assigned, set it
+      if (selectedOrder.pickedBy) {
+        setSelectedPickerId(selectedOrder.pickedBy);
+      } else {
+        setSelectedPickerId("");
       }
       
-      // Load existing saved boxes if any
-      if (order.savedBoxes && order.savedBoxes.length > 0) {
-        console.log("PickingList: Loading saved boxes:", order.savedBoxes);
-        setSavedBoxes(order.savedBoxes);
+      // Reset resolved missing items
+      setResolvedMissingItems([]);
+      
+      // Reset or load saved and completed boxes from order state
+      if (selectedOrder.completedBoxes && selectedOrder.completedBoxes.length > 0) {
+        setCompletedBoxes(selectedOrder.completedBoxes);
+      } else {
+        setCompletedBoxes([]);
       }
       
-      // Load missing items specific to this order
-      const orderSpecificMissingItems = missingItems.filter(mi => mi.orderId === order.id);
-      setOrderMissingItems(orderSpecificMissingItems);
+      // Load saved boxes status if it exists in the order
+      if (selectedOrder.savedBoxes && selectedOrder.savedBoxes.length > 0) {
+        setSavedBoxes(selectedOrder.savedBoxes);
+      } else {
+        setSavedBoxes([]);
+      }
+    } else {
+      setAllItems([]);
+      setMissingItems([]);
+      setResolvedMissingItems([]);
+      setCompletedBoxes([]);
+      setSavedBoxes([]);
+    }
+  }, [selectedOrderId, selectedOrder]);
+  
+  // Add effect to focus on the specified box when nextBoxToFocus is provided
+  useEffect(() => {
+    if (nextBoxToFocus && selectedOrder && selectedOrder.boxDistributions) {
+      // Check if this box exists in the order
+      const boxExists = selectedOrder.boxDistributions.some(box => box.boxNumber === nextBoxToFocus);
       
-      // Mark initial load as complete
-      setInitialLoadComplete(true);
-      
-    } catch (error) {
-      console.error("Error processing order data:", error);
-      setOrderError("There was an error processing this order data. Please try again later.");
-      if (onNavigationError) {
-        onNavigationError("There was an error processing this order data: " + (error instanceof Error ? error.message : String(error)));
+      if (boxExists) {
+        // Scroll to the box - this could be improved with a ref, but for now we'll use the box ID
+        setTimeout(() => {
+          const boxElement = document.getElementById(`box-${nextBoxToFocus}`);
+          if (boxElement) {
+            boxElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Add a highlight class that we'll animate with CSS
+            boxElement.classList.add('highlight-box');
+            
+            // Remove the highlight class after the animation completes
+            setTimeout(() => {
+              boxElement.classList.remove('highlight-box');
+            }, 2000);
+          }
+        }, 100);
       }
     }
-  }, [orderId, orders, isLoading, missingItems, updateOrder, pickers, onNavigationError]);
+  }, [nextBoxToFocus, selectedOrder]);
   
-  // Effect to start picking progress AFTER initial load is complete
-  // Now with proper error handling and prevent multiple attempts
-  useEffect(() => {
-    // Only proceed if initial load is complete, we have an order, picking is not in progress,
-    // and we haven't attempted to start picking yet
-    if (!initialLoadComplete || !selectedOrder || getPickingInProgress(selectedOrder) || pickingStartAttempted) {
+  // Check if the customer needs detailed box labels
+  const needsDetailedBoxLabels = selectedOrder?.customer.needsDetailedBoxLabels || false;
+  
+  // Check if the order has box distributions
+  const hasBoxDistributions = selectedOrder?.boxDistributions && selectedOrder.boxDistributions.length > 0;
+  
+  const handlePrint = useReactToPrint({
+    documentTitle: `Picking List - ${selectedOrder?.customer.name || "Unknown"} - ${format(new Date(), "yyyy-MM-dd")}`,
+    contentRef: printRef,
+    onAfterPrint: () => {
+      toast({
+        title: "Picking list printed",
+        description: "The picking list has been sent to the printer."
+      });
+    }
+  });
+  
+  // Handle printing a specific box label
+  const handlePrintBoxLabel = (boxNumber: number) => {
+    if (!selectedOrderId) return;
+    
+    // Save the box data first (combining save and print)
+    handleSaveBoxProgress(boxNumber);
+    
+    // Navigate to print box label page for this specific box
+    navigate(`/print-box-label/${selectedOrderId}?box=${boxNumber}`);
+  };
+  
+  // Handle saving a specific box's progress - now automatically called by print function
+  const handleSaveBoxProgress = (boxNumber: number) => {
+    if (!selectedOrder) return;
+    
+    // Add to saved boxes if not already there
+    const newSavedBoxes = [...savedBoxes];
+    if (!newSavedBoxes.includes(boxNumber)) {
+      newSavedBoxes.push(boxNumber);
+      setSavedBoxes(newSavedBoxes);
+    }
+    
+    // Also add to completed boxes to ensure consistency in UI
+    const newCompletedBoxes = [...completedBoxes];
+    if (!newCompletedBoxes.includes(boxNumber)) {
+      newCompletedBoxes.push(boxNumber);
+      setCompletedBoxes(newCompletedBoxes);
+    }
+    
+    // Update the order with the new saved and completed box information
+    updateOrder({
+      ...selectedOrder,
+      savedBoxes: newSavedBoxes,
+      completedBoxes: newCompletedBoxes,
+      pickedBy: selectedPickerId,
+      pickingInProgress: true
+    });
+    
+    // Save overall progress to ensure everything is preserved
+    handleSaveProgress();
+  };
+  
+  const handleCheckItem = (itemId: string, checked: boolean) => {
+    setAllItems(
+      allItems.map(item => {
+        if (item.id === itemId) {
+          return { ...item, checked };
+        }
+        return item;
+      })
+    );
+  };
+  
+  // Handler for batch number change with forward-only propagation
+  const handleBatchNumber = (itemId: string, batchNumber: string, boxNumber: number) => {
+    // Find the current item to get its product ID
+    const currentItem = allItems.find(item => item.id === itemId);
+    if (!currentItem) return;
+    
+    const productId = currentItem.productId;
+    
+    // Update batch numbers only for the current box and future boxes
+    // Never change batch numbers for boxes that have already been completed/saved
+    setAllItems(
+      allItems.map((item) => {
+        // Only update items with the same product ID
+        if (item.productId === productId) {
+          const itemBoxNumber = item.boxNumber || 0;
+          
+          // Update if:
+          // 1. Item is in the current box, OR
+          // 2. Item is in a future box that has not been completed/saved
+          if (
+            itemBoxNumber === boxNumber || 
+            (itemBoxNumber > boxNumber && !completedBoxes.includes(itemBoxNumber))
+          ) {
+            return { ...item, batchNumber };
+          }
+        }
+        return item;
+      })
+    );
+  };
+  
+  const handleWeightChange = (itemId: string, weight: number) => {
+    setAllItems(
+      allItems.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, pickedWeight: weight };
+        }
+        return item;
+      })
+    );
+  };
+  
+  const handleMissingItem = (itemId: string, quantity: number) => {
+    // Find if this item is already in the missing items list
+    const existingIndex = missingItems.findIndex(mi => mi.id === itemId);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      const updatedMissingItems = [...missingItems];
+      updatedMissingItems[existingIndex].quantity = quantity;
+      setMissingItems(updatedMissingItems);
+    } else {
+      // Add new entry
+      setMissingItems([...missingItems, { id: itemId, quantity }]);
+    }
+  };
+  
+  // New function to handle resolving missing items
+  const handleResolveMissingItem = (itemId: string) => {
+    // Find the missing item
+    const missingItem = missingItems.find(mi => mi.id === itemId);
+    if (!missingItem || !selectedOrderId) return;
+    
+    // Add to resolved list
+    setResolvedMissingItems(prev => [...prev, missingItem]);
+    
+    // Remove from current missing items list
+    setMissingItems(prev => prev.filter(mi => mi.id !== itemId));
+    
+    // Find the item details
+    const item = allItems.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Remove from the global missing items list
+    const missingItemId = `${selectedOrderId}-${itemId}`;
+    removeMissingItem(missingItemId);
+  };
+  
+  // Save current progress
+  const handleSaveProgress = () => {
+    if (!selectedOrder) return;
+    
+    // Create a copy of the order with updated items (including batch numbers and checks)
+    const updatedOrder: Order = {
+      ...selectedOrder,
+      items: selectedOrder.items.map(item => {
+        const updatedItem = allItems.find(i => i.id === item.id);
+        if (!updatedItem) return item;
+        
+        // Find if this item has a missing quantity
+        const missingItem = missingItems.find(mi => mi.id === item.id);
+        const missingQuantity = missingItem ? missingItem.quantity : 0;
+        
+        return {
+          ...item,
+          batchNumber: updatedItem.batchNumber || item.batchNumber,
+          checked: updatedItem.checked,
+          missingQuantity: missingQuantity,
+          pickedWeight: updatedItem.pickedWeight || item.pickedWeight
+        };
+      }),
+      pickingInProgress: true,
+      status: missingItems.length > 0 ? "Partially Picked" : "Pending",
+      pickedBy: selectedPickerId || undefined,
+      picker: selectedPickerId ? pickers.find(p => p.id === selectedPickerId)?.name : undefined, // Save the picker name
+      missingItems: missingItems,
+      completedBoxes: completedBoxes, // Save the printed boxes state
+      savedBoxes: savedBoxes // Save the saved boxes state
+    };
+    
+    // Update the order with progress
+    updateOrder(updatedOrder);
+    
+    // Record missing items for the Missing Items page
+    missingItems.forEach(missingItem => {
+      if (missingItem.quantity > 0) {
+        const item = allItems.find(i => i.id === missingItem.id);
+        if (item && selectedOrderId) {
+          // Find the product for the missing item
+          const product = item.product;
+          
+          // Add to missing items collection for tracking
+          const missingItemEntry = {
+            id: `${selectedOrderId}-${item.id}`,
+            orderId: selectedOrderId,
+            productId: item.productId,
+            product: product,
+            quantity: missingItem.quantity,
+            date: new Date().toISOString(),
+            order: {
+              id: selectedOrderId,
+              customer: selectedOrder.customer,
+            }
+          };
+          
+          // Check if this is a new missing item before adding
+          if (!resolvedMissingItems.some(rmi => rmi.id === missingItem.id)) {
+            addMissingItem(missingItemEntry);
+          }
+        }
+      }
+    });
+    
+    // Show success message
+    toast({
+      title: "Progress saved",
+      description: "Your picking progress has been saved."
+    });
+  };
+  
+  const handleCompleteOrder = () => {
+    if (!selectedOrder) return;
+    
+    // Check if all items have been checked
+    const allChecked = allItems.every(item => item.checked);
+    
+    if (!allChecked) {
+      toast({
+        title: "Incomplete picking",
+        description: "Please check all items before completing the order.",
+        variant: "destructive",
+      });
       return;
     }
     
-    console.log("Starting picking progress for order:", selectedOrder.id);
-    
-    // Mark that we've attempted to start picking to prevent retries
-    setPickingStartAttempted(true);
-    
-    // Update order to indicate picking has started
-    const updatedOrder = {
-      ...selectedOrder,
-      pickingInProgress: true,
-      status: "Picking" as const
-    };
-    
-    // Try to update the order but don't throw errors if it fails
-    // This operation isn't critical for user experience
-    updateOrder(updatedOrder).catch(error => {
-      // Log the error but don't show it to the user
-      console.error("Non-critical error starting picking progress:", error);
-      // We don't show the toast here since it's not critical to user experience
-    });
-      
-  }, [initialLoadComplete, selectedOrder, updateOrder, pickingStartAttempted]);
-  
-  // Effect to scroll to next box if specified
-  useEffect(() => {
-    if (nextBoxToFocus) {
-      const boxElement = document.getElementById(`box-${nextBoxToFocus}`);
-      if (boxElement) {
-        boxElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-  }, [nextBoxToFocus]);
-  
-  // Handle checkbox changes more robustly
-  const handleCheckItem = useCallback((itemId: string, checked: boolean) => {
-    console.log(`CheckItem: Setting item ${itemId} checked to ${checked} (type: ${typeof checked})`);
-    
-    // Ensure we're using a boolean value here to avoid any type issues
-    const isChecked = Boolean(checked);
-    
-    setOrderItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, checked: isChecked } : item
-      )
+    // Check if any required items are missing
+    const requiredMissing = allItems.some(item => 
+      item.product.required && 
+      missingItems.some(mi => mi.id === item.id && mi.quantity === item.quantity)
     );
-  }, []);
-  
-  const handleBatchNumberChange = useCallback((itemId: string, batchNumber: string, boxNumber: number = 0) => {
-    console.log(`BatchNumber: Setting item ${itemId} batch to ${batchNumber}`);
-    setOrderItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, batchNumber, boxNumber } : item
-      )
-    );
-  }, []);
-  
-  const handleWeightChange = useCallback((itemId: string, weight: number) => {
-    console.log(`Weight: Setting item ${itemId} weight to ${weight}`);
-    setOrderItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, pickedWeight: weight } : item
-      )
-    );
-  }, []);
-  
-  const handlePickerChange = useCallback((pickerId: string) => {
-    console.log(`Picker: Setting picker to ${pickerId}`);
-    setSelectedPickerId(pickerId);
-  }, []);
-  
-  const handleMissingItemChange = useCallback((itemId: string, quantity: number) => {
-    const item = orderItems.find(i => i.id === itemId);
-    if (!item) return;
     
-    // Check if we already have a missing item entry
-    const existingMissingItemIndex = orderMissingItems.findIndex(mi => mi.productId === item.productId);
-    
-    if (quantity > 0) {
-      // Create or update missing item
-      if (existingMissingItemIndex >= 0) {
-        // Update existing entry
-        const updatedMissingItems = [...orderMissingItems];
-        updatedMissingItems[existingMissingItemIndex] = {
-          ...updatedMissingItems[existingMissingItemIndex],
-          quantity
-        };
-        setOrderMissingItems(updatedMissingItems);
-      } else {
-        // Create new entry
-        if (selectedOrder) {
-          const newMissingItem: MissingItem = {
-            id: crypto.randomUUID(),
-            orderId: selectedOrder.id,
-            productId: item.productId,
-            quantity,
-            date: new Date().toISOString(),
-            product: item.product,
-            status: 'Pending'
-          };
-          
-          setOrderMissingItems(prev => [...prev, newMissingItem]);
-          addMissingItem(newMissingItem);
-        }
-      }
-    } else if (existingMissingItemIndex >= 0) {
-      // Remove missing item if quantity is 0
-      handleResolveMissingItem(item.id);
-    }
-  }, [orderItems, orderMissingItems, selectedOrder, addMissingItem]);
-  
-  const handleResolveMissingItem = useCallback((itemId: string) => {
-    const item = orderItems.find(i => i.id === itemId);
-    if (!item) return;
-    
-    const missingItemIndex = orderMissingItems.findIndex(mi => mi.productId === item.productId);
-    if (missingItemIndex >= 0) {
-      const missingItemId = orderMissingItems[missingItemIndex].id;
-      removeMissingItem(missingItemId);
-      
-      // Update local state
-      setOrderMissingItems(prev => prev.filter(mi => mi.id !== missingItemId));
-    }
-  }, [orderItems, orderMissingItems, removeMissingItem]);
-  
-  const handleSave = async () => {
-    if (!selectedOrder) return;
-    
-    setIsSaving(true);
-    if (onSaveStart) onSaveStart();
-    
-    try {
-      console.log("Saving with picker:", selectedPickerId);
-      console.log("Current checked items:", orderItems.filter(item => item.checked).map(i => ({
-        id: i.id,
-        name: i.product?.name,
-        checked: i.checked,
-        batchNumber: i.batchNumber
-      })));
-      
-      if (debugMode) {
-        console.log("DEBUG: Full item state before saving:", JSON.stringify(orderItems, null, 2));
-      }
-      
-      // Map the order items to the format expected by the database
-      const updatedOrderItems = orderItems.map(item => {
-        return {
-          id: item.id,
-          orderId: item.orderId,
-          productId: item.productId,
-          quantity: item.quantity,
-          // Ensure batch number is properly initialized
-          batchNumber: item.batchNumber || "",
-          // Always include checked status (critical fix)
-          checked: item.checked === true,
-          pickedQuantity: item.checked ? item.quantity : 0,
-          pickedWeight: item.pickedWeight || 0,
-          boxNumber: item.boxNumber || 0,
-          // Only include originalQuantity if it was explicitly set and is different
-          ...(item.originalQuantity !== undefined && 
-             item.originalQuantity !== item.quantity && 
-             {originalQuantity: item.originalQuantity})
-        };
-      });
-      
-      // Prepare total missing and completed data
-      const allChecked = updatedOrderItems.every(item => item.checked);
-      const hasMissingItems = orderMissingItems.length > 0;
-      
-      // Update order status based on checks
-      let newStatus = selectedOrder.status;
-      if (allChecked && !hasMissingItems) {
-        newStatus = "Completed";
-      } else if (allChecked && hasMissingItems) {
-        newStatus = "Missing Items";
-      } else if (updatedOrderItems.some(item => item.checked)) {
-        newStatus = "Partially Picked";
-      } else {
-        newStatus = "Picking";
-      }
-      
-      // Log current state before recording batch usage
-      console.log("Processed items before batch usage recording:", 
-        updatedOrderItems.map(item => ({
-          id: item.id, 
-          checked: item.checked,
-          batchNumber: item.batchNumber
-        }))
-      );
-
-      // Record batch usage for each item that has a batch number and is checked
-      for (const item of updatedOrderItems) {
-        if (item.batchNumber && item.checked) {
-          try {
-            recordBatchUsage(
-              item.batchNumber, 
-              item.productId, 
-              item.quantity, 
-              selectedOrder.id,
-              item.pickedWeight
-            );
-            console.log(`Successfully recorded batch usage for ${item.productId} with batch ${item.batchNumber}`);
-          } catch (batchError) {
-            console.error(`Failed to record batch usage for ${item.productId}:`, batchError);
-            // Continue with other items, don't fail the whole save
-          }
-        }
-      }
-      
-      // Update the order with new items and status
-      const updatedOrder = {
-        ...selectedOrder,
-        items: updatedOrderItems as OrderItem[],
-        status: newStatus,
-        isPicked: allChecked,
-        is_picked: allChecked, // Add this for database compatibility
-        totalBlownPouches: 0,
-        total_blown_pouches: 0, // Add this for database compatibility
-        pickingInProgress: !allChecked,
-        picking_in_progress: !allChecked, // Add this for database compatibility
-        pickedBy: selectedPickerId,
-        picked_by: selectedPickerId, // Add this to ensure the correct field is set in the database
-        pickedAt: allChecked ? new Date().toISOString() : undefined,
-        picked_at: allChecked ? new Date().toISOString() : undefined, // Add this for database compatibility
-        missingItems: orderMissingItems,
-        missing_items: orderMissingItems, // Add this for database compatibility
-        completedBoxes,
-        completed_boxes: completedBoxes, // Add this for database compatibility
-        savedBoxes, // Using camelCase property that exists in the Order type
-        saved_boxes: savedBoxes // Using snake_case for database compatibility, now properly typed
-      };
-      
-      console.log("Saving order with status:", newStatus);
-      console.log("Saving picked_by:", selectedPickerId);
-      console.log("Saving checked items count:", updatedOrderItems.filter(item => item.checked).length);
-      
-      // If order is completed, also record all batch usages and move it to completed orders
-      if (newStatus === "Completed") {
-        console.log("Order is completed, recording all batch usages and moving to completed orders");
-        try {
-          recordAllBatchUsagesForOrder(updatedOrder);
-          const success = await completeOrder(updatedOrder);
-          
-          if (success) {
-            toast({
-              title: "Order completed",
-              description: "Order has been marked as completed and moved to completed orders"
-            });
-            
-            if (onSaveComplete) onSaveComplete(true);
-            
-            // Navigate back to orders list
-            navigate("/orders");
-            return;
-          } else {
-            console.error("Failed to complete order!");
-            const errorMessage = "Failed to complete order. Please try again.";
-            if (onSaveComplete) onSaveComplete(false, errorMessage);
-            toast({
-              title: "Error",
-              description: errorMessage,
-              variant: "destructive",
-            });
-          }
-        } catch (completeError) {
-          console.error("Error completing order:", completeError);
-          const errorMessage = completeError instanceof Error ? completeError.message : String(completeError);
-          toast({
-            title: "Error",
-            description: `Error completing order: ${errorMessage}`,
-            variant: "destructive",
-          });
-          if (onSaveComplete) onSaveComplete(false, errorMessage);
-        }
-      } else {
-        // Regular update for non-completed orders
-        try {
-          const success = await updateOrder(updatedOrder);
-          
-          // If update was successful, update our local state reference
-          if (success) {
-            console.log("Order update successful, updating last saved items");
-            setLastSavedItems(JSON.parse(JSON.stringify(orderItems))); // Deep copy to avoid reference issues
-            
-            toast({
-              title: "Order saved",
-              description: "Order progress has been saved",
-            });
-            
-            if (onSaveComplete) onSaveComplete(true);
-          } else {
-            console.error("Order update failed!");
-            const errorMessage = "Failed to save order. Please try again.";
-            toast({
-              title: "Error",
-              description: errorMessage,
-              variant: "destructive",
-            });
-            
-            if (onSaveComplete) onSaveComplete(false, errorMessage);
-          }
-        } catch (updateError) {
-          console.error("Error updating order:", updateError);
-          const errorMessage = updateError instanceof Error ? updateError.message : String(updateError);
-          
-          toast({
-            title: "Error",
-            description: `Failed to save order: ${errorMessage}`,
-            variant: "destructive",
-          });
-          
-          if (onSaveComplete) onSaveComplete(false, errorMessage);
-        }
-      }
-    } catch (error) {
-      console.error("Error in save process:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
+    if (requiredMissing) {
       toast({
-        title: "Error",
-        description: "Failed to save order: " + errorMessage,
+        title: "Required items missing",
+        description: "There are required items marked as missing. Please ensure all required items are picked.",
         variant: "destructive",
       });
+      return;
+    }
+    
+    // Check if all items have batch numbers
+    const allHaveBatchNumbers = allItems.every(item => item.batchNumber);
+    
+    if (!allHaveBatchNumbers) {
+      toast({
+        title: "Missing batch numbers",
+        description: "Please enter batch numbers for all items.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if all items that require weight input have a weight entered
+    const weightInputMissing = allItems
+      .filter(item => item.product.requiresWeightInput)
+      .some(item => !item.pickedWeight || item.pickedWeight <= 0);
+    
+    if (weightInputMissing) {
+      toast({
+        title: "Missing weight information",
+        description: "Please enter weights for all products that require it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if a picker has been selected
+    if (!selectedPickerId) {
+      toast({
+        title: "No picker selected",
+        description: "Please select who picked this order.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // For orders with box distributions, check if all box labels have been printed
+    if (needsDetailedBoxLabels && hasBoxDistributions && selectedOrder.boxDistributions) {
+      const boxNumbers = selectedOrder.boxDistributions
+        .map(box => box.boxNumber)
+        .filter(num => num > 0); // Exclude unassigned box (0)
       
-      if (onSaveComplete) onSaveComplete(false, errorMessage);
-    } finally {
-      setIsSaving(false);
+      const allBoxesPrinted = boxNumbers.every(boxNum => completedBoxes.includes(boxNum));
+      
+      if (!allBoxesPrinted) {
+        toast({
+          title: "Box labels not printed",
+          description: "Please print all box labels before completing the order.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    // Show completion dialog
+    setShowCompletionDialog(true);
+  };
+  
+  // Add new function to calculate batch summaries
+  const calculateBatchSummaries = (): BatchSummary[] => {
+    if (!selectedOrder) return [];
+    
+    // Create a map to store batch weights
+    const batchWeights = new Map<string, number>();
+    
+    // Process all items with batch numbers
+    allItems.forEach(item => {
+      if (!item.batchNumber) return;
+      
+      // Calculate weight for this item based on priority:
+      // 1. Manual/picked weight if available
+      // 2. Product weight * quantity as fallback
+      let itemWeight = 0;
+      
+      if (item.pickedWeight && item.pickedWeight > 0) {
+        // Use picked weight if available
+        itemWeight = item.pickedWeight;
+      } else if (item.product.weight) {
+        // Fall back to standard weight * quantity
+        itemWeight = item.product.weight * item.quantity;
+      }
+      
+      // Add to batch total
+      const currentBatchWeight = batchWeights.get(item.batchNumber) || 0;
+      batchWeights.set(item.batchNumber, currentBatchWeight + itemWeight);
+    });
+    
+    // If we have box distributions, use them to get more accurate batch information
+    if (selectedOrder.boxDistributions) {
+      selectedOrder.boxDistributions.forEach(box => {
+        // Get box batch number (if it exists)
+        const boxBatchNumber = box.batchNumber;
+        
+        // Process items in this box
+        box.items.forEach(boxItem => {
+          // Use item-specific batch or box batch
+          const batchNumber = boxItem.batchNumber || boxBatchNumber;
+          if (!batchNumber) return;
+          
+          // Use manually entered weight
+          if (boxItem.weight && boxItem.weight > 0) {
+            const currentBatchWeight = batchWeights.get(batchNumber) || 0;
+            batchWeights.set(batchNumber, currentBatchWeight + boxItem.weight);
+          }
+        });
+      });
+    }
+    
+    // Convert map to array of BatchSummary objects
+    return Array.from(batchWeights.entries()).map(([batchNumber, totalWeight]) => ({
+      batchNumber,
+      totalWeight
+    }));
+  };
+  
+  const confirmCompleteOrder = () => {
+    if (!selectedOrder || !selectedPickerId) return;
+    
+    // Find the picker name
+    const pickerName = pickers.find(p => p.id === selectedPickerId)?.name;
+    
+    // Calculate batch summaries before completing order
+    const batchSummaries = calculateBatchSummaries();
+    console.log("Calculated batch summaries:", batchSummaries);
+    
+    // Create a copy of the order with updated items (including batch numbers)
+    const updatedOrder: Order = {
+      ...selectedOrder,
+      items: allItems.map(item => {
+        // Check if this item has a missing quantity
+        const missingItem = missingItems.find(mi => mi.id === item.id);
+        const missingQuantity = missingItem ? missingItem.quantity : 0;
+        
+        return {
+          ...item,
+          batchNumber: item.batchNumber,
+          missingQuantity: missingQuantity,
+          pickedQuantity: item.quantity - missingQuantity,
+          pickedWeight: item.pickedWeight
+        };
+      }),
+      pickedBy: selectedPickerId,
+      picker: pickerName, // Save the picker name
+      pickedAt: new Date().toISOString(),
+      batchNumbers: allItems.map(item => item.batchNumber), // Ensure we capture all batch numbers
+      status: "Completed" as const,
+      completedBoxes: completedBoxes, // Save the list of completed boxes
+      batchSummaries: batchSummaries // Save the batch summaries
+    };
+    
+    // Complete the order
+    completeOrder(updatedOrder);
+    
+    // Now record batch usage for each item
+    allItems.forEach(item => {
+      if (item.batchNumber && selectedOrderId) {
+        if (item.product.requiresWeightInput && item.pickedWeight) {
+          // For weight-based products, use the entered weight
+          recordBatchUsage(item.batchNumber, item.productId, 0, selectedOrderId, item.pickedWeight);
+        } else {
+          // For quantity-based products, use the quantity
+          recordBatchUsage(item.batchNumber, item.productId, item.quantity - (item.missingQuantity || 0), selectedOrderId);
+        }
+      }
+    });
+    
+    // Remove any resolved missing items
+    resolvedMissingItems.forEach(resolvedItem => {
+      if (selectedOrderId) {
+        const missingItemId = `${selectedOrderId}-${resolvedItem.id}`;
+        removeMissingItem(missingItemId);
+      }
+    });
+    
+    // Show success message
+    toast({
+      title: "Order completed",
+      description: "The order has been marked as completed."
+    });
+    
+    // Close dialog and reset state
+    setShowCompletionDialog(false);
+    
+    // Navigate to print box label page instead of orders page
+    if (selectedOrderId) {
+      navigate(`/print-box-label/${selectedOrderId}`);
+    } else {
+      navigate("/orders");
     }
   };
 
-  const handleCancel = () => {
+  // Go back to orders page
+  const handleBackToOrders = () => {
     navigate("/orders");
   };
   
-  const handlePrintClick = () => {
-    if (!selectedOrder) return;
+  // Calculate total weight for all boxes by product
+  const calculateTotalWeightByProduct = () => {
+    if (!selectedOrder || !selectedOrder.boxDistributions || !allItems.length) {
+      return [];
+    }
     
-    setSelectedBoxToPrint(null);
-    handlePrint();
-  };
-  
-  const handleSaveBoxProgress = (boxNumber: number) => {
-    if (savedBoxes.includes(boxNumber)) return;
+    // Create a map to store total weight by product
+    const weightByProduct = new Map();
     
-    // Update saved boxes
-    setSavedBoxes(prev => [...prev, boxNumber]);
-    
-    // Also save the overall progress
-    handleSave();
-    
-    toast({
-      title: "Box progress saved",
-      description: `Box ${boxNumber} progress has been saved.`
-    });
-  };
-  
-  const handlePrintBoxLabel = useCallback((boxNumber: number) => {
-    setSelectedBoxToPrint(boxNumber);
-    setShowBoxPrintDialog(true);
-  }, []);
-  
-  const handleConfirmPrintBox = () => {
-    // Close dialog
-    setShowBoxPrintDialog(false);
-    
-    // Execute print
-    if (selectedBoxToPrint !== null) {
-      // Add to completed boxes if not already there
-      if (!completedBoxes.includes(selectedBoxToPrint)) {
-        setCompletedBoxes(prev => [...prev, selectedBoxToPrint]);
+    // Get items with their weights
+    allItems.forEach(item => {
+      const productId = item.productId;
+      const productName = item.product.name;
+      
+      // For weight-based products, use picked weight
+      if (item.product.requiresWeightInput && item.pickedWeight) {
+        const currentWeight = weightByProduct.get(productId) || { 
+          id: productId, 
+          name: productName, 
+          weight: 0,
+          unit: item.product.unit || 'g' // Default to grams if no unit specified
+        };
+        currentWeight.weight += item.pickedWeight;
+        weightByProduct.set(productId, currentWeight);
+      } 
+      // For non-weight based products with defined weights, calculate
+      else if (item.product.weight) {
+        const currentWeight = weightByProduct.get(productId) || { 
+          id: productId, 
+          name: productName, 
+          weight: 0,
+          unit: item.product.unit || 'g' // Default to grams if no unit specified
+        };
+        currentWeight.weight += item.product.weight * item.quantity;
+        weightByProduct.set(productId, currentWeight);
       }
-      
-      // Trigger print
-      handlePrint();
-      
-      // Save progress before redirecting
-      handleSave();
-      
-      // Redirect to continue picking
-      setTimeout(() => {
-        // Get next uncompleted box if there is one
-        let nextBox = null;
-        
-        if (selectedOrder && getBoxDistributions(selectedOrder)) {
-          const boxDistributions = getBoxDistributions(selectedOrder);
-          if (boxDistributions) {
-            // Find boxes that aren't completed yet
-            const uncompletedBoxes = boxDistributions
-              .filter(b => !completedBoxes.includes(b.boxNumber))
-              .sort((a, b) => a.boxNumber - b.boxNumber);
-            
-            if (uncompletedBoxes.length > 0) {
-              nextBox = uncompletedBoxes[0].boxNumber;
-            }
-          }
-        }
-        
-        // Navigate with next box param to trigger focus
-        if (nextBox) {
-          navigate(`/orders/${orderId}/picking?nextBox=${nextBox}`);
-        } else {
-          // No more boxes to pick, just refresh
-          navigate(`/orders/${orderId}/picking`);
-        }
-      }, 500);
-    }
-  };
-  
-  // Print handler - fixed to use correct options format
-  const handlePrint = useReactToPrint({
-    documentTitle: `Picking List - ${selectedOrder?.id.substring(0, 8)}`,
-    contentRef: printRef,
-  });
-  
-  // Filter items for a specific box
-  const getBoxItems = (boxNumber: number | null): ExtendedOrderItem[] => {
-    if (boxNumber === null) {
-      return orderItems;
-    }
+    });
     
-    return orderItems.filter(item => item.boxNumber === boxNumber);
+    // Convert map to array
+    return Array.from(weightByProduct.values());
   };
   
-  // Toggle debug mode
-  const toggleDebugMode = () => {
-    setDebugMode(!debugMode);
-  };
+  const totalWeightByProduct = calculateTotalWeightByProduct();
   
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <DebugLoader isLoading={true} context="Picking List" />
-      </div>
-    );
-  }
-  
-  if (orderError) {
-    return (
-      <Alert variant="destructive" className="mb-6">
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          {orderError}
-        </AlertDescription>
-        <div className="mt-6 flex space-x-4">
-          <Button onClick={() => navigate("/orders")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Orders
-          </Button>
-          
-          {orderError.includes("no items") && selectedOrder && (
-            <Button onClick={() => navigate(`/orders/${selectedOrder.id}/edit`)}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Items
-            </Button>
-          )}
-        </div>
-      </Alert>
-    );
-  }
-  
-  if (!selectedOrder) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-        <span>Loading order details...</span>
-      </div>
-    );
-  }
-  
-  // Count missing items for the UI
-  const missingItemCount = orderMissingItems.reduce((acc, item) => acc + item.quantity, 0);
-  
-  // Compare current items to last saved items to detect unsaved changes
-  const hasUnsavedChanges = orderItems.some(item => {
-    const savedItem = lastSavedItems.find(si => si.id === item.id);
-    return !savedItem || 
-      savedItem.checked !== item.checked || 
-      savedItem.batchNumber !== item.batchNumber ||
-      savedItem.pickedWeight !== item.pickedWeight;
-  });
+  // Determine if we should display the modified order indicator
+  const shouldShowModifiedIndicator = selectedOrder?.hasChanges && selectedOrder?.pickingInProgress;
   
   return (
     <div className="space-y-6">
-      {/* Header with back button */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold">Picking List</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Switch id="debug-mode" checked={debugMode} onCheckedChange={toggleDebugMode} />
-            <Label htmlFor="debug-mode" className="flex items-center">
-              <Bug className="h-4 w-4 mr-1" /> Debug Mode
-            </Label>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={handleCancel}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Orders
-          </Button>
-        </div>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Picking List</h2>
+        <Button variant="outline" onClick={handleBackToOrders}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Orders
+        </Button>
       </div>
       
-      {/* Debug info panel when debug mode is enabled */}
-      {debugMode && (
-        <div className="p-4 bg-slate-50 border rounded-lg mb-4">
-          <h3 className="font-semibold text-lg mb-2">Debug Information</h3>
-          <div className="space-y-2 text-sm">
-            <p><strong>Order ID:</strong> {selectedOrder.id}</p>
-            <p><strong>Items Count:</strong> {orderItems.length}</p>
-            <p><strong>Has Unsaved Changes:</strong> {hasUnsavedChanges ? "Yes" : "No"}</p>
-            <p><strong>Missing Items Count:</strong> {missingItemCount}</p>
-            <p><strong>Selected Picker:</strong> {selectedPickerId || "None"}</p>
-            <p><strong>Completed Boxes:</strong> {completedBoxes.join(", ") || "None"}</p>
-            
-            <div className="mt-2">
-              <p className="font-semibold">Item State Sample (First 2 Items):</p>
-              <pre className="bg-slate-100 p-2 rounded text-xs overflow-x-auto">
-                {JSON.stringify(orderItems.slice(0, 2).map(item => ({
-                  id: item.id,
-                  name: item.product?.name,
-                  checked: item.checked,
-                  batchNumber: item.batchNumber,
-                  boxNumber: item.boxNumber
-                })), null, 2)}
-              </pre>
+      {!selectedOrder && (
+        <OrderSelection 
+          pendingOrders={pendingOrders}
+          selectedOrderId={selectedOrderId}
+          onSelectOrder={setSelectedOrderId}
+        />
+      )}
+      
+      {selectedOrder && (
+        <>
+          {/* Order Details Card */}
+          <OrderDetailsCard 
+            selectedOrder={selectedOrder}
+            selectedPickerId={selectedPickerId}
+            onPickerChange={setSelectedPickerId}
+            pickers={pickers}
+          />
+          
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold">
+              Order for {selectedOrder.customer.name}
+              {shouldShowModifiedIndicator && (
+                <span className="text-sm text-red-600 ml-2 font-medium">
+                  (Modified Order)
+                </span>
+              )}
+            </h3>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" /> Print
+              </Button>
+              <Button variant="secondary" onClick={handleSaveProgress}>
+                <Save className="h-4 w-4 mr-2" /> Save Progress
+              </Button>
+              <Button onClick={handleCompleteOrder}>
+                <Check className="h-4 w-4 mr-2" /> Complete Order
+              </Button>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Order details card with picker selection */}
-      <OrderDetailsCard 
-        selectedOrder={selectedOrder}
-        selectedPickerId={selectedPickerId}
-        onPickerChange={handlePickerChange}
-        pickers={pickers}
-      />
-      
-      {/* Order title and action buttons */}
-      <div className="flex justify-between items-center mt-8 mb-4">
-        <h2 className="text-xl font-bold">Order for {selectedOrder.customer.name}</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrintClick} className="flex items-center gap-2">
-            <Printer className="h-4 w-4" />
-            Print
-          </Button>
-          <Button 
-            variant={hasUnsavedChanges ? "default" : "outline"} 
-            onClick={handleSave} 
-            className="flex items-center gap-2"
-            disabled={isSaving}
-          >
-            <Save className="h-4 w-4" />
-            Save Progress
-            {hasUnsavedChanges && " *"}
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Complete Order
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-      
-      {/* Picking interface */}
-      <ItemsTable 
-        items={orderItems}
-        missingItems={orderMissingItems.map(item => ({ id: item.orderId, quantity: item.quantity }))}
-        onCheckItem={handleCheckItem}
-        onBatchNumberChange={handleBatchNumberChange}
-        onMissingItemChange={handleMissingItemChange}
-        onResolveMissingItem={handleResolveMissingItem}
-        onWeightChange={handleWeightChange}
-        onPrintBoxLabel={handlePrintBoxLabel}
-        onSaveBoxProgress={handleSaveBoxProgress}
-        groupByBox={groupByBox}
-        completedBoxes={completedBoxes}
-        savedBoxes={savedBoxes}
-      />
-      
-      {/* Notes if any */}
-      {selectedOrder.notes && (
-        <div className="mt-6 p-4 bg-gray-50 border rounded-lg">
-          <h3 className="font-semibold mb-2">Order Notes</h3>
-          <p>{selectedOrder.notes}</p>
-        </div>
-      )}
-      
-      {/* Hidden print component */}
-      <div className="hidden">
-        <PrintablePickingList
-          ref={printRef}
-          selectedOrder={selectedOrder}
-          items={selectedBoxToPrint !== null ? getBoxItems(selectedBoxToPrint) : orderItems}
-          groupByBox={selectedBoxToPrint !== null}
-        />
-      </div>
-      
-      {/* Print Box Dialog */}
-      <Dialog open={showBoxPrintDialog} onOpenChange={setShowBoxPrintDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Print Box {selectedBoxToPrint} Label</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              Are you sure you want to print the label for Box {selectedBoxToPrint}?
-              This will mark the box as completed.
-            </p>
+          
+          {/* Items Table with box grouping when needed */}
+          <ItemsTable 
+            items={allItems}
+            missingItems={missingItems}
+            onCheckItem={handleCheckItem}
+            onBatchNumberChange={handleBatchNumber}
+            onMissingItemChange={handleMissingItem}
+            onResolveMissingItem={handleResolveMissingItem}
+            onWeightChange={handleWeightChange}
+            onPrintBoxLabel={handlePrintBoxLabel}
+            onSaveBoxProgress={handleSaveBoxProgress}
+            groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
+            completedBoxes={completedBoxes}
+            savedBoxes={savedBoxes}
+          />
+          
+          {/* Total Weight Summary */}
+          {totalWeightByProduct.length > 0 && (
+            <div className="mt-8 border rounded-lg p-4 bg-gray-50">
+              <h3 className="text-lg font-semibold mb-4">Total Product Weights</h3>
+              <div className="grid gap-4">
+                {totalWeightByProduct.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center border-b pb-2">
+                    <span className="font-medium">{item.name}</span>
+                    <span className="font-semibold">
+                      {item.weight.toLocaleString()} {item.unit}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Printable version */}
+          <div className="hidden">
+            <PrintablePickingList 
+              ref={printRef}
+              selectedOrder={selectedOrder}
+              items={allItems}
+              groupByBox={needsDetailedBoxLabels && hasBoxDistributions}
+            />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBoxPrintDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmPrintBox}>
-              <Printer className="mr-2 h-4 w-4" /> Print and Continue
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </>
+      )}
+      
+      {/* Completion Dialog */}
+      <CompletionDialog
+        open={showCompletionDialog}
+        onOpenChange={setShowCompletionDialog}
+        missingItems={missingItems}
+        resolvedMissingItems={resolvedMissingItems}
+        allItems={allItems}
+        onConfirm={confirmCompleteOrder}
+      />
     </div>
   );
 };

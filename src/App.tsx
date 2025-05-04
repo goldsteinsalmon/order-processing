@@ -1,365 +1,229 @@
 
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { ThemeProvider } from "@/components/ui/theme-provider";
-import { Toaster } from "@/components/ui/toaster";
-import OrdersPage from "@/pages/OrdersPage";
-import CustomersPage from "@/pages/CustomersPage";
-import OrderDetailsPage from "@/pages/OrderDetailsPage";
-import CustomerDetailsPage from "@/pages/CustomerDetailsPage";
-import ProductsPage from "@/pages/ProductsPage";
-import ProductDetailsPage from "@/pages/ProductDetailsPage";
-import CreateOrderPage from "@/pages/CreateOrderPage";
-import CreateCustomerPage from "@/pages/CreateCustomerPage";
-import CreateProductPage from "@/pages/CreateProductPage";
-import PickingListPage from "@/pages/PickingListPage";
-import BoxLabelPage from "@/pages/BoxLabelPage";
-import StandingOrdersPage from "@/pages/StandingOrdersPage";
-import CreateStandingOrderPage from "@/pages/CreateStandingOrderPage";
-import StandingOrderDetailsPage from "@/pages/StandingOrderDetailsPage";
-import EditStandingOrderPage from "@/pages/EditStandingOrderPage";
-import ReturnsComplaintsPage from "@/pages/ReturnsComplaintsPage";
-import ExportOrdersPage from "@/pages/ExportOrdersPage";
-import BatchTrackingPage from "@/pages/BatchTrackingPage";
-import EditOrderPage from "@/pages/EditOrderPage";
-import ExportLabelPage from "@/pages/ExportLabelPage";
-import IncompleteBatchPage from "@/pages/IncompleteBatchPage";
-import LoginPage from "@/pages/LoginPage";
-import EditStandingOrderDeliveryPage from "@/pages/EditStandingOrderDeliveryPage";
-import NotFoundPage from "@/pages/NotFoundPage";
-import SupabaseProtectedRoute from "@/components/SupabaseProtectedRoute";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import { SupabaseDataProvider } from "@/context/SupabaseDataContext";
-import { DataProvider } from "@/context/DataContext";
-import { SupabaseAuthProvider } from "@/context/SupabaseAuthContext";
-import PrintBoxLabelPage from "@/pages/PrintBoxLabelPage";
-import CompletedOrdersPage from "@/pages/CompletedOrdersPage";
-import ViewCompletedOrderPage from "@/pages/ViewCompletedOrderPage"; 
-import EditCompletedOrderPage from "@/pages/EditCompletedOrderPage";
-import ReturnsPage from "@/pages/ReturnsPage";
-import AdminPage from "@/pages/AdminPage";
-import AdminMigrationPage from './pages/AdminMigrationPage';
-import StandingOrderSchedulePage from "./pages/StandingOrderSchedulePage";
+import { Routes, Route, Navigate } from "react-router-dom";
+import ProductsPage from "./pages/ProductsPage";
+import OrdersPage from "./pages/OrdersPage";
+import CompletedOrdersPage from "./pages/CompletedOrdersPage";
+import StandingOrdersPage from "./pages/StandingOrdersPage";
+import ReturnsPage from "./pages/ReturnsPage";
 import MissingItemsPage from "./pages/MissingItemsPage";
+import CustomerDetailsPage from "./pages/CustomerDetailsPage";
+import ProductDetailsPage from "./pages/ProductDetailsPage";
+import OrderDetailsPage from "./pages/OrderDetailsPage";
+import StandingOrderDetailsPage from "./pages/StandingOrderDetailsPage";
+import CreateCustomerPage from "./pages/CreateCustomerPage";
+import CreateProductPage from "./pages/CreateProductPage";
+import CreateOrderPage from "./pages/CreateOrderPage";
+import CreateStandingOrderPage from "./pages/CreateStandingOrderPage";
+import { DataProvider } from "./context/DataContext";
+import StandingOrderSchedulePage from "./pages/StandingOrderSchedulePage";
+import EditStandingOrderPage from "./pages/EditStandingOrderPage";
+import EditStandingOrderDeliveryPage from "./pages/EditStandingOrderDeliveryPage";
+import PrintBoxLabelPage from "./pages/PrintBoxLabelPage";
+import CustomersPage from "./pages/CustomersPage";
+import AdminPage from "./pages/AdminPage";
+import PickingListPage from "./pages/PickingListPage";
+import EditCompletedOrderPage from "./pages/EditCompletedOrderPage";
+import ViewCompletedOrderPage from "./pages/ViewCompletedOrderPage";
+import BatchTrackingPage from "./pages/BatchTrackingPage";
+import ExportOrdersPage from "./pages/ExportOrdersPage";
+import ExportOrdersViewPage from "./pages/ExportOrdersViewPage";
+import LoginPage from "./pages/LoginPage";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-function App() {
+const App: React.FC = () => {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-      <Router>
-        <SupabaseAuthProvider>
-          <SupabaseDataProvider>
-            <DataProvider>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                
-                {/* Redirect root to orders page */}
-                <Route
-                  path="/"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <Navigate to="/orders" replace />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/orders"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <OrdersPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/orders/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <OrderDetailsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/orders/:id/edit"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <EditOrderPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/orders/:id/picking"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <PickingListPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                {/* Redirect legacy picking-list URL to the standardized route */}
-                <Route
-                  path="/picking-list/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <Navigate to={`/orders/${location.pathname.split('/').pop()}/picking`} replace />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/print-box-label/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <PrintBoxLabelPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/customers"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CustomersPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/customers/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CustomerDetailsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/products"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <ProductsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/products/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <ProductDetailsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/create-order"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CreateOrderPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/create-customer"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CreateCustomerPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/create-product"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CreateProductPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/box-label/:orderId/:boxNumber"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <BoxLabelPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/standing-orders"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <StandingOrdersPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/standing-orders/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <StandingOrderDetailsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/create-standing-order"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CreateStandingOrderPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/standing-orders/:id/edit"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <EditStandingOrderPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/standing-order-schedule/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <StandingOrderSchedulePage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/standing-orders/:id/delivery/:date/edit"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <EditStandingOrderDeliveryPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/returns-complaints"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <ReturnsComplaintsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/completed-orders"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <CompletedOrdersPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/completed-orders/:id"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <ViewCompletedOrderPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/completed-orders/:id/edit"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <EditCompletedOrderPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/returns"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <ReturnsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/missing-items"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <MissingItemsPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/admin"
-                  element={
-                    <SupabaseProtectedRoute requireAdmin={true}>
-                      <AdminPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/admin/migrations"
-                  element={
-                    <SupabaseProtectedRoute requireAdmin={true}>
-                      <AdminMigrationPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/export-orders"
-                  element={
-                    <SupabaseProtectedRoute requireAdmin={true}>
-                      <ExportOrdersPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/batch-tracking"
-                  element={
-                    <SupabaseProtectedRoute requireAdmin={true}>
-                      <BatchTrackingPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/incomplete-batches"
-                  element={
-                    <SupabaseProtectedRoute requireAdmin={true}>
-                      <IncompleteBatchPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route
-                  path="/export-label/:orderId"
-                  element={
-                    <SupabaseProtectedRoute>
-                      <ExportLabelPage />
-                    </SupabaseProtectedRoute>
-                  }
-                />
-                
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-              <Toaster />
-            </DataProvider>
-          </SupabaseDataProvider>
-        </SupabaseAuthProvider>
-      </Router>
-    </ThemeProvider>
+    <DataProvider>
+      <AuthProvider>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<LoginPage />} />
+          
+          {/* Default redirect to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          
+          {/* Routes accessible to all users, including regular users */}
+          <Route path="/orders" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <OrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/completed-orders" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <CompletedOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/order-details/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <OrderDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/view-completed-order/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <ViewCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/export-orders" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <ExportOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/export-orders-view" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <ExportOrdersViewPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* New: Allow access to picking list for regular users */}
+          <Route path="/picking-list" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PickingListPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/picking-list/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PickingListPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/print-box-label" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PrintBoxLabelPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/print-box-label/:id" element={
+            <ProtectedRoute allowUserAccess={true}>
+              <PrintBoxLabelPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Routes restricted to manager/admin only */}
+          <Route path="/customers" element={
+            <ProtectedRoute>
+              <CustomersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/customer-details/:id" element={
+            <ProtectedRoute>
+              <CustomerDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-customer" element={
+            <ProtectedRoute>
+              <CreateCustomerPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/products" element={
+            <ProtectedRoute>
+              <ProductsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/product-details/:id" element={
+            <ProtectedRoute>
+              <ProductDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-product" element={
+            <ProtectedRoute>
+              <CreateProductPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-order" element={
+            <ProtectedRoute>
+              <CreateOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-order/:id" element={
+            <ProtectedRoute>
+              <EditCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-completed-order/:id" element={
+            <ProtectedRoute>
+              <EditCompletedOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/standing-orders" element={
+            <ProtectedRoute>
+              <StandingOrdersPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/standing-order-details/:id" element={
+            <ProtectedRoute>
+              <StandingOrderDetailsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/create-standing-order" element={
+            <ProtectedRoute>
+              <CreateStandingOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-standing-order/:id" element={
+            <ProtectedRoute>
+              <EditStandingOrderPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/standing-order-schedule/:id" element={
+            <ProtectedRoute>
+              <StandingOrderSchedulePage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/edit-standing-order-delivery/:id" element={
+            <ProtectedRoute>
+              <EditStandingOrderDeliveryPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/returns" element={
+            <ProtectedRoute>
+              <ReturnsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/missing-items" element={
+            <ProtectedRoute>
+              <MissingItemsPage />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/batch-tracking" element={
+            <ProtectedRoute>
+              <BatchTrackingPage />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin-only route */}
+          <Route path="/admin" element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminPage />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </AuthProvider>
+    </DataProvider>
   );
-}
+};
 
 export default App;

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Layout from "@/components/Layout";
 import OrdersList from "@/components/orders/OrdersList";
 import { Input } from "@/components/ui/input";
@@ -9,51 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { DebugLoader } from "@/components/ui/debug-loader";
 
 const OrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { orders, isLoading, refreshData } = useData();
+  const { orders } = useData();
   const navigate = useNavigate();
-  const [loadingState, setLoadingState] = useState({
-    initialLoad: true,
-    dataRequested: false,
-    dataReceived: false,
-  });
-  
-  // Add useEffect to refresh data when the component mounts with improved logging
-  useEffect(() => {
-    console.log("OrdersPage: Refreshing data on mount");
-    console.log("OrdersPage: Current isLoading state:", isLoading);
-    console.log("OrdersPage: Orders count:", orders.length);
-    
-    setLoadingState(prev => ({ ...prev, dataRequested: true }));
-    
-    refreshData()
-      .then(() => {
-        console.log("OrdersPage: Data refresh completed");
-        console.log("OrdersPage: Updated orders count:", orders.length);
-        setLoadingState({
-          initialLoad: false,
-          dataRequested: false,
-          dataReceived: true,
-        });
-      })
-      .catch(error => {
-        console.error("OrdersPage: Error refreshing data:", error);
-        setLoadingState({
-          initialLoad: false,
-          dataRequested: false,
-          dataReceived: false,
-        });
-      });
-  }, [refreshData]);
-  
-  // Additional logging when orders or loading state changes
-  useEffect(() => {
-    console.log("OrdersPage: Orders updated, new count:", orders.length);
-    console.log("OrdersPage: Current loading state:", isLoading);
-  }, [orders, isLoading]);
   
   return (
     <Layout>
@@ -74,15 +34,7 @@ const OrdersPage: React.FC = () => {
         </Button>
       </div>
       
-      {/* Enhanced debug loader with more information */}
-      <DebugLoader 
-        isLoading={isLoading} 
-        context="Orders Page" 
-        dataLoading={loadingState.dataRequested}
-        error={loadingState.initialLoad ? null : !loadingState.dataReceived && orders.length === 0 ? "No orders were loaded from the database. Check your Supabase connection." : null}
-      />
-      
-      {!isLoading && orders.length === 0 ? (
+      {orders.length === 0 ? (
         <Card className="w-full">
           <CardContent className="flex flex-col items-center justify-center p-6">
             <div className="text-center p-6">

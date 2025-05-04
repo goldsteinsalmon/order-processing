@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -84,7 +85,7 @@ const ExportOrdersViewPage: React.FC = () => {
     
     // Process all items in the order
     order.items.forEach((item: OrderItem) => {
-      const productId = item.product_id;
+      const productId = item.productId;
       
       if (!productMap.has(productId)) {
         productMap.set(productId, {

@@ -1,106 +1,123 @@
 
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
-import { ArrowLeft, Edit, Save, Trash2 } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Save, X, CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Product } from "@/types";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
-const ProductDetailsPage = () => {
+const ProductDetailsPage: React.FC = () => {
+  const { products, updateProduct, orders, completedOrders } = useData();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { products, updateProduct, deleteProduct } = useData();
-  
-  const [product, setProduct] = useState<Product | null>(null);
+
+  const product = products.find(product => product.id === id);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProduct, setEditedProduct] = useState<Product | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editedProduct, setEditedProduct] = useState(product ? { ...product } : null);
   
-  // Load product data
-  useEffect(() => {
-    if (!id) return;
+  // Date range filter for purchase history
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+
+  // Calculate purchase history for this product
+  const purchaseHistory = useMemo(() => {
+    if (!product) return [];
+
+    // Combine all orders (active + completed)
+    const allOrders = [...orders, ...completedOrders];
     
-    const foundProduct = products.find(p => p.id === id);
-    if (foundProduct) {
-      setProduct(foundProduct);
-      setEditedProduct(foundProduct);
-    }
-  }, [id, products]);
-  
-  const handleEditToggle = () => {
-    if (isEditing && editedProduct) {
-      // Save changes
-      updateProduct(editedProduct);
-      setProduct(editedProduct);
-      toast({
-        title: "Success",
-        description: "Product updated successfully."
+    // Filter orders by date if date filters are applied
+    let filteredOrders = allOrders;
+    if (dateFrom || dateTo) {
+      filteredOrders = allOrders.filter(order => {
+        const orderDate = order.orderDate ? parseISO(order.orderDate) : parseISO(order.created);
+        
+        if (dateFrom && dateTo) {
+          return isWithinInterval(orderDate, {
+            start: startOfDay(dateFrom),
+            end: endOfDay(dateTo)
+          });
+        } else if (dateFrom) {
+          return orderDate >= startOfDay(dateFrom);
+        } else if (dateTo) {
+          return orderDate <= endOfDay(dateTo);
+        }
+        return true;
       });
     }
     
-    setIsEditing(!isEditing);
+    // Get all orders with this product and calculate total quantity
+    let totalQuantity = 0;
+    
+    filteredOrders.forEach(order => {
+      if (!order.items) return;
+      
+      // Find items with this product
+      const productItems = order.items.filter(item => item.productId === product.id);
+      if (productItems.length === 0) return;
+      
+      // Sum quantities for this order
+      const quantityForOrder = productItems.reduce((sum, item) => sum + item.quantity, 0);
+      totalQuantity += quantityForOrder;
+    });
+    
+    return totalQuantity;
+  }, [product, orders, completedOrders, dateFrom, dateTo]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (!editedProduct) return;
+    
+    const { name, value } = e.target;
+    setEditedProduct({
+      ...editedProduct,
+      [name]: name === "stockLevel" || name === "weight" ? Number(value) : value,
+    });
   };
-  
-  const handleInputChange = (field: keyof Product, value: any) => {
+
+  const handleCheckboxChange = (checked: boolean) => {
     if (!editedProduct) return;
     
     setEditedProduct({
       ...editedProduct,
-      [field]: value
+      requiresWeightInput: checked
     });
   };
-  
-  const handleRequiresWeightInputChange = (checked: boolean) => {
+
+  const handleSave = () => {
     if (!editedProduct) return;
-    
-    setEditedProduct({
-      ...editedProduct,
-      requiresWeightInput: checked,
-      // Clear weight if we're now requiring weight input
-      weight: checked ? undefined : editedProduct.weight
-    });
+    updateProduct(editedProduct);
+    setIsEditing(false);
   };
-  
-  const handleDeleteProduct = async () => {
-    if (!id) return;
-    
-    const success = await deleteProduct(id);
-    if (success) {
-      toast({
-        title: "Success",
-        description: "Product deleted successfully."
-      });
-      navigate("/products");
-    }
+
+  const handleCancel = () => {
+    setEditedProduct({ ...product });
+    setIsEditing(false);
   };
-  
+
+  const clearDateFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
   if (!product) {
     return (
       <Layout>
-        <div className="text-center p-8">
-          <h2 className="text-2xl font-bold mb-4">Product not found</h2>
-          <Button variant="outline" onClick={() => navigate("/products")}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Products
+        <div className="flex items-center mb-6">
+          <Button variant="ghost" onClick={() => navigate("/products")} className="mr-4">
+            <ArrowLeft className="mr-2" /> Back
           </Button>
+          <h2 className="text-2xl font-bold">Product Not Found</h2>
+        </div>
+        <div className="bg-white p-6 rounded-md shadow-sm">
+          <p>The product you're looking for doesn't exist or may have been removed.</p>
         </div>
       </Layout>
     );
@@ -110,153 +127,228 @@ const ProductDetailsPage = () => {
     <Layout>
       <div className="flex items-center mb-6">
         <Button variant="ghost" onClick={() => navigate("/products")} className="mr-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back
+          <ArrowLeft className="mr-2" /> Back
         </Button>
-        <h2 className="text-2xl font-bold">Product Details</h2>
-        <div className="ml-auto flex gap-2">
-          <Button onClick={handleEditToggle}>
-            {isEditing ? (
-              <>
-                <Save className="mr-2 h-4 w-4" /> Save
-              </>
-            ) : (
-              <>
-                <Edit className="mr-2 h-4 w-4" /> Edit
-              </>
-            )}
-          </Button>
-          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
-          </Button>
-        </div>
+        <h2 className="text-2xl font-bold">{product.name}</h2>
       </div>
-      
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Product Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                {isEditing ? (
-                  <Input
-                    id="name"
-                    value={editedProduct?.name || ""}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                  />
-                ) : (
-                  <p className="p-2 border rounded-md bg-gray-50">{product.name}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
-                {isEditing ? (
-                  <Input
-                    id="sku"
-                    value={editedProduct?.sku || ""}
-                    onChange={(e) => handleInputChange("sku", e.target.value)}
-                  />
-                ) : (
-                  <p className="p-2 border rounded-md bg-gray-50">{product.sku}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2 col-span-2">
-                <Label htmlFor="description">Description</Label>
-                {isEditing ? (
-                  <Textarea
-                    id="description"
-                    value={editedProduct?.description || ""}
-                    onChange={(e) => handleInputChange("description", e.target.value)}
-                    rows={3}
-                  />
-                ) : (
-                  <p className="p-2 border rounded-md bg-gray-50 min-h-[80px]">
-                    {product.description || "No description"}
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="stock_level">Stock Level</Label>
-                {isEditing ? (
-                  <Input
-                    id="stock_level"
-                    type="number"
-                    min="0"
-                    value={editedProduct?.stock_level || 0}
-                    onChange={(e) => handleInputChange("stock_level", parseInt(e.target.value) || 0)}
-                  />
-                ) : (
-                  <p className="p-2 border rounded-md bg-gray-50">{product.stock_level}</p>
-                )}
-              </div>
-              
-              <div className="space-y-2 flex flex-col">
-                <Label htmlFor="requires_weight_input">Requires Weight Input</Label>
-                {isEditing ? (
-                  <div className="flex items-center h-10">
-                    <Switch
-                      id="requires_weight_input"
-                      checked={editedProduct?.requiresWeightInput || false}
-                      onCheckedChange={handleRequiresWeightInputChange}
-                    />
-                    <span className="ml-2">
-                      {editedProduct?.requiresWeightInput ? "Yes" : "No"}
-                    </span>
-                  </div>
-                ) : (
-                  <p className="p-2 border rounded-md bg-gray-50">
-                    {product.requiresWeightInput ? "Yes" : "No"}
-                  </p>
-                )}
-              </div>
-              
-              {(!editedProduct?.requiresWeightInput || !isEditing) && (
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (g)</Label>
-                  {isEditing && !editedProduct?.requiresWeightInput ? (
-                    <Input
-                      id="weight"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={editedProduct?.weight || ""}
-                      onChange={(e) => handleInputChange("weight", e.target.value ? parseFloat(e.target.value) : undefined)}
-                    />
-                  ) : (
-                    <p className="p-2 border rounded-md bg-gray-50">
-                      {product.weight || "Not specified"}
-                    </p>
-                  )}
+
+      <Tabs defaultValue="details" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="details">Product Details</TabsTrigger>
+          <TabsTrigger value="history">Purchase History</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="details">
+          <div className="bg-white p-6 rounded-md shadow-sm">
+            <div className="flex justify-between mb-4">
+              <h3 className="text-lg font-semibold">Product Information</h3>
+              {!isEditing ? (
+                <Button onClick={() => setIsEditing(true)}>Edit Product</Button>
+              ) : (
+                <div className="space-x-2">
+                  <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
+                    <Save className="mr-2 h-4 w-4" /> Save
+                  </Button>
+                  <Button variant="outline" onClick={handleCancel}>
+                    <X className="mr-2 h-4 w-4" /> Cancel
+                  </Button>
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product 
-              "{product?.name}" and remove it from our database.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="space-y-4">
+                  {isEditing ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Product Name
+                        </label>
+                        <Input
+                          name="name"
+                          value={editedProduct?.name || ""}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          SKU
+                        </label>
+                        <Input
+                          name="sku"
+                          value={editedProduct?.sku || ""}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Stock Level
+                        </label>
+                        <Input
+                          name="stockLevel"
+                          type="number"
+                          value={editedProduct?.stockLevel || 0}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Weight (grams)
+                        </label>
+                        <Input
+                          name="weight"
+                          type="number"
+                          value={editedProduct?.weight || 0}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="requiresWeightInput" 
+                          checked={editedProduct?.requiresWeightInput || false}
+                          onCheckedChange={handleCheckboxChange}
+                        />
+                        <label 
+                          htmlFor="requiresWeightInput" 
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Requires weight input during picking
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Product Name:</span>
+                        <span className="col-span-2 font-medium">{product.name}</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">SKU:</span>
+                        <span className="col-span-2 font-medium">{product.sku}</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Stock Level:</span>
+                        <span className="col-span-2 font-medium">{product.stockLevel}</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Weight:</span>
+                        <span className="col-span-2 font-medium">{product.weight || 'N/A'} grams</span>
+                      </div>
+                      <div className="grid grid-cols-3 border-b pb-2">
+                        <span className="text-gray-600">Requires Weight Input:</span>
+                        <span className="col-span-2 font-medium">{product.requiresWeightInput ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Description</h3>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      name="description"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 h-32"
+                      value={editedProduct?.description || ""}
+                      onChange={handleChange}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-gray-700">{product.description || "No description provided."}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Purchase History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex flex-wrap gap-4 items-end">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">From Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] pl-3 text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        {dateFrom ? format(dateFrom, "PPP") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className="pointer-events-auto"
+                        disabled={(date) => date.getDay() === 0 || date.getDay() === 6} // Disable Saturday and Sunday
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">To Date</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] pl-3 text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        {dateTo ? format(dateTo, "PPP") : <span>Pick a date</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        disabled={(date) => 
+                          (dateFrom ? date < dateFrom : false) || 
+                          date.getDay() === 0 || 
+                          date.getDay() === 6 // Disable Saturday and Sunday
+                        }
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <Button variant="outline" onClick={clearDateFilters}>
+                  Clear Filters
+                </Button>
+              </div>
+              
+              <div className="mb-4 p-6 border rounded-md bg-gray-50">
+                <div className="text-lg font-medium">Total Sales: <span className="text-xl font-bold">{purchaseHistory}</span></div>
+                {(dateFrom || dateTo) && (
+                  <div className="text-sm text-gray-500 mt-1">
+                    {dateFrom && dateTo && `From ${format(dateFrom, "PPP")} to ${format(dateTo, "PPP")}`}
+                    {dateFrom && !dateTo && `From ${format(dateFrom, "PPP")}`}
+                    {!dateFrom && dateTo && `Until ${format(dateTo, "PPP")}`}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </Layout>
   );
 };

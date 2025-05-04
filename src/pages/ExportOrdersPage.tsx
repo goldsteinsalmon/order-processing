@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useMemo } from "react";
+
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Order } from "@/types";
 import { ArrowLeft, Search, Check, Undo, Filter, Calendar } from "lucide-react";
-import { format, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
-import { DateRange } from "react-day-picker";
+import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { getNextWorkingDay } from "@/utils/dateUtils";
 import {
   Table,
   TableBody,
@@ -19,24 +23,24 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 
 const ExportOrdersPage: React.FC = () => {
   const { completedOrders, updateOrder } = useData();
   const navigate = useNavigate();
   
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: new Date(),
-  });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [invoiceFilter, setInvoiceFilter] = useState<"all" | "invoiced" | "not-invoiced">("not-invoiced");
-  const [batchFilter, setBatchFilter] = useState<string>("");
+  // Set default fromDate and toDate to the next working day
+  const nextWorkingDay = getNextWorkingDay();
+  const [fromDate, setFromDate] = useState<Date | undefined>(nextWorkingDay);
+  const [toDate, setToDate] = useState<Date | undefined>(nextWorkingDay);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectAll, setSelectAll] = useState(false);
-
+  
+  // New state for search and filter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterMode, setFilterMode] = useState<"all" | "not-invoiced">("not-invoiced");
+  
+  // Handle navigation to the view page
   const handleViewExport = () => {
     if (selectedOrders.size === 0) {
       alert("Please select at least one order to export.");
@@ -48,7 +52,50 @@ const ExportOrdersPage: React.FC = () => {
       state: { selectedOrderIds: Array.from(selectedOrders) } 
     });
   };
-
+  
+  // Filter orders based on search, filter mode and date range
+  useEffect(() => {
+    let filtered = [...completedOrders];
+    
+    // Apply filter mode
+    if (filterMode === "not-invoiced") {
+      filtered = filtered.filter(order => !order.invoiced);
+    } else if (filterMode === "all" && fromDate && toDate) {
+      // Apply date range only if we're not filtering by not-invoiced
+      filtered = filtered.filter(order => {
+        const orderDate = parseISO(order.orderDate);
+        return isWithinInterval(orderDate, {
+          start: startOfDay(fromDate),
+          end: endOfDay(toDate)
+        });
+      });
+    }
+    
+    // Apply search term
+    if (searchTerm.trim() !== "") {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.id.toLowerCase().includes(searchLower) ||
+        order.customer.name.toLowerCase().includes(searchLower) ||
+        (order.customer.accountNumber && order.customer.accountNumber.toLowerCase().includes(searchLower)) ||
+        (order.customerOrderNumber && order.customerOrderNumber.toLowerCase().includes(searchLower))
+      );
+    }
+    
+    // Sort by date (newest first)
+    const sorted = [...filtered].sort((a, b) => {
+      const dateA = parseISO(a.orderDate);
+      const dateB = parseISO(b.orderDate);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    setFilteredOrders(sorted);
+    // Clear selections when filter changes
+    setSelectedOrders(new Set());
+    setSelectAll(false);
+  }, [fromDate, toDate, completedOrders, searchTerm, filterMode]);
+  
+  // Handle individual order selection
   const handleOrderSelect = (orderId: string) => {
     const newSelected = new Set(selectedOrders);
     if (newSelected.has(orderId)) {
@@ -57,21 +104,23 @@ const ExportOrdersPage: React.FC = () => {
       newSelected.add(orderId);
     }
     setSelectedOrders(newSelected);
-    setSelectAll(newSelected.size === completedOrders.length);
+    setSelectAll(newSelected.size === filteredOrders.length);
   };
-
+  
+  // Handle select all
   const handleSelectAll = () => {
     if (selectAll) {
       // Unselect all
       setSelectedOrders(new Set());
     } else {
-      // Select all
-      const allIds = new Set(completedOrders.map(order => order.id));
+      // Select all filtered orders
+      const allIds = new Set(filteredOrders.map(order => order.id));
       setSelectedOrders(allIds);
     }
     setSelectAll(!selectAll);
   };
-
+  
+  // Mark selected orders as invoiced
   const handleMarkInvoiced = () => {
     if (selectedOrders.size === 0) {
       alert("Please select at least one order to mark as invoiced.");
@@ -92,7 +141,8 @@ const ExportOrdersPage: React.FC = () => {
     
     alert(`Marked ${selectedOrders.size} orders as invoiced.`);
   };
-
+  
+  // Unmark selected orders as invoiced
   const handleUnmarkInvoiced = () => {
     if (selectedOrders.size === 0) {
       alert("Please select at least one order to unmark as invoiced.");
@@ -114,51 +164,7 @@ const ExportOrdersPage: React.FC = () => {
     
     alert(`Unmarked ${selectedOrders.size} orders as invoiced.`);
   };
-
-  // Filter orders based on search term, date range, and filters
-  const filteredOrders = useMemo(() => {
-    if (!completedOrders) return [];
-    
-    return completedOrders.filter(order => {
-      // Date filter
-      const orderDate = parseISO(order.order_date);
-      const hasDateFilter = date?.from || date?.to;
-      
-      const matchesDateFilter = !hasDateFilter || (
-        (!date.from || isAfter(orderDate, startOfDay(date.from))) &&
-        (!date.to || isBefore(orderDate, endOfDay(date.to)))
-      );
-      
-      if (!matchesDateFilter) return false;
-      
-      // Search term filter
-      const hasSearchTerm = searchTerm.trim().length > 0;
-      const matchesSearchTerm = !hasSearchTerm || (
-        order.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (order.customer?.accountNumber || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (order.customer_order_number || "").toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      
-      if (!matchesSearchTerm) return false;
-      
-      // Invoice status filter
-      if (invoiceFilter === "invoiced" && !order.invoiced) return false;
-      if (invoiceFilter === "not-invoiced" && order.invoiced) return false;
-      
-      // Batch number filter
-      if (batchFilter && (!order.batch_number || !order.batch_number.includes(batchFilter))) {
-        return false;
-      }
-      
-      return true;
-    }).sort((a, b) => {
-      // Sort by invoice date if available, otherwise by order date
-      const dateA = a.invoice_date ? parseISO(a.invoice_date) : parseISO(a.order_date);
-      const dateB = b.invoice_date ? parseISO(b.invoice_date) : parseISO(a.order_date);
-      return dateB.getTime() - dateA.getTime();
-    });
-  }, [completedOrders, date, searchTerm, invoiceFilter, batchFilter]);
-
+  
   return (
     <Layout>
       <div className="flex justify-between items-center mb-4">
@@ -196,8 +202,8 @@ const ExportOrdersPage: React.FC = () => {
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Filter by</h3>
                 <RadioGroup 
-                  value={invoiceFilter} 
-                  onValueChange={(value: any) => setInvoiceFilter(value)}
+                  value={filterMode} 
+                  onValueChange={(value) => setFilterMode(value as "all" | "not-invoiced")}
                   className="flex space-x-4"
                 >
                   <div className="flex items-center space-x-2">
@@ -245,43 +251,62 @@ const ExportOrdersPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Date range */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-[180px]">
-                <span className="text-sm font-medium">Date Range</span>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full mt-1 justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {date?.from ? (
-                        date.to ? (
-                          `${format(date.from, "PPP")} - ${format(date.to, "PPP")}`
-                        ) : (
-                          format(date.from, "PPP")
-                        )
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="range"
-                      defaultMonth={date?.from}
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+            {/* Date range - only shown when filter mode is "all" */}
+            {filterMode === "all" && (
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[180px]">
+                  <span className="text-sm font-medium">From</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full mt-1 justify-start text-left font-normal",
+                          !fromDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {fromDate ? format(fromDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={fromDate}
+                        onSelect={setFromDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="flex-1 min-w-[180px]">
+                  <span className="text-sm font-medium">To</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full mt-1 justify-start text-left font-normal",
+                          !toDate && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={toDate}
+                        onSelect={setToDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -336,19 +361,19 @@ const ExportOrdersPage: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>{order.id.substring(0, 8)}</TableCell>
-                      <TableCell>{format(parseISO(order.order_date), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>{format(parseISO(order.orderDate), "dd/MM/yyyy")}</TableCell>
                       <TableCell>{order.customer.name}</TableCell>
-                      <TableCell>{order.customer.accountNumber || "-"}</TableCell>
-                      <TableCell>{order.customer_order_number || "N/A"}</TableCell>
+                      <TableCell>{order.customer.accountNumber || "N/A"}</TableCell>
+                      <TableCell>{order.customerOrderNumber || "N/A"}</TableCell>
                       <TableCell>
                         {order.invoiced ? (
                           <div className="flex flex-col">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                               Invoiced
                             </span>
-                            {order.invoice_date && (
+                            {order.invoiceDate && (
                               <span className="text-xs text-muted-foreground mt-1">
-                                {format(parseISO(order.invoice_date), "dd/MM/yyyy")}
+                                {format(parseISO(order.invoiceDate), "dd/MM/yyyy")}
                               </span>
                             )}
                           </div>

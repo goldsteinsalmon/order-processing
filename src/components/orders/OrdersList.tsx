@@ -1,225 +1,239 @@
 
-import React, { useState, useMemo } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Trash2, Edit, ClipboardList, Eye } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import React, { useMemo } from "react";
 import { format, parseISO } from "date-fns";
+import { Edit, FilePlus, ClipboardList } from "lucide-react";
 import { useData } from "@/context/DataContext";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import OrderStatusBadge from "./OrderStatusBadge";
+import { isSameDayOrder, isNextWorkingDayOrder } from "@/utils/dateUtils";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface OrdersListProps {
-  searchTerm: string;
+  searchTerm?: string;
 }
 
-const OrdersList: React.FC<OrdersListProps> = ({ searchTerm }) => {
-  const { orders, deleteOrder, updateOrder } = useData();
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+const OrdersList: React.FC<OrdersListProps> = ({ searchTerm = "" }) => {
+  const { orders } = useData();
   const navigate = useNavigate();
-
-  // Filter orders based on search term
+  
+  // Filter orders by search term
   const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      const searchLower = searchTerm.toLowerCase();
-      
-      // Search in customer name
-      const customerNameMatch = order.customer?.name?.toLowerCase().includes(searchLower);
-      
-      // Search in order ID
-      const orderIdMatch = order.id?.toLowerCase().includes(searchLower);
-      
-      // Search in customer order number
-      const customerOrderMatch = order.customerOrderNumber?.toLowerCase().includes(searchLower);
-      
-      // Search in status
-      const statusMatch = order.status?.toLowerCase().includes(searchLower);
-      
-      // Return true if any of the fields match
-      return customerNameMatch || orderIdMatch || customerOrderMatch || statusMatch;
-    });
+    if (!searchTerm.trim()) return orders;
+    
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return orders.filter(order => 
+      order.customer.name.toLowerCase().includes(lowerSearchTerm) ||
+      order.id.toLowerCase().includes(lowerSearchTerm) ||
+      order.deliveryMethod.toLowerCase().includes(lowerSearchTerm) ||
+      order.status.toLowerCase().includes(lowerSearchTerm)
+    );
   }, [orders, searchTerm]);
+  
+  // Sort orders by date closest to now
+  const sortedOrders = useMemo(() => {
+    const now = new Date().getTime();
+    return [...filteredOrders].sort((a, b) => {
+      const dateA = new Date(a.orderDate).getTime();
+      const dateB = new Date(b.orderDate).getTime();
+      
+      // Calculate absolute difference from current date
+      const diffA = Math.abs(now - dateA);
+      const diffB = Math.abs(now - dateB);
+      
+      // Sort by closest date to now
+      return diffA - diffB;
+    });
+  }, [filteredOrders]);
 
-  // Handle order deletion
-  const handleDeleteClick = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    setShowDeleteDialog(true);
+  // Helper function to generate change description
+  const getChangeDescription = (order) => {
+    if (!order.changes || order.changes.length === 0) return null;
+    
+    // Get the list of changed products
+    const changedProducts = order.changes.map(change => {
+      if (change.originalQuantity === 0) {
+        return `Added ${change.newQuantity} ${change.productName}`;
+      } else if (change.newQuantity === 0) {
+        return `Removed ${change.productName}`;
+      } else {
+        return `Changed ${change.productName} from ${change.originalQuantity} to ${change.newQuantity}`;
+      }
+    });
+    
+    return changedProducts.join("; ");
   };
 
-  // Confirm order deletion
-  const confirmDelete = async () => {
-    if (selectedOrderId) {
-      await deleteOrder(selectedOrderId);
-      setShowDeleteDialog(false);
-      setSelectedOrderId(null);
+  // Function to determine the order status display
+  const getOrderStatusDisplay = (order) => {
+    // If the order has explicit status, use that
+    if (order.status === "Modified") {
+      return {
+        label: "Modified",
+        color: "bg-blue-100 text-blue-800"
+      };
     }
-  };
-
-  // Handle order status update
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
-    const targetOrder = orders.find(o => o.id === orderId);
-    if (!targetOrder) return;
-
-    const updatedOrder = { ...targetOrder, status: newStatus as any };
-    await updateOrder(updatedOrder);
-  };
-
-  // Navigation handlers with error handling
-  const handleViewOrderClick = (orderId: string) => {
-    try {
-      console.log("Navigating to order details:", orderId);
-      navigate(`/orders/${orderId}`);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      // Fallback to direct URL change if navigate fails
-      window.location.href = `/orders/${orderId}`;
+    
+    // Check for missing items
+    if (order.missingItems && order.missingItems.length > 0) {
+      return {
+        label: "Missing Items",
+        color: "bg-amber-100 text-amber-800"
+      };
     }
+
+    // Check for partially picked boxes
+    if (order.boxDistributions && order.completedBoxes && 
+        order.boxDistributions.length > 0 && 
+        order.completedBoxes.length > 0 && 
+        order.completedBoxes.length < order.boxDistributions.length) {
+      return {
+        label: "Partially Picked",
+        color: "bg-purple-100 text-purple-800"
+      };
+    }
+
+    // Check for picking in progress
+    if (order.pickingInProgress) {
+      return {
+        label: "Picking In Progress",
+        color: "bg-indigo-100 text-indigo-800"
+      };
+    }
+    
+    // Default to pending
+    return {
+      label: order.status || "Pending",
+      color: "bg-blue-100 text-blue-800"
+    };
   };
 
-  const handlePickingListClick = (orderId: string) => {
-    try {
-      console.log("Navigating to picking list:", orderId);
-      navigate(`/orders/${orderId}/picking`);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      // Fallback to direct URL change if navigate fails
-      window.location.href = `/orders/${orderId}/picking`;
-    }
+  // Handle navigation to picking list
+  const handlePickingListClick = (orderId) => {
+    // Ensure we navigate directly to the picking list with this order selected
+    navigate(`/picking-list/${orderId}`);
   };
-
-  const handleEditClick = (orderId: string) => {
-    try {
-      console.log("Navigating to edit order:", orderId);
-      navigate(`/orders/${orderId}/edit`);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      // Fallback to direct URL change if navigate fails
-      window.location.href = `/orders/${orderId}/edit`;
+  
+  // Determine if an order should be highlighted for changes
+  const shouldHighlightChanges = (order) => {
+    // Highlight orders with changes regardless of picking status
+    if (order.hasChanges) {
+      return true;
     }
+    return false;
   };
 
   return (
-    <>
-      <Card className="border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow 
-                  key={order.id}
-                  className="hover:bg-muted/50"
-                >
-                  <TableCell>
-                    {order.customer?.name || "Unknown Customer"}
-                  </TableCell>
-                  <TableCell>
-                    {format(parseISO(order.orderDate), "dd/MM/yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <div className="cursor-pointer">
-                          <OrderStatusBadge status={order.status} />
-                        </div>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Pending")}>
-                          Pending
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Processing")}>
-                          Processing
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Completed")}>
-                          Completed
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Missing Items")}>
-                          Missing Items
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(order.id, "Cancelled")}>
-                          Cancelled
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewOrderClick(order.id)}
-                        className="flex items-center"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Order
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePickingListClick(order.id)}
-                        className="flex items-center"
-                      >
-                        <ClipboardList className="h-4 w-4 mr-2" />
-                        Picking List
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEditClick(order.id)}
-                        title="Edit"
-                      >
-                        <Edit size={16} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(order.id)}
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+    <div>
+      <div className="flex justify-between mb-6">
+        <h2 className="text-2xl font-bold">Orders</h2>
+        <Button onClick={() => navigate("/create-order")}>
+          <FilePlus className="mr-2 h-4 w-4" /> Create Order
+        </Button>
+      </div>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Order</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this order? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      <div className="rounded-md border">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50">
+                <th className="px-4 py-3 text-left font-medium">Order ID</th>
+                <th className="px-4 py-3 text-left font-medium">Customer</th>
+                <th className="px-4 py-3 text-left font-medium">Order Date</th>
+                <th className="px-4 py-3 text-left font-medium">Delivery Method</th>
+                <th className="px-4 py-3 text-left font-medium">Status</th>
+                <th className="px-4 py-3 text-left font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    {searchTerm ? "No matching orders found" : "No orders found"}
+                  </td>
+                </tr>
+              ) : (
+                sortedOrders.map((order) => {
+                  const isSameDay = isSameDayOrder(order.orderDate);
+                  const isNextDay = isNextWorkingDayOrder(order.orderDate);
+                  const changeDesc = getChangeDescription(order);
+                  const statusDisplay = getOrderStatusDisplay(order);
+                  const highlightChanges = shouldHighlightChanges(order);
+                  
+                  return (
+                    <tr 
+                      key={order.id}
+                      className={`border-b ${
+                        isSameDay ? "bg-red-50" : 
+                        isNextDay ? "bg-green-50" : 
+                        highlightChanges ? "bg-amber-50" : ""
+                      }`}
+                    >
+                      <td className="px-4 py-3">{order.id.substring(0, 8)}</td>
+                      <td className="px-4 py-3">{order.customer.name}</td>
+                      <td className="px-4 py-3">
+                        {format(parseISO(order.orderDate), "dd/MM/yyyy")}
+                      </td>
+                      <td className="px-4 py-3">{order.deliveryMethod}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
+                          {statusDisplay.label}
+                        </span>
+                        
+                        {order.status === "Modified" && order.picker && (
+                          <div className="text-xs mt-1">
+                            Picked by: {order.picker}
+                          </div>
+                        )}
+                        
+                        {statusDisplay.label === "Missing Items" && order.missingItems && (
+                          <div className="text-xs mt-1">
+                            {order.missingItems.length} item{order.missingItems.length > 1 ? 's' : ''} missing
+                          </div>
+                        )}
+                        
+                        {statusDisplay.label === "Partially Picked" && order.completedBoxes && (
+                          <div className="text-xs mt-1">
+                            {order.completedBoxes.length} of {order.boxDistributions.length} boxes picked
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col space-y-2">
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => navigate(`/order-details/${order.id}`)}
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              View Order
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handlePickingListClick(order.id)}
+                            >
+                              <ClipboardList className="h-4 w-4 mr-1" />
+                              Picking List
+                            </Button>
+                          </div>
+                          
+                          {/* Show change description for all modified orders */}
+                          {changeDesc && (
+                            <div className="text-red-600 text-xs font-medium">
+                              Changes: {changeDesc}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 };
 

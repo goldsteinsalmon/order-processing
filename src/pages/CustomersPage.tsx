@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
@@ -7,24 +7,11 @@ import { Eye, UserPlus, Search, Package, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { debugCustomerProperties } from "@/utils/customerPropertyHelpers";
 
 const CustomersPage: React.FC = () => {
   const { customers } = useData();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Debug customer data
-  useEffect(() => {
-    console.log("Customers list:", customers);
-    if (customers.length > 0) {
-      console.log("Sample customer data:", customers[0]);
-      customers.forEach((customer, index) => {
-        console.log(`Customer ${index + 1}: ${customer.name}`);
-        debugCustomerProperties(customer);
-      });
-    }
-  }, [customers]);
 
   // Filter and sort customers based on search term and account number
   const filteredCustomers = useMemo(() => {
@@ -106,66 +93,61 @@ const CustomersPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((customer) => {
-                  // Debug this specific customer
-                  console.log(`Rendering customer: ${customer.name}, accountNumber: ${customer.accountNumber || "EMPTY"}, onHold: ${customer.onHold}`);
-                  
-                  return (
-                    <tr key={customer.id} className="border-b">
-                      <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center">
-                          {customer.name}
-                          {customer.needsDetailedBoxLabels && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Package className="h-4 w-4 ml-2 text-blue-500" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Requires detailed box labels</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">{customer.email || '-'}</td>
-                      <td className="px-4 py-3 w-24">{customer.phone || '-'}</td>
-                      <td className="px-4 py-3">
-                        {customer.onHold ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            On Hold
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Active
-                          </span>
+                filteredCustomers.map((customer) => (
+                  <tr key={customer.id} className="border-b">
+                    <td className="px-4 py-3">{customer.accountNumber || 'N/A'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        {customer.name}
+                        {customer.needsDetailedBoxLabels && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Package className="h-4 w-4 ml-2 text-blue-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Requires detailed box labels</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => navigate(`/customers/${customer.id}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Details
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDuplicateCustomer(customer.id)}
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            Duplicate
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{customer.email}</td>
+                    <td className="px-4 py-3 w-24">{customer.phone}</td>
+                    <td className="px-4 py-3">
+                      {customer.onHold ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          On Hold
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => navigate(`/customer-details/${customer.id}`)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateCustomer(customer.id)}
+                        >
+                          <Copy className="h-4 w-4 mr-1" />
+                          Duplicate
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

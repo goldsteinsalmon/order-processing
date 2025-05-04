@@ -28,22 +28,10 @@ interface ProductBoxSetting {
   manualDistribution: boolean;
 }
 
-// Updated interface definition with explicit props
-interface PrintBoxLabelProps {
-  orderId?: string;
-  specificBoxNumber?: number;
-}
-
-const PrintBoxLabel: React.FC<PrintBoxLabelProps> = ({ orderId, specificBoxNumber }) => {
-  // Use passed props first, fallback to URL parameters if not provided
-  const { id: urlId } = useParams<{ id: string }>();
+const PrintBoxLabel: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const urlBoxParam = searchParams.get('box');
-  
-  // Determine the actual orderId and boxNumber to use
-  const id = orderId || urlId;
-  const specificBoxParam = specificBoxNumber !== undefined ? 
-    specificBoxNumber.toString() : urlBoxParam;
+  const specificBoxParam = searchParams.get('box');
   
   const navigate = useNavigate();
   const { orders, completedOrders } = useData();
@@ -64,7 +52,7 @@ const PrintBoxLabel: React.FC<PrintBoxLabelProps> = ({ orderId, specificBoxNumbe
     document.title = `Box Label - ${order?.customer.name || "Order"}`;
   }, [order]);
 
-  // Set selected box from props or URL parameter
+  // Set selected box from URL parameter
   useEffect(() => {
     if (specificBoxParam) {
       const boxNumber = parseInt(specificBoxParam);
@@ -370,7 +358,7 @@ const PrintBoxLabel: React.FC<PrintBoxLabelProps> = ({ orderId, specificBoxNumbe
       </div>
 
       {/* Box selection for previously configured boxes */}
-      {order?.customer?.needsDetailedBoxLabels && boxDistributions.length > 0 && !selectedBox && (
+      {order.customer.needsDetailedBoxLabels && boxDistributions.length > 0 && !selectedBox && (
         <div className="print:hidden mb-4">
           <Card>
             <CardHeader>
@@ -400,7 +388,7 @@ const PrintBoxLabel: React.FC<PrintBoxLabelProps> = ({ orderId, specificBoxNumbe
       )}
 
       {/* Detailed Box Label Controls - only shown for customers with needsDetailedBoxLabels */}
-      {order?.customer?.needsDetailedBoxLabels && boxDistributions.length === 0 && (
+      {order.customer.needsDetailedBoxLabels && boxDistributions.length === 0 && (
         <div className="print:hidden mb-8">
           <Card>
             <CardHeader>
@@ -553,7 +541,7 @@ const PrintBoxLabel: React.FC<PrintBoxLabelProps> = ({ orderId, specificBoxNumbe
 
       {/* Labels for printing */}
       <div className="print-labels">
-        {order?.customer?.needsDetailedBoxLabels ? (
+        {order.customer.needsDetailedBoxLabels ? (
           // Detailed box labels
           filteredBoxDistributions.map((box) => (
             Array.from({ length: labelCount }).map((_, labelIndex) => (

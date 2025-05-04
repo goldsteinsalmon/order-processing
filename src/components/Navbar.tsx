@@ -1,39 +1,15 @@
+
 import React from "react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
-import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
-import { useToast } from "@/hooks/use-toast";
 
 const Navbar: React.FC = () => {
-  const { user, signOut } = useSupabaseAuth();
-  const { toast } = useToast();
-  
-  // Get user role from Supabase metadata
-  const userRole = user?.user_metadata?.role || "User";
-  const isAdminUser = userRole === "Admin";
+  const { currentUser, logout, isAdmin } = useAuth();
   
   // Determine if user is a regular user (not admin or manager)
-  const isRegularUser = userRole === "User";
-
-  // Handle logout with Supabase
-  const handleLogout = async () => {
-    try {
-      console.log("Logout initiated");
-      await signOut();
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast({
-        title: "Logout failed",
-        description: "There was an issue logging out. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
+  const isRegularUser = currentUser && currentUser.role === "User";
 
   return (
     <div className="px-4 py-2 bg-zinc-100 border-b">
@@ -94,14 +70,6 @@ const Navbar: React.FC = () => {
                     Returns
                   </NavLink>
                   <NavLink
-                    to="/missing-items"
-                    className={({ isActive }) =>
-                      isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                    }
-                  >
-                    Missing Items
-                  </NavLink>
-                  <NavLink
                     to="/batch-tracking"
                     className={({ isActive }) =>
                       isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
@@ -109,25 +77,15 @@ const Navbar: React.FC = () => {
                   >
                     Batch Tracking
                   </NavLink>
-                  {isAdminUser && (
-                    <>
-                      <NavLink
-                        to="/admin"
-                        className={({ isActive }) =>
-                          isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                        }
-                      >
-                        Admin
-                      </NavLink>
-                      <NavLink
-                        to="/admin/migrations"
-                        className={({ isActive }) =>
-                          isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
-                        }
-                      >
-                        Migrations
-                      </NavLink>
-                    </>
+                  {isAdmin() && (
+                    <NavLink
+                      to="/admin"
+                      className={({ isActive }) =>
+                        isActive ? "font-medium text-primary" : "text-gray-600 hover:text-primary"
+                      }
+                    >
+                      Admin
+                    </NavLink>
                   )}
                 </>
               )}
@@ -135,19 +93,19 @@ const Navbar: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-4">
-            {user && (
+            {currentUser && (
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2 text-sm bg-white rounded-full px-3 py-1 border">
                   <User size={16} />
-                  <span>{user.user_metadata?.name || user.email}</span>
+                  <span>{currentUser.name}</span>
                   <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                    {user.user_metadata?.role || "User"}
+                    {currentUser.role}
                   </span>
                 </div>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={handleLogout}
+                  onClick={logout}
                   title="Logout"
                 >
                   <LogOut size={18} />

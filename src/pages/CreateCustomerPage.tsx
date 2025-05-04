@@ -52,36 +52,27 @@ const CreateCustomerPage: React.FC = () => {
       return;
     }
     
-    console.log("Creating customer with detailed box labels:", needsDetailedBoxLabels);
-    console.log("Creating customer with account number:", accountNumber);
-    
-    const newCustomer: Customer = {
+    const newCustomer = {
       id: uuidv4(),
-      accountNumber, 
+      accountNumber,
       name,
       email,
       phone,
       address: "", // Add empty address to satisfy the type requirement
-      type: "Trade" as "Trade", // Always set to Trade
+      type: "Private" as "Private" | "Trade",
       onHold: false,
-      needsDetailedBoxLabels // Make sure this is explicitly set
+      created: new Date().toISOString(),
+      needsDetailedBoxLabels
     };
     
-    console.log("Submitting new customer:", newCustomer);
+    addCustomer(newCustomer);
     
-    addCustomer(newCustomer)
-      .then(result => {
-        if (result) {
-          console.log("Customer created successfully:", result);
-          console.log("Returned customer accountNumber:", result.accountNumber);
-          console.log("Returned customer needsDetailedBoxLabels:", result.needsDetailedBoxLabels);
-          toast({
-            title: "Success",
-            description: isDuplicating ? "Customer duplicated successfully." : "Customer created successfully."
-          });
-          navigate("/customers");
-        }
-      });
+    toast({
+      title: "Success",
+      description: isDuplicating ? "Customer duplicated successfully." : "Customer created successfully."
+    });
+    
+    navigate("/customers");
   };
 
   return (

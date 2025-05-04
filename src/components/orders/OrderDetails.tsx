@@ -1,14 +1,8 @@
-
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import { useData } from '@/context/DataContext';
-import { 
-  getOrderDate, 
-  getDeliveryMethod, 
-  getCustomerOrderNumber,
-  getOrderNumber
-} from '@/utils/propertyHelpers';
+import React from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { format, parseISO } from "date-fns";
+import { ArrowLeft, Edit, ClipboardList, Trash2 } from "lucide-react";
+import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -23,18 +17,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, ArrowLeft, Edit, ClipboardList } from "lucide-react";
-
-// Helper function to safely format dates
-const safeFormatDate = (dateString?: string | null) => {
-  if (!dateString) return "Not specified";
-  try {
-    return format(new Date(dateString), "MMMM d, yyyy");
-  } catch (error) {
-    console.error("Error formatting date:", dateString, error);
-    return "Invalid date";
-  }
-};
 
 const OrderDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,27 +40,17 @@ const OrderDetails: React.FC = () => {
   // Calculate order totals
   const totalItems = order.items.reduce((acc, item) => acc + item.quantity, 0);
   
-  const handleDeleteOrder = async () => {
-    console.log("Attempting to delete order:", order.id);
+  const handleDeleteOrder = () => {
+    // Delete the order instead of just marking as cancelled
+    deleteOrder(order.id);
     
-    // Call the deleteOrder function and get the result
-    const success = await deleteOrder(order.id);
+    toast({
+      title: "Order deleted",
+      description: `Order ${order.id.substring(0, 8)} has been deleted.`,
+    });
     
-    if (success) {
-      toast({
-        title: "Order deleted",
-        description: `Order ${order.id.substring(0, 8)} has been deleted.`,
-      });
-      
-      // Navigate back to the orders page
-      navigate("/");
-    } else {
-      toast({
-        title: "Error",
-        description: "Failed to delete order. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Navigate back to the orders page
+    navigate("/");
   };
 
   return (
@@ -91,10 +63,10 @@ const OrderDetails: React.FC = () => {
           <h2 className="text-2xl font-bold">Order Details</h2>
         </div>
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => navigate(`/orders/${order.id}/picking`)}>
+          <Button variant="outline" onClick={() => navigate(`/picking-list/${order.id}`)}>
             <ClipboardList className="mr-2 h-4 w-4" /> Picking List
           </Button>
-          <Button onClick={() => navigate(`/orders/${order.id}/edit`)}>
+          <Button onClick={() => navigate(`/edit-order/${order.id}`)}>
             <Edit className="mr-2 h-4 w-4" /> Edit Order
           </Button>
           <AlertDialog>
@@ -105,9 +77,9 @@ const OrderDetails: React.FC = () => {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+                <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action will permanently delete the order and all its data. This cannot be undone.
+                  This action will mark the order as cancelled. This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -128,11 +100,11 @@ const OrderDetails: React.FC = () => {
             <dl className="grid grid-cols-1 gap-3 text-sm">
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order ID:</dt>
-                <dd className="col-span-2">#{getOrderNumber(order)}</dd>
+                <dd className="col-span-2">{order.id}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Order Date:</dt>
-                <dd className="col-span-2">{safeFormatDate(getOrderDate(order))}</dd>
+                <dd className="col-span-2">{format(parseISO(order.orderDate), "MMMM d, yyyy")}</dd>
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Status:</dt>
@@ -144,12 +116,12 @@ const OrderDetails: React.FC = () => {
               </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Delivery Method:</dt>
-                <dd className="col-span-2">{getDeliveryMethod(order)}</dd>
+                <dd className="col-span-2">{order.deliveryMethod}</dd>
               </div>
-              {getCustomerOrderNumber(order) && (
+              {order.customerOrderNumber && (
                 <div className="grid grid-cols-3">
                   <dt className="font-medium">Customer Order #:</dt>
-                  <dd className="col-span-2">{getCustomerOrderNumber(order)}</dd>
+                  <dd className="col-span-2">{order.customerOrderNumber}</dd>
                 </div>
               )}
               {order.notes && (

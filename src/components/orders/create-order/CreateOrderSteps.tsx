@@ -21,9 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
 
-const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => {
+const CreateOrderSteps: React.FC = () => {
   const navigate = useNavigate();
   const { customers, products, addOrder } = useData();
   const { toast } = useToast();
@@ -35,7 +34,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
   const [showSameDayWarning, setShowSameDayWarning] = React.useState(false);
   const [showCutOffWarning, setShowCutOffWarning] = React.useState(false);
   const [manualDateChange, setManualDateChange] = React.useState(false);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   // Order items state
   const [orderItems, setOrderItems] = React.useState<{ 
@@ -44,10 +42,8 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
     id: string;
   }[]>([{ productId: "", quantity: 0, id: crypto.randomUUID() }]);
   
-  // Box distribution state - update to use camelCase properties for Box
+  // Box distribution state
   const [boxDistributions, setBoxDistributions] = React.useState<Box[]>([{ 
-    id: crypto.randomUUID(),
-    orderId: '',  // Will be filled when the order is created
     boxNumber: 1, 
     items: [], 
     completed: false,
@@ -62,23 +58,13 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
   }[]>([]);
   
   // Get the default order date based on current time
-  const getDefaultOrderDate = async () => {
-    try {
-      const currentHour = new Date().getHours();
-      // If it's after 12 PM, set the default to 2 working days from now
-      if (currentHour >= 12) {
-        // Get next working day, then get next working day after that
-        const nextDay = await getNextWorkingDay(new Date());
-        return await getNextWorkingDay(nextDay);
-      } else {
-        return await getNextWorkingDay();
-      }
-    } catch (error) {
-      console.error("Error getting default order date:", error);
-      // Fallback to current date + 1 day if there's an error
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return tomorrow;
+  const getDefaultOrderDate = () => {
+    const currentHour = new Date().getHours();
+    // If it's after 12 PM, set the default to 2 working days from now
+    if (currentHour >= 12) {
+      return addBusinessDays(new Date(), 2);
+    } else {
+      return getNextWorkingDay();
     }
   };
 
@@ -86,22 +72,13 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
     resolver: zodResolver(orderSchema),
     defaultValues: {
       deliveryMethod: "Delivery",
-      orderDate: new Date(), // Will be updated after component mounts
+      orderDate: getDefaultOrderDate(),
     },
   });
 
   // Re-initialize form with updated default date when component mounts
   React.useEffect(() => {
-    const initializeDefaultDate = async () => {
-      try {
-        const defaultDate = await getDefaultOrderDate();
-        form.setValue("orderDate", defaultDate);
-      } catch (error) {
-        console.error("Error setting default date:", error);
-      }
-    };
-    
-    initializeDefaultDate();
+    form.setValue("orderDate", getDefaultOrderDate());
   }, []);
 
   const orderDate = form.watch("orderDate");
@@ -125,22 +102,14 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
     // Check for same day warning - only show when selecting today's date
     setShowSameDayWarning(isToday(orderDate));
     
-    // Check for cut-off warning
-    const checkCutOffWarning = async () => {
-      try {
-        const currentHour = new Date().getHours();
-        const nextWorkingDayResult = await getNextWorkingDay(new Date());
-        
-        // Format both dates to compare just the date part (ignoring time)
-        const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDayResult, "yyyy-MM-dd");
-        
-        setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
-      } catch (error) {
-        console.error("Error checking cut-off warning:", error);
-      }
-    };
+    // Check for cut-off warning - only show when selecting next working day after 12 PM
+    const currentHour = new Date().getHours();
+    const nextWorkingDay = getNextWorkingDay(new Date());
     
-    checkCutOffWarning();
+    // Format both dates to compare just the date part (ignoring time)
+    const isNextDay = format(orderDate, "yyyy-MM-dd") === format(nextWorkingDay, "yyyy-MM-dd");
+    
+    setShowCutOffWarning(currentHour >= 12 && isNextDay && manualDateChange);
   }, [orderDate, manualDateChange]);
   
   // Update unassigned items when order items change
@@ -163,8 +132,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
       // Initialize box distributions with empty boxes
       if (boxDistributions.length === 0) {
         setBoxDistributions([{ 
-          id: crypto.randomUUID(),
-          orderId: '', 
           boxNumber: 1, 
           items: [], 
           completed: false,
@@ -211,8 +178,8 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
         description: "You've canceled the on-hold customer selection. Returning to orders list.",
       });
       
-      // Use navigate instead of direct location change
-      navigate("/orders");
+      // Force navigation back to the orders list
+      window.location.href = "/orders";
     }, 0);
   };
   
@@ -224,7 +191,7 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
     }
   };
   
-  const handleDateChange = async (date?: Date) => {
+  const handleDateChange = (date?: Date) => {
     if (date) {
       setManualDateChange(true);
       form.setValue("orderDate", date);
@@ -261,14 +228,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
   };
   
   const handleSubmit = () => {
-    // Prevent multiple submissions
-    if (isSubmitting) {
-      return;
-    }
-
-    // Set submitting state to prevent double submissions
-    setIsSubmitting(true);
-
     // Validate form
     form.trigger().then(isValid => {
       if (!isValid) {
@@ -277,7 +236,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
           description: "Please fill in all required fields.",
           variant: "destructive",
         });
-        setIsSubmitting(false);
         return;
       }
       
@@ -292,7 +250,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
           description: "Please ensure all items have a product and a positive quantity.",
           variant: "destructive",
         });
-        setIsSubmitting(false);
         return;
       }
 
@@ -308,7 +265,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
             description: "Please assign all items to boxes before submitting.",
             variant: "destructive",
           });
-          setIsSubmitting(false);
           return;
         }
         
@@ -320,7 +276,6 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
             description: "Please remove any empty boxes before submitting.",
             variant: "destructive",
           });
-          setIsSubmitting(false);
           return;
         }
       }
@@ -328,118 +283,70 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
       // Get form values
       const data = form.getValues();
 
-      // Process the order date - ensure it's a proper Date object
-      let orderDateValue = data.orderDate;
-      
-      // Prepare order items - convert the format to match what the API expects
-      const finalItems: OrderItem[] = orderItems
-        .filter(item => item.productId && item.quantity > 0)
-        .map(item => {
-          const product = products.find(p => p.id === item.productId);
-          return {
+      // Prepare order items array
+      const finalOrderItems: OrderItem[] = selectedCustomer?.needsDetailedBoxLabels 
+        ? boxDistributions.flatMap(box => 
+            box.items.map(item => ({
+              id: crypto.randomUUID(),
+              productId: item.productId,
+              product: products.find(p => p.id === item.productId)!,
+              quantity: item.quantity,
+              boxNumber: box.boxNumber
+            }))
+          )
+        : orderItems.map(item => ({
             id: item.id,
-            orderId: "", // Will be filled in by the backend
-            productId: item.productId, // Make sure we use the correct property name
-            product: product,
+            productId: item.productId,
+            product: products.find(p => p.id === item.productId)!,
             quantity: item.quantity
-          };
-        });
-      
-      console.log("Final order items:", finalItems);
-      
+          }));
+
       const newOrder = {
         id: crypto.randomUUID(),
         customerId: data.customerId,
         customer: customers.find(c => c.id === data.customerId)!,
-        customerOrderNumber: data.customerOrderNumber || '',
-        orderDate: format(orderDateValue, "yyyy-MM-dd"),
-        requiredDate: format(orderDateValue, "yyyy-MM-dd"), // Default to same date
+        customerOrderNumber: data.customerOrderNumber,
+        orderDate: format(data.orderDate, "yyyy-MM-dd"),
         deliveryMethod: data.deliveryMethod as "Delivery" | "Collection",
-        items: finalItems, // Use the properly formatted items
-        notes: data.notes || '',
+        items: finalOrderItems,
+        notes: data.notes,
         status: "Pending" as const,
         created: new Date().toISOString(),
         // Include box distributions if customer needs detailed box labels
         boxDistributions: selectedCustomer?.needsDetailedBoxLabels ? boxDistributions : undefined
       };
 
-      // Log the order for debugging
-      console.log("Creating new order:", newOrder);
+      addOrder(newOrder);
+      
+      toast({
+        title: "Order created",
+        description: "The order has been created successfully.",
+      });
 
-      addOrder(newOrder)
-        .then(result => {
-          if (result) {
-            toast({
-              title: "Order created",
-              description: "The order has been created successfully.",
-            });
-            // Reset form and navigate back using React Router
-            resetForm();
-            navigate("/orders");
-          } else {
-            toast({
-              title: "Error",
-              description: "Failed to create order. Please try again.",
-              variant: "destructive",
-            });
-          }
-        })
-        .catch(error => {
-          console.error("Error creating order:", error);
-          toast({
-            title: "Error",
-            description: "Failed to create order: " + (error?.message || "Unknown error"),
-            variant: "destructive",
-          });
-        })
-        .finally(() => {
-          // Reset submitting state regardless of outcome
-          setIsSubmitting(false);
-        });
+      // Reset form and navigate back
+      resetForm();
+      navigate("/orders");
     });
   };
   
   const resetForm = () => {
-    // Initialize the form with a current date as fallback
     form.reset({
       customerId: "",
       customerOrderNumber: "",
-      orderDate: new Date(),
+      orderDate: getDefaultOrderDate(),
       deliveryMethod: "Delivery",
       notes: "",
     });
-    
-    // Then asynchronously update with the proper next working day
-    const updateWithWorkingDay = async () => {
-      try {
-        const nextWorkingDay = await getDefaultOrderDate();
-        form.setValue("orderDate", nextWorkingDay);
-      } catch (error) {
-        console.error("Error updating form with working day:", error);
-      }
-    };
-    updateWithWorkingDay();
-    
     setOrderItems([{ productId: "", quantity: 1, id: crypto.randomUUID() }]);
-    setBoxDistributions([{ 
-      id: crypto.randomUUID(),
-      orderId: '', 
-      boxNumber: 1, 
-      items: [], 
-      completed: false,
-      printed: false
-    }]);
+    setBoxDistributions([{ boxNumber: 1, items: [], completed: false, printed: false }]);
     setUnassignedItems([]);
     setCurrentStep(1);
     setManualDateChange(false);
   };
 
   const handleCancel = () => {
-    if (onCancel) {
-      onCancel();
-    } else {
-      navigate("/orders");
-    }
+    // Use window.location for more reliable navigation
+    window.location.href = "/orders";
   };
 
   // Determine progress percentage based on completed steps
@@ -522,20 +429,11 @@ const CreateOrderSteps: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => 
           )}
 
           <div className="flex justify-end space-x-4 pt-6">
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Order...
-                </>
-              ) : (
-                <>
-                  {selectedCustomer?.needsDetailedBoxLabels ? "Continue to Box Distribution" : "Create Order"}
-                </>
-              )}
+            <Button type="button" onClick={handleSubmit}>
+              Create Order
             </Button>
           </div>
         </form>

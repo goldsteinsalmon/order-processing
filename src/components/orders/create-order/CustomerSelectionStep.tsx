@@ -1,60 +1,49 @@
 
-import React, { useState, useMemo } from 'react';
-import { Package } from 'lucide-react';
-import { Customer } from '@/types';
-import { CommandInput, CommandItem, CommandList, CommandGroup, Command } from '@/components/ui/command';
-import { adaptCustomerToCamelCase } from '@/utils/typeAdapters';
+import React, { useState, useMemo, useEffect } from "react";
+import { Search, Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Customer } from "@/types";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface CustomerSelectionStepProps {
-  customers: Customer[];
   onCustomerSelect: (customerId: string) => void;
+  customers: Customer[];
   selectedCustomer: Customer | null;
   disabled?: boolean;
 }
 
-const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
+const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({ 
+  onCustomerSelect, 
   customers,
-  onCustomerSelect,
   selectedCustomer,
   disabled = false
 }) => {
-  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
 
-  // Process customers to ensure camelCase properties
-  const processedCustomers = useMemo(() => {
-    return customers.map(customer => {
-      // Convert to camelCase to ensure all properties exist
-      const processed = adaptCustomerToCamelCase(customer);
-      
-      console.log("Processing customer in CustomerSelectionStep:", {
-        name: processed.name,
-        accountNumber: processed.accountNumber,
-        needsDetailedBoxLabels: processed.needsDetailedBoxLabels
-      });
-      
-      return processed;
-    });
-  }, [customers]);
-
-  // Debug customer data
-  useMemo(() => {
-    console.log("CustomerSelectionStep - Original customers:", customers);
-    console.log("CustomerSelectionStep - Processed customers:", processedCustomers);
-    if (selectedCustomer) {
-      console.log("CustomerSelectionStep - Selected customer:", selectedCustomer);
-      console.log("CustomerSelectionStep - Selected customer accountNumber:", selectedCustomer.accountNumber);
-      console.log("CustomerSelectionStep - Selected customer needsDetailedBoxLabels:", selectedCustomer.needsDetailedBoxLabels);
+  // Reset search when dialog closes
+  useEffect(() => {
+    if (!showCustomerSearch) {
+      setCustomerSearch("");
     }
-  }, [customers, processedCustomers, selectedCustomer]);
+  }, [showCustomerSearch]);
 
-  // Filter customers based on search term
+  // Filter customers using the same logic as in the Customers page
   const filteredCustomers = useMemo(() => {
-    let filtered = [...processedCustomers];
+    let filtered = [...customers];
     
     if (customerSearch.trim()) {
       const lowerSearch = customerSearch.toLowerCase();
-      filtered = processedCustomers.filter(customer => {
-        const nameMatch = customer.name?.toLowerCase().includes(lowerSearch);
+      filtered = customers.filter(customer => {
+        const nameMatch = customer.name.toLowerCase().includes(lowerSearch);
         const emailMatch = customer.email ? customer.email.toLowerCase().includes(lowerSearch) : false;
         const phoneMatch = customer.phone ? customer.phone.includes(customerSearch) : false;
         const accountMatch = customer.accountNumber ? customer.accountNumber.toLowerCase().includes(lowerSearch) : false;
@@ -69,74 +58,90 @@ const CustomerSelectionStep: React.FC<CustomerSelectionStepProps> = ({
       const accountB = b.accountNumber || '';
       return accountA.localeCompare(accountB);
     });
-  }, [processedCustomers, customerSearch]);
-
-  // Handle customer selection
+  }, [customers, customerSearch]);
+  
   const handleSelectCustomer = (customerId: string) => {
+    setShowCustomerSearch(false);
     onCustomerSelect(customerId);
   };
 
-  // Process selected customer to ensure all properties exist
-  const processedSelectedCustomer = selectedCustomer 
-    ? adaptCustomerToCamelCase(selectedCustomer) 
-    : null;
-
+  const handleOpenCustomerSearch = () => {
+    setShowCustomerSearch(true);
+  };
+  
   return (
-    <div className="space-y-4">
-      <Command className="rounded-lg border shadow-md">
-        <CommandInput 
-          placeholder="Search customers..." 
-          onValueChange={setCustomerSearch}
-          value={customerSearch}
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium mb-2">Select a Customer</h3>
+        <p className="text-gray-500 mb-4">
+          Choose a customer to create an order for
+        </p>
+        <Button 
+          type="button"
+          variant="outline" 
+          className="w-full justify-between h-auto py-6 text-lg customer-selection-button"
+          onClick={handleOpenCustomerSearch}
           disabled={disabled}
-        />
-        
-        <CommandList>
-          <CommandGroup>
-            {processedSelectedCustomer ? (
-              <div className="flex items-center justify-start text-left p-2">
-                <span className="font-medium">{processedSelectedCustomer.name}</span>
-                {processedSelectedCustomer.accountNumber && (
-                  <span className="ml-2 text-muted-foreground">({processedSelectedCustomer.accountNumber})</span>
-                )}
-                {processedSelectedCustomer.needsDetailedBoxLabels && (
-                  <Package className="ml-2 h-4 w-4 text-blue-500" />
-                )}
-                {processedSelectedCustomer.onHold && (
-                  <span className="ml-2 text-red-500">(On Hold)</span>
-                )}
-              </div>
-            ) : (
-              <p className="p-2 text-sm text-muted-foreground">
-                Select a customer to begin...
-              </p>
-            )}
-          </CommandGroup>
-
-          {!processedSelectedCustomer && (
-            <CommandGroup heading="Customers">
-              {filteredCustomers.map(customer => (
-                <CommandItem 
-                  key={customer.id} 
-                  value={customer.name}
-                  onSelect={() => handleSelectCustomer(customer.id)}
-                  className={customer.onHold ? "text-red-500 font-medium" : ""}
-                  disabled={disabled}
-                >
-                  <div className="flex items-center">
-                    {customer.name}
-                    {customer.needsDetailedBoxLabels && (
-                      <Package className="ml-2 h-4 w-4 text-blue-500" />
-                    )}
-                  </div>
-                  {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
-                  {customer.onHold && " (On Hold)"}
-                </CommandItem>
-              ))}
-            </CommandGroup>
+        >
+          {selectedCustomer ? (
+            <div className="flex items-center justify-start text-left">
+              <span className="font-medium">{selectedCustomer.name}</span>
+              {selectedCustomer.accountNumber && (
+                <span className="ml-2 text-muted-foreground">({selectedCustomer.accountNumber})</span>
+              )}
+              {selectedCustomer.needsDetailedBoxLabels && (
+                <Package className="ml-2 h-4 w-4 text-blue-500" />
+              )}
+              {selectedCustomer.onHold && (
+                <span className="ml-2 text-red-500">(On Hold)</span>
+              )}
+            </div>
+          ) : (
+            "Select a customer to begin..."
           )}
+          <Search className="ml-2 h-5 w-5 shrink-0 opacity-50" />
+        </Button>
+      </div>
+      
+      <CommandDialog 
+        open={showCustomerSearch} 
+        onOpenChange={(open) => {
+          setShowCustomerSearch(open);
+        }}
+      >
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CommandInput 
+            placeholder="Search customers by name, email, phone or account..."
+            value={customerSearch}
+            onValueChange={setCustomerSearch}
+            autoFocus={true}
+            className="pl-8"
+          />
+        </div>
+        <CommandList>
+          <CommandEmpty>No customers found.</CommandEmpty>
+          <CommandGroup heading="Customers">
+            {filteredCustomers.map(customer => (
+              <CommandItem 
+                key={customer.id} 
+                value={customer.name} // Use name as the value for matching
+                onSelect={() => handleSelectCustomer(customer.id)}
+                className={customer.onHold ? "text-red-500 font-medium" : ""}
+              >
+                <div className="flex items-center">
+                  {customer.name}
+                  {customer.needsDetailedBoxLabels && (
+                    <Package className="ml-2 h-4 w-4 text-blue-500" />
+                  )}
+                </div>
+                {customer.accountNumber && <span className="ml-2 text-muted-foreground">({customer.accountNumber})</span>}
+                {customer.onHold && " (On Hold)"}
+              </CommandItem>
+            ))}
+          </CommandGroup>
         </CommandList>
-      </Command>
+      </CommandDialog>
     </div>
   );
 };

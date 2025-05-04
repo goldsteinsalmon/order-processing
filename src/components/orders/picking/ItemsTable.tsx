@@ -1,44 +1,40 @@
+import React, { useState } from "react";
+import { OrderItem } from "@/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Check, Weight, Package, Printer, AlertTriangle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
-import React, { useCallback } from 'react';
-import { OrderItem } from '@/types';
-import { Check, Printer, Save } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-// Extended OrderItem type to include UI state properties
-export interface ExtendedOrderItem extends OrderItem {
+interface ExtendedOrderItem extends OrderItem {
   checked: boolean;
-  batchNumber?: string;
+  batchNumber: string;
   originalQuantity?: number;
-  productId: string;
-  boxNumber?: number;
-  pickedWeight?: number;
-  missingQuantity?: number;
 }
 
 interface ItemsTableProps {
   items: ExtendedOrderItem[];
   missingItems: { id: string; quantity: number }[];
   onCheckItem: (itemId: string, checked: boolean) => void;
-  onBatchNumberChange: (itemId: string, batchNumber: string, boxNumber: number) => void;
+  onBatchNumberChange: (itemId: string, batchNumber: string, boxNumber: number) => void; // Updated to include boxNumber
   onMissingItemChange: (itemId: string, quantity: number) => void;
-  onResolveMissingItem: (itemId: string) => void;
-  onWeightChange: (itemId: string, weight: number) => void;
-  onPrintBoxLabel: (boxNumber: number) => void;
-  onSaveBoxProgress: (boxNumber: number) => void;
+  onResolveMissingItem?: (itemId: string) => void;
+  onWeightChange?: (itemId: string, weight: number) => void;
+  onPrintBoxLabel?: (boxNumber: number) => void;
+  onSaveBoxProgress?: (boxNumber: number) => void;
   groupByBox?: boolean;
-  completedBoxes: number[];
-  savedBoxes: number[];
+  completedBoxes?: number[];
+  savedBoxes?: number[];
 }
 
-const ItemsTable: React.FC<ItemsTableProps> = ({
-  items,
-  missingItems,
-  onCheckItem,
-  onBatchNumberChange,
+const ItemsTable: React.FC<ItemsTableProps> = ({ 
+  items, 
+  missingItems, 
+  onCheckItem, 
+  onBatchNumberChange, 
   onMissingItemChange,
   onResolveMissingItem,
   onWeightChange,
@@ -48,7 +44,27 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   completedBoxes = [],
   savedBoxes = []
 }) => {
-  // Group items by box number if needed
+  const { toast } = useToast();
+  
+  // Helper function to determine if an item has changed quantity
+  const hasQuantityChanged = (item: ExtendedOrderItem) => {
+    return item.originalQuantity !== undefined && item.originalQuantity !== item.quantity;
+  };
+
+  // Helper function to get change description for an item
+  const getChangeDescription = (item: ExtendedOrderItem) => {
+    if (!hasQuantityChanged(item)) return null;
+    
+    if (item.originalQuantity === 0) {
+      return `Added ${item.quantity} ${item.product.name}`;
+    } else if (item.quantity === 0) {
+      return `Removed ${item.product.name}`;
+    } else {
+      return `Changed from ${item.originalQuantity} to ${item.quantity}`;
+    }
+  };
+  
+  // Group items by box number if groupByBox is enabled
   const groupedItems = React.useMemo(() => {
     if (!groupByBox) return { noBox: items };
     
@@ -61,21 +77,24 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
       return acc;
     }, {} as Record<number, ExtendedOrderItem[]>);
   }, [items, groupByBox]);
-
-  // Helper function to check if a box is complete enough to print
-  // Only check if all items are checked - removed batch number requirement
+  
+  // Check if a box is complete (all items checked, batch numbers entered, weights entered)
   const isBoxComplete = (boxItems: ExtendedOrderItem[]): boolean => {
-    // Check if all items are checked
+    // First check if all items are checked
     if (!boxItems.length || !boxItems.every(item => item.checked)) {
       return false;
     }
     
-    // Check if all items that require weight have weights entered
+    // Then check if all items have batch numbers
+    if (!boxItems.every(item => item.batchNumber?.trim())) {
+      return false;
+    }
+    
+    // Finally check if all items that require weight have weights entered
     const weightInputComplete = boxItems
-      .filter(item => item.product?.requiresWeightInput)
-      .every(item => (item.pickedWeight) && 
-             (item.pickedWeight > 0));
-        
+      .filter(item => item.product.requiresWeightInput)
+      .every(item => item.pickedWeight && item.pickedWeight > 0);
+      
     // If any item requires weight but hasn't been entered, box is not complete
     if (!weightInputComplete) {
       return false;
@@ -84,289 +103,389 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     return true;
   };
 
-  // Helper function to check if quantity has changed
-  const hasQuantityChanged = (item: ExtendedOrderItem) => {
-    return (item.originalQuantity !== undefined) && 
-           (item.originalQuantity !== null) &&
-           (item.originalQuantity !== item.quantity);
-  };
-
-  // Fix: Use a more reliable event handler that prevents default behaviors
-  const handleCheckboxChange = useCallback((itemId: string, checked: boolean) => {
-    console.log(`ItemsTable: Checkbox changed for item ${itemId} to ${checked}`);
-    // Prevent any default event behavior and ensure the value is truly boolean
-    const isChecked = checked === true;
-    // Call the parent handler with explicit boolean value
-    onCheckItem(itemId, isChecked);
-  }, [onCheckItem]);
-
-  const handleBatchNumberChange = useCallback((itemId: string, value: string, boxNumber: number) => {
-    console.log(`ItemsTable: Batch number changed for item ${itemId} to ${value}`);
-    onBatchNumberChange(itemId, value, boxNumber);
-  }, [onBatchNumberChange]);
-
-  const handleWeightChange = useCallback((itemId: string, weight: number) => {
-    console.log(`ItemsTable: Weight changed for item ${itemId} to ${weight}`);
-    onWeightChange(itemId, weight);
-  }, [onWeightChange]);
-
-  const handleMissingItemChange = useCallback((itemId: string, quantity: number) => {
-    console.log(`ItemsTable: Missing item changed for ${itemId} to ${quantity}`);
-    onMissingItemChange(itemId, quantity);
-  }, [onMissingItemChange]);
-
-  // Render a box section
-  const renderBoxSection = (boxNumber: number, boxItems: ExtendedOrderItem[]) => {
-    const isCompleted = completedBoxes.includes(boxNumber);
-    const isSaved = savedBoxes.includes(boxNumber);
-    const boxIsComplete = isBoxComplete(boxItems);
+  // Function to validate box completion before printing label
+  const handlePrintBoxLabel = (boxNumber: number) => {
+    if (!onPrintBoxLabel || !onSaveBoxProgress) return;
     
-    return (
-      <Card 
-        key={`box-${boxNumber}`} 
-        id={`box-${boxNumber}`}
-        className={`mb-6 ${isCompleted ? 'border-green-300 bg-green-50' : ''}`}
-      >
-        <CardHeader className="flex flex-row justify-between items-center pb-2">
-          <CardTitle>Box {boxNumber}</CardTitle>
-          <div className="flex items-center space-x-2">
-            {boxIsComplete && !isSaved && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => onSaveBoxProgress(boxNumber)}
-              >
-                <Save className="h-4 w-4 mr-2" /> Save Box
-              </Button>
-            )}
-            
-            {boxIsComplete && (
-              <Button 
-                size="sm"
-                onClick={() => onPrintBoxLabel(boxNumber)}
-                variant={isCompleted ? "outline" : "default"}
-              >
-                <Printer className="h-4 w-4 mr-2" /> {isCompleted ? "Re-print Label" : "Print Label"}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Picked</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-center">Quantity</TableHead>
-                <TableHead>Batch Number</TableHead>
-                {boxItems.some(item => item.product?.requiresWeightInput) && (
-                  <TableHead>Weight</TableHead>
-                )}
-                <TableHead>Missing</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {boxItems.map(item => (
-                <TableRow 
-                  key={item.id} 
-                  className={hasQuantityChanged(item) ? 'bg-yellow-50' : ''}
-                >
-                  <TableCell>
-                    <Checkbox 
-                      checked={item.checked} 
-                      onCheckedChange={(checked) => {
-                        console.log(`Checkbox clicked: ${item.id}, setting to:`, checked);
-                        // Fix: Added explicit type cast to boolean to avoid any issues
-                        handleCheckboxChange(item.id, checked === true);
-                      }}
-                      id={`checkbox-${item.id}`}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className={hasQuantityChanged(item) ? 'font-medium text-amber-700' : ''}>
-                      {item.product?.name}
-                    </div>
-                    {hasQuantityChanged(item) && (
-                      <div className="text-xs text-amber-700">
-                        Changed from {item.originalQuantity}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
-                  <TableCell>
-                    <Input 
-                      type="text"
-                      value={item.batchNumber || ''}
-                      onChange={(e) => handleBatchNumberChange(item.id, e.target.value, boxNumber)}
-                      className="w-full"
-                      placeholder="Enter batch #"
-                    />
-                  </TableCell>
-                  {boxItems.some(item => item.product?.requiresWeightInput) && (
-                    <TableCell>
-                      {item.product?.requiresWeightInput ? (
-                        <div>
-                          <Input
-                            type="number"
-                            value={(item.pickedWeight || '').toString()}
-                            onChange={(e) => handleWeightChange(item.id, parseFloat(e.target.value) || 0)}
-                            className="w-full"
-                            placeholder="Weight"
-                          />
-                          <span className="ml-1 text-xs text-gray-500">{item.product?.unit || 'g'}</span>
-                        </div>
-                      ) : null}
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        type="number"
-                        value={missingItems.find(mi => mi.id === item.id)?.quantity.toString() || '0'}
-                        onChange={(e) => handleMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
-                        className="w-16"
-                        min={0}
-                        max={item.quantity}
-                      />
-                      {missingItems.find(mi => mi.id === item.id && mi.quantity > 0) && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => onResolveMissingItem(item.id)}
-                          className="text-xs h-8"
-                        >
-                          <Check className="h-3 w-3 mr-1" /> Resolved
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    );
+    const boxItems = groupedItems[boxNumber] || [];
+    
+    // Verify all items are checked
+    if (!boxItems.every(item => item.checked)) {
+      toast({
+        title: "Incomplete box",
+        description: "Please check all items in this box before printing.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Verify all batch numbers are entered
+    if (!boxItems.every(item => item.batchNumber?.trim())) {
+      toast({
+        title: "Missing batch numbers",
+        description: "Please enter batch numbers for all items in this box.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check for weight inputs where required
+    const missingWeights = boxItems
+      .filter(item => item.product.requiresWeightInput)
+      .filter(item => !item.pickedWeight || item.pickedWeight <= 0);
+      
+    if (missingWeights.length > 0) {
+      toast({
+        title: "Missing weights",
+        description: `Please enter weights for ${missingWeights.length} product(s) in this box.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // First save the box data, then proceed to print
+    onSaveBoxProgress(boxNumber);
+    
+    // After saving, trigger print
+    onPrintBoxLabel(boxNumber);
   };
-
-  // Render simple list without box grouping
-  const renderSimpleList = () => {
+  
+  // Sort box numbers to ensure sequential processing
+  const boxNumbers = Object.keys(groupedItems).map(Number).sort((a, b) => a - b);
+  
+  // If not grouping by box, render the standard table
+  if (!groupByBox) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Items to Pick</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[80px]">Picked</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="text-center">Quantity</TableHead>
-                <TableHead>Batch Number</TableHead>
-                {items.some(item => item.product?.requiresWeightInput) && (
-                  <TableHead>Weight</TableHead>
-                )}
-                <TableHead>Missing</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map(item => (
-                <TableRow 
-                  key={item.id}
-                  className={hasQuantityChanged(item) ? 'bg-yellow-50' : ''}
-                >
-                  <TableCell>
-                    <Checkbox 
-                      checked={item.checked}
-                      onCheckedChange={(checked) => {
-                        console.log(`Checkbox clicked: ${item.id}, setting to:`, checked);
-                        // Fix: Added explicit type cast to boolean to avoid any issues
-                        handleCheckboxChange(item.id, checked === true);
-                      }}
-                      id={`checkbox-${item.id}`}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className={hasQuantityChanged(item) ? 'font-medium text-amber-700' : ''}>
-                      {item.product?.name}
-                    </div>
-                    {hasQuantityChanged(item) && (
-                      <div className="text-xs text-amber-700">
-                        Changed from {item.originalQuantity}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
-                  <TableCell>
-                    <Input 
-                      type="text"
-                      value={item.batchNumber || ''}
-                      onChange={(e) => handleBatchNumberChange(item.id, e.target.value, 0)}
-                      className="w-full"
-                      placeholder="Enter batch #"
-                    />
-                  </TableCell>
-                  {items.some(item => item.product?.requiresWeightInput) && (
-                    <TableCell>
-                      {item.product?.requiresWeightInput ? (
-                        <div>
-                          <Input
-                            type="number"
-                            value={(item.pickedWeight || '').toString()}
-                            onChange={(e) => handleWeightChange(item.id, parseFloat(e.target.value) || 0)}
-                            className="w-full"
-                            placeholder="Weight"
-                          />
-                          <span className="ml-1 text-xs text-gray-500">{item.product?.unit || 'g'}</span>
-                        </div>
-                      ) : null}
-                    </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">Picked</TableHead>
+                  <TableHead>Product</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead>Batch Number</TableHead>
+                  <TableHead>Missing</TableHead>
+                  {items.some(item => item.product.requiresWeightInput) && (
+                    <TableHead>Weight (kg)</TableHead>
                   )}
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={missingItems.find(mi => mi.id === item.id)?.quantity.toString() || '0'}
-                      onChange={(e) => handleMissingItemChange(item.id, parseInt(e.target.value, 10) || 0)}
-                      className="w-16"
-                      min={0}
-                      max={item.quantity}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {missingItems.find(mi => mi.id === item.id && mi.quantity > 0) && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => onResolveMissingItem(item.id)}
-                        className="text-xs h-8"
-                      >
-                        <Check className="h-3 w-3 mr-1" /> Resolved
-                      </Button>
-                    )}
-                  </TableCell>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {items.map(item => {
+                  const missingItem = missingItems.find(mi => mi.id === item.id);
+                  const missingQuantity = missingItem ? missingItem.quantity : 0;
+                  const hasMissingItems = missingQuantity > 0;
+                  const requiresWeightInput = item.product.requiresWeightInput;
+                  const itemChanged = hasQuantityChanged(item);
+                  
+                  return (
+                    <TableRow 
+                      key={item.id}
+                      className={itemChanged ? "bg-red-50" : ""}
+                    >
+                      <TableCell>
+                        <Checkbox 
+                          checked={item.checked} 
+                          onCheckedChange={(checked) => 
+                            onCheckItem(item.id, checked === true)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{item.product.name}</div>
+                        <div className="text-sm text-gray-500">{item.product.sku}</div>
+                        {requiresWeightInput && (
+                          <div className="text-xs text-blue-600 font-medium flex items-center mt-1">
+                            <Weight className="h-3 w-3 mr-1" /> 
+                            Requires weight input
+                          </div>
+                        )}
+                        {itemChanged && (
+                          <div className="text-red-600 text-xs font-medium mt-1">
+                            {getChangeDescription(item)}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          placeholder="Enter batch #"
+                          value={item.batchNumber}
+                          onChange={(e) => onBatchNumberChange(item.id, e.target.value, 0)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input 
+                          type="number"
+                          min="0"
+                          max={item.quantity}
+                          placeholder="0"
+                          value={missingQuantity || ""}
+                          onChange={(e) => onMissingItemChange(
+                            item.id, 
+                            Math.min(parseInt(e.target.value) || 0, item.quantity)
+                          )}
+                        />
+                      </TableCell>
+                      {items.some(item => item.product.requiresWeightInput) && (
+                        <TableCell>
+                          {requiresWeightInput ? (
+                            <Input 
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              placeholder="Enter weight"
+                              value={item.pickedWeight ? (item.pickedWeight / 1000) : ""}
+                              onChange={(e) => onWeightChange && onWeightChange(
+                                item.id, 
+                                parseFloat(e.target.value) * 1000 || 0
+                              )}
+                              className="bg-blue-50"
+                            />
+                          ) : (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        {hasMissingItems && onResolveMissingItem && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex items-center gap-1"
+                            onClick={() => onResolveMissingItem(item.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                            Resolve
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     );
-  };
-
+  }
+  
+  // Group by box rendering
   return (
-    <div className="space-y-4">
-      {groupByBox ? (
-        // Render box sections
-        Object.entries(groupedItems).map(([boxNumberStr, boxItems]) => {
-          const boxNumber = parseInt(boxNumberStr, 10);
-          return renderBoxSection(boxNumber, boxItems);
-        })
-      ) : (
-        // Render simple list
-        renderSimpleList()
-      )}
+    <div className="space-y-6">
+      {boxNumbers.map((boxNumber, index) => {
+        const boxItems = groupedItems[boxNumber];
+        const boxTitle = boxNumber === 0 ? "Unassigned Items" : `Box ${boxNumber}`;
+        
+        // Check if box is complete (all items checked, all batch numbers, all weights)
+        const boxComplete = isBoxComplete(boxItems);
+        const isBoxPrinted = completedBoxes.includes(boxNumber);
+        
+        // A box can only be edited if:
+        // - It's box 0 (unassigned items)
+        // - It's the first box (index 0) and it's not box 0
+        // - The previous box has been printed (or is box 0)
+        const previousBoxPrinted = index === 0 || 
+                                    boxNumbers[index - 1] === 0 || 
+                                    completedBoxes.includes(boxNumbers[index - 1]);
+                                    
+        const isBoxDisabled = index > 0 && 
+                              boxNumbers[index - 1] !== 0 && 
+                              !completedBoxes.includes(boxNumbers[index - 1]);
+        
+        // Check if any items in this box require weight input but are missing weights
+        const missingWeights = boxItems
+          .filter(item => item.product.requiresWeightInput)
+          .filter(item => !item.pickedWeight || item.pickedWeight <= 0);
+          
+        const hasMissingWeights = missingWeights.length > 0;
+        
+        return (
+          <Card 
+            key={boxNumber} 
+            id={`box-${boxNumber}`} // Add id for scrolling and highlighting
+            className={`
+              ${boxComplete ? "border-green-500 border-2" : ""}
+              ${isBoxDisabled ? "opacity-60" : ""}
+              ${isBoxPrinted ? "border-purple-500 border-2" : ""}
+            `}
+          >
+            <CardHeader className="flex flex-row items-center justify-between py-3">
+              <div className="flex flex-col">
+                <CardTitle className="flex items-center">
+                  <Package className="mr-2 h-5 w-5" />
+                  {boxTitle}
+                  {boxComplete && !isBoxPrinted && (
+                    <Badge className="ml-2 bg-green-500">Ready to Print</Badge>
+                  )}
+                  {isBoxPrinted && (
+                    <Badge className="ml-2 bg-purple-500">Label Printed</Badge>
+                  )}
+                </CardTitle>
+                
+                {hasMissingWeights && boxNumber > 0 && !isBoxDisabled && (
+                  <div className="text-xs text-orange-600 flex items-center mt-1">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Missing weight information for {missingWeights.length} product(s)
+                  </div>
+                )}
+              </div>
+              
+              {boxNumber > 0 && (
+                <div className="flex gap-2">
+                  {/* Print Button - Now also saves the box data */}
+                  {onPrintBoxLabel && (
+                    <Button 
+                      size="sm"
+                      variant={isBoxPrinted ? "outline" : "default"}
+                      className="flex items-center"
+                      onClick={() => handlePrintBoxLabel(boxNumber)}
+                      disabled={isBoxDisabled || !previousBoxPrinted || !boxComplete} 
+                    >
+                      <Printer className="mr-1 h-4 w-4" />
+                      {isBoxPrinted ? "Print Again" : "Print Label"}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className={isBoxDisabled ? "pointer-events-none" : ""}>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Picked</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead>Batch Number</TableHead>
+                      <TableHead>Missing</TableHead>
+                      {boxItems.some(item => item.product.requiresWeightInput) && (
+                        <TableHead>Weight (kg)</TableHead>
+                      )}
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {boxItems.map(item => {
+                      const missingItem = missingItems.find(mi => mi.id === item.id);
+                      const missingQuantity = missingItem ? missingItem.quantity : 0;
+                      const hasMissingItems = missingQuantity > 0;
+                      const requiresWeightInput = item.product.requiresWeightInput;
+                      const itemChanged = hasQuantityChanged(item);
+                      const missingWeight = requiresWeightInput && (!item.pickedWeight || item.pickedWeight <= 0);
+                      
+                      return (
+                        <TableRow 
+                          key={item.id}
+                          className={`
+                            ${itemChanged ? "bg-red-50" : ""}
+                            ${missingWeight ? "bg-yellow-50" : ""}
+                          `}
+                        >
+                          <TableCell>
+                            <Checkbox 
+                              checked={item.checked} 
+                              onCheckedChange={(checked) => 
+                                onCheckItem(item.id, checked === true)
+                              }
+                              disabled={isBoxDisabled}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{item.product.name}</div>
+                            <div className="text-sm text-gray-500">{item.product.sku}</div>
+                            {requiresWeightInput && (
+                              <div className={`text-xs flex items-center mt-1 ${missingWeight ? "text-orange-600" : "text-blue-600"} font-medium`}>
+                                <Weight className="h-3 w-3 mr-1" /> 
+                                {missingWeight ? "Weight required" : "Requires weight input"}
+                              </div>
+                            )}
+                            {itemChanged && (
+                              <div className="text-red-600 text-xs font-medium mt-1">
+                                {getChangeDescription(item)}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.quantity}
+                          </TableCell>
+                          <TableCell>
+                            <Input 
+                              placeholder="Enter batch #"
+                              value={item.batchNumber}
+                              onChange={(e) => onBatchNumberChange(item.id, e.target.value, boxNumber)}
+                              disabled={isBoxDisabled}
+                              className={!item.batchNumber?.trim() ? "border-orange-300" : ""}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input 
+                              type="number"
+                              min="0"
+                              max={item.quantity}
+                              placeholder="0"
+                              value={missingQuantity || ""}
+                              onChange={(e) => onMissingItemChange(
+                                item.id, 
+                                Math.min(parseInt(e.target.value) || 0, item.quantity)
+                              )}
+                              disabled={isBoxDisabled}
+                            />
+                          </TableCell>
+                          {boxItems.some(item => item.product.requiresWeightInput) && (
+                            <TableCell>
+                              {requiresWeightInput ? (
+                                <Input 
+                                  type="number"
+                                  min="0"
+                                  step="0.001"
+                                  placeholder="Enter weight"
+                                  value={item.pickedWeight ? (item.pickedWeight / 1000) : ""}
+                                  onChange={(e) => onWeightChange && onWeightChange(
+                                    item.id, 
+                                    parseFloat(e.target.value) * 1000 || 0
+                                  )}
+                                  className={`${missingWeight ? "border-orange-300 bg-orange-50" : "bg-blue-50"}`}
+                                  disabled={isBoxDisabled}
+                                />
+                              ) : (
+                                <span className="text-gray-400">N/A</span>
+                              )}
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            {hasMissingItems && onResolveMissingItem && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="flex items-center gap-1"
+                                onClick={() => onResolveMissingItem(item.id)}
+                                disabled={isBoxDisabled}
+                              >
+                                <Check className="h-4 w-4" />
+                                Resolve
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };

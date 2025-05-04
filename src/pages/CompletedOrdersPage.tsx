@@ -8,7 +8,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSupabaseAuth } from "@/context/SupabaseAuthContext";
+import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -17,11 +17,9 @@ const CompletedOrdersPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [batchFilter, setBatchFilter] = useState("");
   const navigate = useNavigate();
-  const { user } = useSupabaseAuth();
+  const { currentUser } = useAuth(); // Get current user to check role
   const { completedOrders } = useData();
-  
-  // Check if user is a regular user based on metadata
-  const isRegularUser = user?.user_metadata?.role === "User";
+  const isRegularUser = currentUser?.role === "User";
   
   // Extract batch filter from URL if present
   useEffect(() => {

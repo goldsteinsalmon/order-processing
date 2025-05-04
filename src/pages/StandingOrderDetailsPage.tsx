@@ -66,12 +66,10 @@ const StandingOrderDetailsPage: React.FC = () => {
                 <dt className="font-medium">Order ID:</dt>
                 <dd className="col-span-2">{order.id}</dd>
               </div>
-              {order.created && (
-                <div className="grid grid-cols-3">
-                  <dt className="font-medium">Created:</dt>
-                  <dd className="col-span-2">{format(parseISO(order.created), "MMMM d, yyyy")}</dd>
-                </div>
-              )}
+              <div className="grid grid-cols-3">
+                <dt className="font-medium">Created:</dt>
+                <dd className="col-span-2">{format(parseISO(order.created), "MMMM d, yyyy")}</dd>
+              </div>
               <div className="grid grid-cols-3">
                 <dt className="font-medium">Status:</dt>
                 <dd className="col-span-2">
@@ -94,10 +92,10 @@ const StandingOrderDetailsPage: React.FC = () => {
                 <dt className="font-medium">Delivery Method:</dt>
                 <dd className="col-span-2">{order.schedule.deliveryMethod}</dd>
               </div>
-              {order.customer_order_number && (
+              {order.customerOrderNumber && (
                 <div className="grid grid-cols-3">
                   <dt className="font-medium">Customer Order #:</dt>
-                  <dd className="col-span-2">{order.customer_order_number}</dd>
+                  <dd className="col-span-2">{order.customerOrderNumber}</dd>
                 </div>
               )}
               {order.notes && (
@@ -183,7 +181,7 @@ const StandingOrderDetailsPage: React.FC = () => {
           View Schedule
         </Button>
         <Button 
-          onClick={() => navigate(`/standing-orders/${order.id}/edit`)}
+          onClick={() => navigate(`/edit-standing-order/${order.id}`)}
         >
           Edit Order
         </Button>

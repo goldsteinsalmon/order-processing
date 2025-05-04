@@ -10,7 +10,8 @@ const CreateOrderPage: React.FC = () => {
   const navigate = useNavigate();
   
   const handleBackClick = () => {
-    navigate("/orders");
+    // Use window.location for more reliable navigation
+    window.location.href = "/orders";
   };
   
   return (

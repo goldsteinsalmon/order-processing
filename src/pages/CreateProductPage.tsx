@@ -29,7 +29,6 @@ const CreateProductPage: React.FC = () => {
   const [requiresWeightInput, setRequiresWeightInput] = useState(false);
   const [weight, setWeight] = useState<number | undefined>(undefined);
   const [stockLevel, setStockLevel] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Populate form with duplicate data if available
   useEffect(() => {
@@ -44,59 +43,37 @@ const CreateProductPage: React.FC = () => {
     }
   }, [duplicateProduct, isDuplicating]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isSubmitting) return;
-    setIsSubmitting(true);
 
-    try {
-      if (!name || !sku) {
-        toast({
-          title: "Error",
-          description: "Name and SKU are required.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log("Creating product with requiresWeightInput:", requiresWeightInput);
-      
-      const newProduct: Product = {
-        id: uuidv4(),
-        name,
-        sku,
-        description: description || "",
-        requiresWeightInput, // Using boolean value directly
-        weight: requiresWeightInput ? undefined : weight,
-        stock_level: stockLevel
-        // Remove the 'created' property as it's not in the Product interface
-        // and is auto-populated by the database
-      };
-      
-      console.log("Submitting product:", newProduct);
-      
-      const result = await addProduct(newProduct);
-      
-      if (result) {
-        toast({
-          title: "Success",
-          description: isDuplicating ? "Product duplicated successfully." : "Product created successfully."
-        });
-        navigate("/products");
-      } else {
-        throw new Error("Failed to create product");
-      }
-    } catch (error: any) {
-      console.error("Error creating product:", error);
+    if (!name || !sku) {
       toast({
         title: "Error",
-        description: `Failed to create product: ${error?.message || error?.toString() || "Unknown error"}`,
+        description: "Name and SKU are required.",
         variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+
+    const newProduct = {
+      id: uuidv4(),
+      name,
+      sku,
+      description: description || "",
+      requiresWeightInput,
+      weight: requiresWeightInput ? undefined : weight,
+      stockLevel,
+      created: new Date().toISOString()
+    };
+
+    addProduct(newProduct);
+
+    toast({
+      title: "Success",
+      description: isDuplicating ? "Product duplicated successfully." : "Product created successfully."
+    });
+
+    navigate("/products");
   };
 
   return (
@@ -157,7 +134,6 @@ const CreateProductPage: React.FC = () => {
                     id="requiresWeightInput" 
                     checked={requiresWeightInput}
                     onCheckedChange={(checked) => {
-                      console.log("Switch changed to:", checked);
                       setRequiresWeightInput(checked);
                       if (checked) {
                         setWeight(undefined);
@@ -201,8 +177,8 @@ const CreateProductPage: React.FC = () => {
             <Button variant="outline" type="button" onClick={() => navigate("/products")}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : (isDuplicating ? "Create Duplicate" : "Create Product")}
+            <Button type="submit">
+              {isDuplicating ? "Create Duplicate" : "Create Product"}
             </Button>
           </CardFooter>
         </form>

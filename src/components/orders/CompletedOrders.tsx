@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Eye, Edit, Printer, ArrowUp, ArrowDown } from "lucide-react";
@@ -5,19 +6,6 @@ import { useData } from "@/context/DataContext";
 import { Button } from "@/components/ui/button";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { adaptCustomerToCamelCase } from "@/utils/typeAdapters";
-import { 
-  getBatchNumbers, 
-  getBoxDistributions,
-  getBoxBatchNumber,
-  getBoxItemBatchNumber,
-  getPickedBy,
-  getTotalBlownPouches,
-  getHasChanges,
-  getOrderDate,
-  getInvoiceDate,
-  getInvoiced
-} from "@/utils/propertyHelpers";
 import {
   Table,
   TableBody,
@@ -75,40 +63,34 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   };
   
   useEffect(() => {
-    // Process customers to ensure camelCase properties
-    const processedOrders = completedOrders.map(order => ({
-      ...order,
-      customer: order.customer ? adaptCustomerToCamelCase(order.customer) : order.customer
-    }));
-    
     if (batchFilterParam) {
       // Filter orders by batch number
-      const ordersWithBatch = processedOrders.filter(order => {
+      const ordersWithBatch = completedOrders.filter(order => {
         // Check if order has batch numbers array
-        if (order.batch_numbers && order.batch_numbers.includes(batchFilterParam)) {
+        if (order.batchNumbers && order.batchNumbers.includes(batchFilterParam)) {
           return true;
         }
         
         // Check if order has a single batch number
-        if (order.batch_number === batchFilterParam) {
+        if (order.batchNumber === batchFilterParam) {
           return true;
         }
         
         // Check if any item in the order uses this batch number
-        if (order.items && order.items.some(item => item.batch_number === batchFilterParam)) {
+        if (order.items && order.items.some(item => item.batchNumber === batchFilterParam)) {
           return true;
         }
         
         // Check if any item in pickingProgress uses this batch number
-        if (order.picking_progress?.batchNumbers) {
-          return Object.values(order.picking_progress.batchNumbers).includes(batchFilterParam);
+        if (order.pickingProgress?.batchNumbers) {
+          return Object.values(order.pickingProgress.batchNumbers).includes(batchFilterParam);
         }
 
         // Check if any box or box item uses this batch number
-        if (order.box_distributions) {
-          return order.box_distributions.some(box => 
-            getBoxBatchNumber(box) === batchFilterParam || 
-            box.items.some(item => getBoxItemBatchNumber(item) === batchFilterParam)
+        if (order.boxDistributions) {
+          return order.boxDistributions.some(box => 
+            box.batchNumber === batchFilterParam || 
+            box.items.some(item => item.batchNumber === batchFilterParam)
           );
         }
         
@@ -119,7 +101,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
     } else if (searchTerm) {
       // Filter by search term
       const searchTermLower = searchTerm.toLowerCase();
-      const filtered = processedOrders.filter(order => {
+      const filtered = completedOrders.filter(order => {
         // Search in customer name
         if (order.customer.name.toLowerCase().includes(searchTermLower)) {
           return true;
@@ -131,7 +113,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         }
         
         // Search in customer order number
-        if (order.customer_order_number?.toLowerCase().includes(searchTermLower)) {
+        if (order.customerOrderNumber?.toLowerCase().includes(searchTermLower)) {
           return true;
         }
         
@@ -141,11 +123,11 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         }
 
         // Search in batch numbers
-        if (order.batch_number?.toLowerCase().includes(searchTermLower)) {
+        if (order.batchNumber?.toLowerCase().includes(searchTermLower)) {
           return true;
         }
 
-        if (order.batch_numbers?.some(batch => 
+        if (order.batchNumbers?.some(batch => 
           batch.toLowerCase().includes(searchTermLower))
         ) {
           return true;
@@ -157,7 +139,7 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
       setFilteredOrders(filtered);
     } else {
       // No filter, show all orders
-      setFilteredOrders(processedOrders);
+      setFilteredOrders(completedOrders);
     }
   }, [completedOrders, batchFilterParam, searchTerm]);
   
@@ -173,19 +155,19 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         return sortMultiplier * a.customer.name.localeCompare(b.customer.name);
       
       case "orderDate":
-        const dateA = new Date(getOrderDate(a)).getTime();
-        const dateB = new Date(getOrderDate(b)).getTime();
+        const dateA = new Date(a.orderDate).getTime();
+        const dateB = new Date(b.orderDate).getTime();
         return sortMultiplier * (dateA - dateB);
         
       case "completedDate":
         // Use updated timestamp if available (which indicates when the order was completed)
-        const completedA = a.updated ? new Date(a.updated).getTime() : new Date(getOrderDate(a)).getTime();
-        const completedB = b.updated ? new Date(b.updated).getTime() : new Date(getOrderDate(b)).getTime();
+        const completedA = a.updated ? new Date(a.updated).getTime() : new Date(a.orderDate).getTime();
+        const completedB = b.updated ? new Date(b.updated).getTime() : new Date(b.orderDate).getTime();
         return sortMultiplier * (completedA - completedB);
         
       case "batchNumbers":
-        const batchA = getBatchNumbersAsString(a) || "";
-        const batchB = getBatchNumbersAsString(b) || "";
+        const batchA = getBatchNumbers(a) || "";
+        const batchB = getBatchNumbers(b) || "";
         return sortMultiplier * batchA.localeCompare(batchB);
         
       case "picker":
@@ -194,20 +176,20 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
         return sortMultiplier * pickerA.localeCompare(pickerB);
         
       case "blownPouches":
-        const blownA = getTotalBlownPouches(a) || 0;
-        const blownB = getTotalBlownPouches(b) || 0;
+        const blownA = a.totalBlownPouches || 0;
+        const blownB = b.totalBlownPouches || 0;
         return sortMultiplier * (blownA - blownB);
       
       case "invoiceStatus":
         // Sort by invoice status (invoiced first) and then by invoice date
-        if (getInvoiced(a) === getInvoiced(b)) {
+        if (a.invoiced === b.invoiced) {
           // If both are invoiced or both are not invoiced, sort by invoice date
-          const invoiceDateA = getInvoiceDate(a) ? new Date(getInvoiceDate(a) as string).getTime() : 0;
-          const invoiceDateB = getInvoiceDate(b) ? new Date(getInvoiceDate(b) as string).getTime() : 0;
+          const invoiceDateA = a.invoiceDate ? new Date(a.invoiceDate).getTime() : 0;
+          const invoiceDateB = b.invoiceDate ? new Date(b.invoiceDate).getTime() : 0;
           return sortMultiplier * (invoiceDateA - invoiceDateB);
         }
         // Otherwise, sort by invoiced status (true comes first)
-        return sortMultiplier * (getInvoiced(a) ? -1 : 1);
+        return sortMultiplier * (a.invoiced ? -1 : 1);
         
       default:
         return 0;
@@ -233,30 +215,26 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   };
 
   // Helper function to get batch numbers as a string
-  const getBatchNumbersAsString = (order) => {
-    const batchNumbers = getBatchNumbers(order);
-    if (batchNumbers && batchNumbers.length > 0) {
-      return batchNumbers.join(", ");
+  const getBatchNumbers = (order) => {
+    if (order.batchNumbers && order.batchNumbers.length > 0) {
+      return order.batchNumbers.join(", ");
     }
     
-    if (order.batch_number) {
-      return order.batch_number;
+    if (order.batchNumber) {
+      return order.batchNumber;
     }
     
     // Check boxes for batch numbers
-    const boxDistributions = getBoxDistributions(order);
-    if (boxDistributions) {
+    if (order.boxDistributions) {
       const batchSet = new Set<string>();
-      boxDistributions.forEach(box => {
-        const batchNumber = getBoxBatchNumber(box);
-        if (batchNumber) {
-          batchSet.add(batchNumber);
+      order.boxDistributions.forEach(box => {
+        if (box.batchNumber) {
+          batchSet.add(box.batchNumber);
         }
         
         box.items.forEach(item => {
-          const itemBatchNumber = getBoxItemBatchNumber(item);
-          if (itemBatchNumber) {
-            batchSet.add(itemBatchNumber);
+          if (item.batchNumber) {
+            batchSet.add(item.batchNumber);
           }
         });
       });
@@ -273,9 +251,9 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
   const getPickerName = (order) => {
     if (order.picker) {
       return order.picker;
-    } else if (getPickedBy(order)) {
+    } else if (order.pickedBy) {
       // This is a fallback in case picker name isn't saved but ID is
-      return getPickedBy(order);
+      return order.pickedBy;
     }
     return "N/A";
   };
@@ -379,12 +357,12 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
             ) : (
               sortedOrders.map((order) => {
                 const changeDesc = getChangeDescription(order);
-                const batchNumbers = getBatchNumbersAsString(order);
+                const batchNumbers = getBatchNumbers(order);
                 
                 return (
                   <TableRow 
                     key={order.id} 
-                    className={getHasChanges(order) ? "bg-red-50" : ""}
+                    className={order.hasChanges ? "bg-red-50" : ""}
                   >
                     <TableCell>{order.id.substring(0, 8)}</TableCell>
                     <TableCell>
@@ -393,21 +371,21 @@ const CompletedOrders: React.FC<CompletedOrdersProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      {format(parseISO(getOrderDate(order)), "dd/MM/yyyy")}
+                      {format(parseISO(order.orderDate), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell>{formatCompletedDate(order)}</TableCell>
                     <TableCell>{batchNumbers}</TableCell>
                     <TableCell>{getPickerName(order)}</TableCell>
-                    <TableCell>{getTotalBlownPouches(order) || 0}</TableCell>
+                    <TableCell>{order.totalBlownPouches || 0}</TableCell>
                     <TableCell>
-                      {getInvoiced(order) ? (
+                      {order.invoiced ? (
                         <div className="flex flex-col">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                             Invoiced
                           </span>
-                          {getInvoiceDate(order) && (
+                          {order.invoiceDate && (
                             <span className="text-xs text-muted-foreground mt-1">
-                              {format(parseISO(getInvoiceDate(order) as string), "dd/MM/yyyy")}
+                              {format(parseISO(order.invoiceDate), "dd/MM/yyyy")}
                             </span>
                           )}
                         </div>
