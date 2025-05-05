@@ -1,6 +1,4 @@
-
 import React, { useState } from "react";
-import { useSyncContext } from "@/context/SyncContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -9,36 +7,34 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Cloud, Users, Clock, Database, RefreshCw, Save } from "lucide-react";
-import { ConnectionStatus } from "@/services/WebSocketService";
 import { format } from "date-fns";
 
 const SyncSettings: React.FC = () => {
-  const { 
-    status, 
-    lastSynced, 
-    connectedClients, 
-    syncEnabled, 
-    isSyncing, 
-    clientId,
-    config,
-    toggleSync, 
-    updateConfig, 
-    forceSyncNow 
-  } = useSyncContext();
-  
-  // Local state for form values
-  const [syncInterval, setSyncInterval] = useState(config.syncInterval / 1000);
-  const [retentionPeriod, setRetentionPeriod] = useState(config.retentionPeriod);
-  const [serverUrl, setServerUrl] = useState(config.serverUrl || "");
-  
+  // Dummy fallback values
+  const [syncEnabled, setSyncEnabled] = useState(false);
+  const [autoSync, setAutoSync] = useState(false);
+  const [syncInterval, setSyncInterval] = useState(60);
+  const [retentionPeriod, setRetentionPeriod] = useState(548);
+  const [serverUrl, setServerUrl] = useState("");
+  const [connectedClients] = useState<string[]>([]);
+  const [clientId] = useState("dummy-client-id");
+  const [lastSynced] = useState<string | null>(null);
+  const [isSyncing] = useState(false);
+
   const handleSaveSettings = () => {
-    updateConfig({
-      syncInterval: syncInterval * 1000,
-      retentionPeriod: retentionPeriod,
-      serverUrl: serverUrl
+    console.log("Saved settings:", {
+      syncEnabled,
+      autoSync,
+      syncInterval,
+      retentionPeriod,
+      serverUrl
     });
   };
-  
+
+  const handleForceSync = () => {
+    alert("Sync triggered (demo only)");
+  };
+
   const formatRetentionPeriod = (days: number) => {
     if (days >= 365) {
       const years = Math.floor(days / 365);
@@ -47,7 +43,7 @@ const SyncSettings: React.FC = () => {
     }
     return `${days} days`;
   };
-  
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -58,16 +54,12 @@ const SyncSettings: React.FC = () => {
               Configure how your data is synchronized across devices
             </CardDescription>
           </div>
-          <Badge 
-            variant={status === ConnectionStatus.CONNECTED ? "success" : "destructive"}
-          >
-            {syncEnabled ? (
-              status === ConnectionStatus.CONNECTED ? "Connected" : "Disconnected"
-            ) : "Disabled"}
+          <Badge variant={syncEnabled ? "success" : "destructive"}>
+            {syncEnabled ? "Connected" : "Disabled"}
           </Badge>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -77,10 +69,10 @@ const SyncSettings: React.FC = () => {
           <Switch
             id="sync-enabled"
             checked={syncEnabled}
-            onCheckedChange={toggleSync}
+            onCheckedChange={setSyncEnabled}
           />
         </div>
-        
+
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Clock className="h-4 w-4" />
@@ -88,19 +80,19 @@ const SyncSettings: React.FC = () => {
           </div>
           <Switch
             id="auto-sync"
-            checked={config.autoSync}
-            onCheckedChange={(checked) => updateConfig({ autoSync: checked })}
+            checked={autoSync}
+            onCheckedChange={setAutoSync}
             disabled={!syncEnabled}
           />
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             <Clock className="h-4 w-4" />
             <Label>Sync Interval: {syncInterval} seconds</Label>
           </div>
           <Slider
-            disabled={!syncEnabled || !config.autoSync}
+            disabled={!syncEnabled || !autoSync}
             value={[syncInterval]}
             min={5}
             max={300}
@@ -109,7 +101,7 @@ const SyncSettings: React.FC = () => {
             className="w-full"
           />
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             <Database className="h-4 w-4" />
@@ -127,7 +119,7 @@ const SyncSettings: React.FC = () => {
             Food safety regulations require 18 months (548 days) minimum retention
           </p>
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             <Cloud className="h-4 w-4" />
@@ -141,30 +133,30 @@ const SyncSettings: React.FC = () => {
             disabled={!syncEnabled}
           />
         </div>
-        
+
         <div className="p-4 border rounded-lg space-y-2">
           <div className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
             <Label>Connected Devices: {connectedClients.length}</Label>
           </div>
-          
+
           <div className="text-sm text-muted-foreground">
-            <p>Your device ID: {clientId.substring(0, 8)}...{clientId.substring(clientId.length - 4)}</p>
+            <p>Your device ID: {clientId}</p>
             <p>Last synced: {lastSynced ? format(new Date(lastSynced), "yyyy-MM-dd HH:mm:ss") : "Never"}</p>
           </div>
         </div>
       </CardContent>
-      
+
       <CardFooter className="flex justify-between">
         <Button 
           variant="outline" 
-          onClick={forceSyncNow}
+          onClick={handleForceSync}
           disabled={!syncEnabled || isSyncing}
         >
           <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
           Sync Now
         </Button>
-        
+
         <Button onClick={handleSaveSettings}>
           <Save className="mr-2 h-4 w-4" />
           Save Settings
