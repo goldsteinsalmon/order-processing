@@ -127,7 +127,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // This will be undefined when DataContext is used outside SyncProvider
   // (due to component tree hierarchy), but we'll handle that gracefully
-  const syncContext = useContext(SyncContext);
 
   // Create a tracking structure for processed batches to prevent double counting
   const [processedBatchOrderItems, setProcessedBatchOrderItems] = useState<Set<string>>(new Set());
