@@ -30,7 +30,6 @@ import { format, addDays, addWeeks, addMonths, parseISO, isAfter } from "date-fn
 import { v4 as uuidv4 } from "uuid";
 import { dbService } from "@/services/IndexedDBService";
 import { wsService, SyncMessageType } from "@/services/WebSocketService";
-import { useSyncContext } from "@/context/SyncContext";
 
 // Define entity types for sync operations
 export type EntityType = 
