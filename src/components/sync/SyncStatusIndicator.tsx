@@ -1,12 +1,21 @@
-
 import React from "react";
-import { useSyncContext } from "@/context/SyncContext";
 import { ConnectionStatus } from "@/services/WebSocketService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wifi, WifiOff, RefreshCw, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format, formatDistanceToNow } from "date-fns";
+
+// Dummy context fallback – ensures no SyncContext dependency
+const useSyncContext = () => ({
+  status: ConnectionStatus.DISCONNECTED,
+  lastSynced: null,
+  isSyncing: false,
+  syncEnabled: false,
+  forceSyncNow: () => {},
+  toggleSync: () => {},
+  connectedClients: []
+});
 
 const SyncStatusIndicator: React.FC = () => {
   const { 
@@ -15,41 +24,32 @@ const SyncStatusIndicator: React.FC = () => {
     isSyncing, 
     syncEnabled, 
     forceSyncNow, 
-    toggleSync,
-    connectedClients
+    connectedClients 
   } = useSyncContext();
-  
+
   const formatLastSynced = () => {
     if (!lastSynced) return "Never";
-    
     try {
       const date = new Date(lastSynced);
       return `${formatDistanceToNow(date, { addSuffix: true })} (${format(date, "HH:mm:ss")})`;
-    } catch (e) {
+    } catch {
       return "Unknown";
     }
   };
-  
+
   const getStatusColor = () => {
     if (!syncEnabled) return "gray";
-    
     switch (status) {
-      case ConnectionStatus.CONNECTED:
-        return "green";
-      case ConnectionStatus.CONNECTING:
-        return "yellow";
-      case ConnectionStatus.ERROR:
-        return "red";
-      case ConnectionStatus.DISCONNECTED:
-        return "gray";
-      default:
-        return "gray";
+      case ConnectionStatus.CONNECTED: return "green";
+      case ConnectionStatus.CONNECTING: return "yellow";
+      case ConnectionStatus.ERROR: return "red";
+      case ConnectionStatus.DISCONNECTED: return "gray";
+      default: return "gray";
     }
   };
-  
+
   const getStatusText = () => {
     if (!syncEnabled) return "Sync disabled";
-    
     switch (status) {
       case ConnectionStatus.CONNECTED:
         return `Connected (${connectedClients.length} devices)`;
@@ -63,29 +63,19 @@ const SyncStatusIndicator: React.FC = () => {
         return "Unknown";
     }
   };
-  
+
   const getStatusIcon = () => {
-    if (isSyncing) {
-      return <Loader2 className="h-4 w-4 animate-spin" />;
-    }
-    
-    if (!syncEnabled) {
-      return <WifiOff className="h-4 w-4" />;
-    }
-    
+    if (isSyncing) return <Loader2 className="h-4 w-4 animate-spin" />;
+    if (!syncEnabled) return <WifiOff className="h-4 w-4" />;
     switch (status) {
-      case ConnectionStatus.CONNECTED:
-        return <Wifi className="h-4 w-4" />;
-      case ConnectionStatus.CONNECTING:
-        return <Loader2 className="h-4 w-4 animate-spin" />;
+      case ConnectionStatus.CONNECTED: return <Wifi className="h-4 w-4" />;
+      case ConnectionStatus.CONNECTING: return <Loader2 className="h-4 w-4 animate-spin" />;
       case ConnectionStatus.ERROR:
-      case ConnectionStatus.DISCONNECTED:
-        return <WifiOff className="h-4 w-4" />;
-      default:
-        return <WifiOff className="h-4 w-4" />;
+      case ConnectionStatus.DISCONNECTED: return <WifiOff className="h-4 w-4" />;
+      default: return <WifiOff className="h-4 w-4" />;
     }
   };
-  
+
   return (
     <TooltipProvider>
       <div className="flex items-center space-x-2 text-sm">
@@ -108,14 +98,14 @@ const SyncStatusIndicator: React.FC = () => {
             </div>
           </TooltipContent>
         </Tooltip>
-        
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 w-8 p-0" 
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
                 onClick={forceSyncNow}
                 disabled={!syncEnabled || isSyncing}
               >
